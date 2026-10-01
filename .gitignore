@@ -1,0 +1,7 @@
+/target
+*.img
+*.dd
+*.raw
+*.E01
+/recovered*/
+.DS_Store
