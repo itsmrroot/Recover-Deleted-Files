@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, bin: wdfr.exe }
+          - { os: windows-latest, target: aarch64-pc-windows-msvc, bin: wdfr.exe }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, bin: wdfr }
+          - { os: macos-latest, target: aarch64-apple-darwin, bin: wdfr }
+          - { os: macos-latest, target: x86_64-apple-darwin, bin: wdfr }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Package
+        shell: bash
+        run: |
+          name=wdfr-${GITHUB_REF_NAME}-${{ matrix.target }}
+          mkdir "$name"
+          cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" README.md LICENSE "$name/"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            7z a "$name.zip" "$name" >/dev/null
+            echo "ASSET=$name.zip" >> "$GITHUB_ENV"
+          else
+            tar czf "$name.tar.gz" "$name"
+            echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
+          fi
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ASSET }}
