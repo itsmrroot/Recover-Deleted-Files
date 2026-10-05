@@ -22,12 +22,17 @@ pub struct DriveInfo {
     pub fs: String,
 }
 
-fn describe(path: &str) -> String {
+/// `os_fs` is the file system the OS reports, used when ours cannot read it
+/// (e.g. APFS on a Mac, which only the deep search can scan).
+fn describe(path: &str, os_fs: Option<&str>) -> String {
     let Ok(d) = DiskSource::open(path) else { return String::new() };
     let disk: Source = Arc::new(d);
     let parts = wdfr::partition::discover(&disk);
-    let fs: Vec<String> =
-        parts.iter().map(|p| p.fs.map_or_else(|| tr("Unknown").to_string(), |f| f.to_string())).collect();
+    let unknown = || match os_fs {
+        Some(fs) => trf("{fs} · deep search only", &[("fs", &fs)]),
+        None => tr("Unknown").to_string(),
+    };
+    let fs: Vec<String> = parts.iter().map(|p| p.fs.map_or_else(unknown, |f| f.to_string())).collect();
     match fs.len() {
         0 => String::new(),
         1 => fs[0].clone(),
@@ -39,7 +44,7 @@ pub fn discover() -> Vec<DriveInfo> {
     devices::list()
         .into_iter()
         .map(|device| {
-            let fs = if device.size.is_some() { describe(&device.path) } else { String::new() };
+            let fs = if device.size.is_some() { describe(&device.path, device.fs.as_deref()) } else { String::new() };
             DriveInfo { device, fs }
         })
         .collect()

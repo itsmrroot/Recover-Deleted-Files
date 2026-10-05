@@ -49,6 +49,7 @@ pub const GERMAN: &[(&str, &str)] = &[
     ("Disk image · {size}", "Disk-Image · {size}"),
     ("Needs administrator rights", "Benötigt Administratorrechte"),
     ("Unknown", "Unbekannt"),
+    ("{fs} · deep search only", "{fs} · nur Tiefensuche"),
     ("{n} partitions: {list}", "{n} Partitionen: {list}"),
     (
         "Tip: you can also drag a disk image file onto this window.",
@@ -370,6 +371,7 @@ pub const ARABIC: &[(&str, &str)] = &[
     ("Disk image · {size}", "صورة قرص · {size}"),
     ("Needs administrator rights", "يتطلب صلاحيات المسؤول"),
     ("Unknown", "غير معروف"),
+    ("{fs} · deep search only", "{fs} · بحث عميق فقط"),
     ("{n} partitions: {list}", "{n} أقسام: {list}"),
     (
         "Tip: you can also drag a disk image file onto this window.",

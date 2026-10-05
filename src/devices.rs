@@ -20,6 +20,8 @@ pub struct Device {
     pub description: String,
     /// Volume label, when the OS knows one.
     pub label: Option<String>,
+    /// File system as the OS reports it (e.g. "APFS"), when known.
+    pub fs: Option<String>,
     pub kind: DeviceKind,
 }
 
@@ -42,7 +44,7 @@ impl Device {
 
 fn probe(path: String, description: String, kind: DeviceKind, label: Option<String>) -> Device {
     let size = DiskSource::open(&path).ok().map(|d| d.size());
-    Device { path, size, description, label, kind }
+    Device { path, size, description, label, fs: None, kind }
 }
 
 #[cfg(windows)]
@@ -102,23 +104,145 @@ pub fn list() -> Vec<Device> {
 
 #[cfg(target_os = "macos")]
 pub fn list() -> Vec<Device> {
-    let mut names: Vec<String> = std::fs::read_dir("/dev")
-        .into_iter()
-        .flatten()
-        .flatten()
-        .filter_map(|e| e.file_name().into_string().ok())
-        .filter(|n| n.starts_with("disk") && n[4..].chars().next().is_some_and(|c| c.is_ascii_digit()))
-        .collect();
-    names.sort_by_key(|n| natural_key(n));
-    names
-        .into_iter()
-        .map(|n| {
-            let whole = !n[4..].contains('s');
-            // The raw (r) node bypasses the buffer cache and is much faster.
-            let (desc, kind) = if whole { ("whole disk", DeviceKind::Disk) } else { ("partition", DeviceKind::Volume) };
-            probe(format!("/dev/r{n}"), desc.into(), kind, None)
-        })
-        .collect()
+    macos::list().unwrap_or_else(macos::scan_dev)
+}
+
+/// macOS: drives as `diskutil` describes them, so they get their real names
+/// ("Macintosh HD", a USB stick's label) instead of bare `/dev/diskNsM` nodes.
+#[cfg(target_os = "macos")]
+mod macos {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    use serde_json::Value;
+
+    use super::{Device, DeviceKind, natural_key, probe};
+
+    /// Partitions that only hold macOS internals (boot loader, recovery
+    /// system), never the user's files.
+    const SYSTEM_PARTITIONS: &[&str] =
+        &["EFI", "Apple_APFS_ISC", "Apple_APFS_Recovery", "Apple_Boot", "Apple_KernelCoreDump"];
+
+    /// Runs `diskutil <verb> -plist [device]` and returns its output as JSON.
+    fn diskutil(verb: &str, device: Option<&str>) -> Option<Value> {
+        let out = Command::new("diskutil").args([verb, "-plist"]).args(device).output().ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let mut plutil = Command::new("plutil")
+            .args(["-convert", "json", "-o", "-", "-"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .ok()?;
+        plutil.stdin.take()?.write_all(&out.stdout).ok()?;
+        let json = plutil.wait_with_output().ok()?;
+        serde_json::from_slice(&json.stdout).ok()
+    }
+
+    fn text<'a>(v: &'a Value, key: &str) -> Option<&'a str> {
+        v.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
+    }
+
+    /// A readable file-system name for a partition type.
+    fn fs_name(content: &str) -> &str {
+        match content {
+            "Apple_APFS" | "Apple_APFS_Container" => "APFS",
+            "Apple_HFS" | "Apple_HFSX" => "Mac OS Extended",
+            "DOS_FAT_12" | "DOS_FAT_16" | "DOS_FAT_32" => "FAT",
+            "Windows_NTFS" => "NTFS",
+            "Microsoft Basic Data" | "Windows_FAT_32" => "Windows",
+            other => other,
+        }
+    }
+
+    pub fn list() -> Option<Vec<Device>> {
+        let all = diskutil("list", None)?;
+        let disks = all.get("AllDisksAndPartitions")?.as_array()?;
+        // APFS containers are virtual disks built on a partition: name that
+        // partition after the container's main volume ("Macintosh HD").
+        let mut apfs_names: Vec<(String, String)> = Vec::new();
+        for d in disks {
+            let (Some(stores), Some(volumes)) =
+                (d.get("APFSPhysicalStores").and_then(Value::as_array), d.get("APFSVolumes").and_then(Value::as_array))
+            else {
+                continue;
+            };
+            let Some(name) = volumes.iter().filter_map(|v| text(v, "VolumeName")).next() else { continue };
+            for s in stores {
+                if let Some(id) = text(s, "DeviceIdentifier") {
+                    apfs_names.push((id.to_string(), name.to_string()));
+                }
+            }
+        }
+
+        let mut out = Vec::new();
+        for d in disks {
+            let Some(id) = text(d, "DeviceIdentifier") else { continue };
+            // The virtual APFS disks are reached through their partition.
+            if d.get("APFSPhysicalStores").is_some() || text(d, "Content") == Some("Apple_APFS_Container") {
+                continue;
+            }
+            let info = diskutil("info", Some(id));
+            let info = info.as_ref();
+            let internal = info.and_then(|i| i.get("Internal")).and_then(Value::as_bool).unwrap_or(true);
+            let removable = !internal
+                || info.and_then(|i| i.get("RemovableMediaOrExternalDevice")).and_then(Value::as_bool).unwrap_or(false);
+            let where_ = if internal { "internal" } else { "external" };
+            let media = info.and_then(|i| text(i, "MediaName")).map(str::to_string);
+            let partitions = d.get("Partitions").and_then(Value::as_array).cloned().unwrap_or_default();
+
+            if partitions.is_empty() {
+                // A card or stick formatted without a partition table.
+                let label = text(d, "VolumeName").map(str::to_string).or(media);
+                let fs = text(d, "Content").map(fs_name).unwrap_or("disk");
+                let kind = if removable { DeviceKind::Removable } else { DeviceKind::Volume };
+                let mut dev = probe(format!("/dev/r{id}"), format!("{fs}, {where_}"), kind, label);
+                dev.fs = Some(fs.to_string());
+                out.push(dev);
+                continue;
+            }
+            out.push(probe(format!("/dev/r{id}"), format!("whole disk, {where_}"), DeviceKind::Disk, media));
+            for p in &partitions {
+                let Some(pid) = text(p, "DeviceIdentifier") else { continue };
+                let content = text(p, "Content").unwrap_or("");
+                if SYSTEM_PARTITIONS.contains(&content) {
+                    continue;
+                }
+                let label = text(p, "VolumeName")
+                    .map(str::to_string)
+                    .or_else(|| apfs_names.iter().find(|(s, _)| s == pid).map(|(_, n)| n.clone()));
+                let kind = if removable { DeviceKind::Removable } else { DeviceKind::Volume };
+                let fs = fs_name(content);
+                let mut dev = probe(format!("/dev/r{pid}"), format!("{fs}, {where_}"), kind, label);
+                dev.fs = Some(fs.to_string());
+                out.push(dev);
+            }
+        }
+        Some(out)
+    }
+
+    /// Fallback when `diskutil` is unavailable: every disk node in /dev.
+    pub fn scan_dev() -> Vec<Device> {
+        let mut names: Vec<String> = std::fs::read_dir("/dev")
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|e| e.file_name().into_string().ok())
+            .filter(|n| n.starts_with("disk") && n[4..].chars().next().is_some_and(|c| c.is_ascii_digit()))
+            .collect();
+        names.sort_by_key(|n| natural_key(n));
+        names
+            .into_iter()
+            .map(|n| {
+                let whole = !n[4..].contains('s');
+                // The raw (r) node bypasses the buffer cache and is much faster.
+                let (desc, kind) =
+                    if whole { ("whole disk", DeviceKind::Disk) } else { ("partition", DeviceKind::Volume) };
+                probe(format!("/dev/r{n}"), desc.into(), kind, None)
+            })
+            .collect()
+    }
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
