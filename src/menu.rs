@@ -313,18 +313,24 @@ fn recover_wizard(theme: &ColorfulTheme, preset: Option<(String, Option<usize>)>
     }
     println!("  {}\n", style("Working... press Ctrl+C to stop early (what was found so far is kept).").dim());
     let opts = Options {
-        out: out.clone(),
-        method,
-        partition: part,
-        filter,
+        scan: wdfr::recover::ScanOptions {
+            method,
+            partition: part,
+            filter,
+            carve_all_space: false,
+            step: 512,
+            max_carve_size: None,
+        },
+        save: wdfr::recover::SaveOptions {
+            out: out.clone(),
+            layout: wdfr::recover::Layout::Original,
+            restore_dates: true,
+            write_report: true,
+            allow_same_volume: false,
+        },
         include_overwritten: false,
-        carve_all_space: false,
-        step: 512,
-        max_carve_size: None,
-        allow_same_volume: false,
-        quiet: false,
     };
-    crate::cmd_recover(&source, &opts)?;
+    crate::cmd_recover(&source, &opts, false)?;
     println!("\n  {}", style(POWERED_BY).yellow());
     if out.is_dir()
         && Confirm::with_theme(theme)

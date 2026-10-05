@@ -22,7 +22,7 @@ use serde::Serialize;
 pub use reader::Reader;
 pub use scan::{CarveOptions, CarveStats, Carved, carve};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, serde::Deserialize, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub enum Category {
     Image,

@@ -2,14 +2,18 @@ mod menu;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Args, Parser, Subcommand};
 
+use indicatif::{ProgressBar, ProgressStyle};
 use wdfr::carve::{self, Category};
 use wdfr::filter::Filter;
-use wdfr::recover::{self, Method, Options, Session};
+use wdfr::progress::{Progress, Unit};
+use wdfr::recover::{self, Layout, Method, Options, SaveOptions, ScanOptions, Session};
 use wdfr::units::{format_size, parse_size};
 use wdfr::{devices, fs};
 
@@ -189,18 +193,24 @@ fn run(cmd: Command) -> Result<ExitCode> {
             quiet,
         } => {
             let opts = Options {
-                out: output,
-                method,
-                partition,
-                filter: filter.build()?,
+                scan: ScanOptions {
+                    method,
+                    partition,
+                    filter: filter.build()?,
+                    carve_all_space,
+                    step: if deep { 1 } else { 512 },
+                    max_carve_size,
+                },
+                save: SaveOptions {
+                    out: output,
+                    layout: Layout::Original,
+                    restore_dates: true,
+                    write_report: true,
+                    allow_same_volume,
+                },
                 include_overwritten,
-                carve_all_space,
-                step: if deep { 1 } else { 512 },
-                max_carve_size,
-                allow_same_volume,
-                quiet,
             };
-            cmd_recover(&source, &opts)
+            cmd_recover(&source, &opts, quiet)
         }
     }
 }
@@ -210,10 +220,10 @@ fn cmd_devices() -> Result<ExitCode> {
     if list.is_empty() {
         println!("No devices found.");
     }
-    println!("{:<28} {:>12}  DESCRIPTION", "PATH", "SIZE");
+    println!("{:<24} {:>12}  {:<28} DESCRIPTION", "PATH", "SIZE", "NAME");
     for d in &list {
         let size = d.size.map_or_else(|| "no access".to_string(), format_size);
-        println!("{:<28} {:>12}  {}", d.path, size, d.description);
+        println!("{:<24} {:>12}  {:<28} {}", d.path, size, d.display_name(), d.description);
     }
     if list.iter().any(|d| d.size.is_none()) {
         println!("\nSome devices could not be opened: run as Administrator (Windows) or with sudo.");
@@ -277,7 +287,7 @@ fn cmd_scan(
     let s = Session::open(source)?;
     let mut all = Vec::new();
     for p in s.selected(partition)? {
-        match recover::scan_partition(&s, p, filter, json)? {
+        match recover::scan_partition(&s, p, filter, &CliProgress::new(json))? {
             Some((_, mut files)) => {
                 if recoverable_only {
                     files.retain(|f| f.condition.is_recoverable());
@@ -321,18 +331,18 @@ fn cmd_scan(
     Ok(ExitCode::SUCCESS)
 }
 
-fn cmd_recover(source: &str, opts: &Options) -> Result<ExitCode> {
+fn cmd_recover(source: &str, opts: &Options, quiet: bool) -> Result<ExitCode> {
     let s = Session::open(source)?;
-    if !opts.quiet {
+    if !quiet {
         eprintln!("wdfr {} - {}", env!("CARGO_PKG_VERSION"), menu::POWERED_BY);
         eprintln!("Source: {} ({})", s.path, format_size(s.disk.size()));
-        for p in s.selected(opts.partition)? {
+        for p in s.selected(opts.scan.partition)? {
             eprintln!("  {} at {:#x}, {}", p.label(), p.start, format_size(p.len));
         }
     }
     CANCEL.store(false, Ordering::SeqCst);
     BUSY.store(true, Ordering::SeqCst);
-    let sum = recover::run(&s, opts, &CANCEL);
+    let sum = recover::run(&s, opts, &CliProgress::new(quiet), &CANCEL);
     BUSY.store(false, Ordering::SeqCst);
     let sum = sum?;
     println!();
@@ -358,4 +368,85 @@ fn cmd_recover(source: &str, opts: &Options) -> Result<ExitCode> {
         return Ok(ExitCode::from(130));
     }
     Ok(ExitCode::SUCCESS)
+}
+
+/// Renders engine progress as terminal progress bars.
+struct CliProgress {
+    quiet: bool,
+    bar: Mutex<Option<ProgressBar>>,
+}
+
+impl CliProgress {
+    fn new(quiet: bool) -> Self {
+        Self { quiet, bar: Mutex::new(None) }
+    }
+
+    fn with_bar(&self, f: impl FnOnce(&ProgressBar)) {
+        if let Some(b) = self.bar.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
+            f(b);
+        }
+    }
+
+    fn print(&self, msg: &str) {
+        let guard = self.bar.lock().unwrap_or_else(|e| e.into_inner());
+        match guard.as_ref() {
+            Some(b) => b.suspend(|| eprintln!("{msg}")),
+            None => eprintln!("{msg}"),
+        }
+    }
+}
+
+impl Progress for CliProgress {
+    fn begin(&self, task: &str, total: u64, unit: Unit) {
+        if self.quiet {
+            return;
+        }
+        let template = match unit {
+            Unit::Bytes => "{prefix:24!} [{bar:30}] {bytes}/{total_bytes} {bytes_per_sec} ({eta}) {wide_msg}",
+            Unit::Items => "{prefix:24!} [{bar:30}] {pos}/{len} ({eta}) {wide_msg}",
+        };
+        let b = ProgressBar::new(total);
+        b.set_style(
+            ProgressStyle::with_template(template)
+                .unwrap_or_else(|_| ProgressStyle::default_bar())
+                .progress_chars("=> "),
+        );
+        b.set_prefix(task.to_string());
+        b.enable_steady_tick(Duration::from_millis(250));
+        if let Some(old) = self.bar.lock().unwrap_or_else(|e| e.into_inner()).replace(b) {
+            old.finish_and_clear();
+        }
+    }
+
+    fn set(&self, done: u64, total: u64) {
+        self.with_bar(|b| {
+            b.set_length(total);
+            b.set_position(done);
+        });
+    }
+
+    fn inc(&self, n: u64) {
+        self.with_bar(|b| b.inc(n));
+    }
+
+    fn item(&self, name: &str) {
+        self.with_bar(|b| b.set_message(name.to_string()));
+    }
+
+    fn end(&self) {
+        if let Some(b) = self.bar.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            b.finish_and_clear();
+        }
+    }
+
+    fn warn(&self, msg: &str) {
+        log::warn!("{msg}");
+        if !self.quiet && !log::log_enabled!(log::Level::Warn) {
+            self.print(&format!("warning: {msg}"));
+        }
+    }
+
+    fn error(&self, msg: &str) {
+        self.print(&format!("error: {msg}"));
+    }
 }
