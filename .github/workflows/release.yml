@@ -12,27 +12,33 @@ jobs:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, bin: wdfr.exe }
-          - { os: windows-latest, target: aarch64-pc-windows-msvc, bin: wdfr.exe }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, bin: wdfr }
-          - { os: macos-latest, target: aarch64-apple-darwin, bin: wdfr }
-          - { os: macos-latest, target: x86_64-apple-darwin, bin: wdfr }
+          # Windows and macOS packages contain the desktop app and the command line.
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, packages: "-p wdfr -p wdfr-gui", bins: "wdfr.exe wdfr-gui.exe" }
+          - { os: windows-latest, target: aarch64-pc-windows-msvc, packages: "-p wdfr -p wdfr-gui", bins: "wdfr.exe wdfr-gui.exe" }
+          - { os: macos-latest, target: aarch64-apple-darwin, packages: "-p wdfr -p wdfr-gui", bins: "wdfr wdfr-gui" }
+          - { os: macos-latest, target: x86_64-apple-darwin, packages: "-p wdfr -p wdfr-gui", bins: "wdfr wdfr-gui" }
+          # Linux: a fully static command line, plus the desktop app (which
+          # loads the system's graphics libraries, so it is built for glibc).
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, packages: "-p wdfr", bins: "wdfr" }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, packages: "-p wdfr-gui", bins: "wdfr-gui", suffix: "-desktop" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       - if: matrix.target == 'x86_64-unknown-linux-musl'
         run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - run: cargo build --release --locked --target ${{ matrix.target }}
+      - run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.packages }}
       - name: Package
         shell: bash
         run: |
-          name=wdfr-${GITHUB_REF_NAME}-${{ matrix.target }}
+          name=wdfr-${GITHUB_REF_NAME}-${{ matrix.target }}${{ matrix.suffix }}
           mkdir "$name"
-          cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" README.md LICENSE "$name/"
+          for b in ${{ matrix.bins }}; do cp "target/${{ matrix.target }}/release/$b" "$name/"; done
+          cp README.md LICENSE "$name/"
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             7z a "$name.zip" "$name" >/dev/null
             echo "ASSET=$name.zip" >> "$GITHUB_ENV"

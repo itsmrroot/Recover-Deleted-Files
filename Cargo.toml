@@ -1,6 +1,6 @@
 [package]
 name = "wdfr"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
 description = "Recover deleted photos, videos, documents and other files from NTFS, FAT and exFAT volumes, raw disks and disk images"
@@ -41,3 +41,6 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Stora
 lto = true
 codegen-units = 1
 strip = true
+
+[workspace]
+members = ["gui"]

@@ -18,6 +18,7 @@
 [![Download for Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
 
 [Quick start](#-quick-start) •
+[Desktop app](#%EF%B8%8F-the-desktop-app) •
 [Features](#-features) •
 [Command line](#-command-line) •
 [How it works](#%EF%B8%8F-how-it-works) •
@@ -34,9 +35,9 @@
 <tr>
 <td width="50%" valign="top">
 
-### 🖱️ No typing needed
-Double-click and choose from a menu with the arrow keys. A step-by-step guide
-asks what you lost and where to save it.
+### 🖥️ Modern desktop app
+Pick a drive, scan, preview photos, tick the files you want and click
+**Recover**. Light & dark themes, accent colours and saved settings.
 
 </td>
 <td width="50%" valign="top">
@@ -74,8 +75,8 @@ Every file is checked against the drive's allocation map and marked
 <td valign="top">
 
 ### ⚡ Fast & portable
-One ~1 MB executable. No installer, no runtime, nothing written to the damaged
-drive. Scans at full disk speed.
+Single executables, no installer and no runtime — nothing is written to the
+damaged drive. Scans at full disk speed.
 
 </td>
 </tr>
@@ -89,46 +90,64 @@ drive. Scans at full disk speed.
 1. **[Download](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)**
    `wdfr-…-x86_64-pc-windows-msvc.zip` and unzip it on a **different** drive
    than the one you want to recover.
-2. Right-click **`wdfr.exe`** → **Run as administrator** (needed to read drives).
-3. Choose **Recover deleted files** and follow the questions.
+2. Double-click **`wdfr-gui.exe`** and click **Yes** when Windows asks for
+   administrator rights (needed to read drives).
+3. Choose the drive, click **Start scan**, tick the files you want and click **Recover**.
 
 <div align="center">
-<img src="assets/menu.svg" alt="The wdfr menu" width="720">
+<img src="assets/app-results.png" alt="The wdfr desktop app showing deleted files found on a drive, with a photo preview" width="100%">
 </div>
 
-The guide asks, one question at a time:
-
-| Step | You choose |
-|:---:|---|
-| 1 | **Which drive** — every drive is listed with its size and file system |
-| 2 | **What to look for** — everything, photos, videos, music, documents, or specific types like `jpg, mp4` |
-| 3 | **How deep to search** — *Recommended*, *Quick*, or *Formatted / corrupted drive* |
-| 4 | **Where to save** — a folder on your Desktop is suggested; it must be on another drive |
-
-When it finishes, it offers to open the folder with your files.
-
 > [!TIP]
-> Not sure what can be saved? Pick **Preview deleted files** first — it lists what was found without writing anything.
+> Prefer the keyboard? **`wdfr.exe`** (in the same download) opens a step-by-step text menu, and offers every option on the command line.
 
 > [!NOTE]
 > Windows may show **"Windows protected your PC"** the first time, because the program is new and not code-signed. Click **More info → Run anyway**.
 
+## 🖥️ The desktop app
+
+| | |
+|---|---|
+| **1 · Choose** | Every drive is listed as Windows names it (*USB Drive (E:)*, *Local Disk (C:)*) with its size and file system. Disk images can be opened or simply dragged onto the window. Pick what you are looking for — photos, videos, audio, documents… — and how deep to search. |
+| **2 · Scan** | Live progress with speed, time left and a running count of what was found, by type. Stop at any time: everything found so far is kept. |
+| **3 · Choose files** | A fast, searchable, sortable list of everything found — even hundreds of thousands of files. Filter by type or by how each file was found, preview photos and text files, and see whether each file is *recoverable*, *partial* or *overwritten* (and why). |
+| **4 · Recover** | A folder on another drive is suggested automatically; saving onto the drive being recovered is refused. When done, the folder opens with your files and a report. |
+
+<table>
+<tr>
+<td width="50%"><img src="assets/app-scanning.png" alt="Scanning a drive"><p align="center"><sub>Scanning</sub></p></td>
+<td width="50%"><img src="assets/app-settings.png" alt="Settings"><p align="center"><sub>Settings</sub></p></td>
+</tr>
+<tr>
+<td colspan="2"><img src="assets/app-results-light.png" alt="Results in light mode"><p align="center"><sub>Light mode</sub></p></td>
+</tr>
+</table>
+
+**Settings** (saved automatically): theme (system / light / dark), accent colour, interface size, default
+search mode, minimum file size, whole-drive and byte-level deep search, largest file size, showing whole
+disks, default destination, folder layout (*original folders* or *sorted by type*), restoring original
+dates, the CSV report, opening the folder when done, showing overwritten files — and, clearly marked as
+unsafe, allowing saves to the source drive.
+
 ## 📥 Download
 
-| Your computer | File |
-|---|---|
-| **Windows** (most PCs) | `wdfr-…-x86_64-pc-windows-msvc.zip` |
-| Windows on ARM | `wdfr-…-aarch64-pc-windows-msvc.zip` |
-| Mac with Apple Silicon (M1–M4) | `wdfr-…-aarch64-apple-darwin.tar.gz` |
-| Mac with Intel | `wdfr-…-x86_64-apple-darwin.tar.gz` |
-| Linux | `wdfr-…-x86_64-unknown-linux-musl.tar.gz` |
+| Your computer | File | Contains |
+|---|---|---|
+| **Windows** (most PCs) | `wdfr-…-x86_64-pc-windows-msvc.zip` | desktop app + command line |
+| Windows on ARM | `wdfr-…-aarch64-pc-windows-msvc.zip` | desktop app + command line |
+| Mac with Apple Silicon (M1–M4) | `wdfr-…-aarch64-apple-darwin.tar.gz` | desktop app + command line |
+| Mac with Intel | `wdfr-…-x86_64-apple-darwin.tar.gz` | desktop app + command line |
+| Linux | `wdfr-…-x86_64-unknown-linux-gnu-desktop.tar.gz` | desktop app |
+| Linux (any distribution) | `wdfr-…-x86_64-unknown-linux-musl.tar.gz` | command line (fully static) |
 
 All downloads are on the **[latest release](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)** page.
-On macOS and Linux, run `sudo ./wdfr` to open the menu.
+On macOS and Linux, start it with `sudo ./wdfr-gui` (or `sudo ./wdfr` for the text menu) to read drives;
+disk images work without `sudo`.
 
 ## 💻 Command line
 
-Everything in the menu is also available as a command — handy for scripts and power users.
+`wdfr` (no arguments) opens a step-by-step text menu. Everything is also available as a command — handy for
+scripts and power users.
 
 ```powershell
 wdfr devices                         # list drives
@@ -239,7 +258,7 @@ Files recovered through the file system (stage 1) can be **any** type — the li
 
 ## ✅ Tested on real data
 
-Besides 40+ unit and integration tests running on Windows, macOS and Linux for every change, `wdfr` was checked against
+Besides 40+ unit and integration tests (including the full scan-and-save pipeline) running on Windows, macOS and Linux for every change, `wdfr` was checked against
 the public [Digital Forensics Tool Testing](https://dftt.sourceforge.net/) images and real volumes:
 
 | Test | Result |
@@ -306,8 +325,8 @@ stored in one piece, which is true for most camera and phone media.
 Requires [Rust](https://rustup.rs) 1.88 or newer.
 
 ```sh
-cargo build --release    # → target/release/wdfr(.exe)
-cargo test               # unit + integration tests
+cargo build --release --workspace   # → target/release/wdfr(.exe) and wdfr-gui(.exe)
+cargo test --workspace              # unit + integration tests
 ```
 
 Release builds for every platform are produced automatically when a version tag (`v*`) is pushed. The Windows binary
@@ -318,13 +337,15 @@ links the C runtime statically, so it runs on a bare Windows install.
 
 | Module | Responsibility |
 |---|---|
-| `menu` | Interactive, menu-driven mode |
+| `gui/` | The desktop app (egui): screens, theme, settings, background jobs, previews |
+| `menu` | Interactive text menu of the command line |
+| `progress` | Progress reporting shared by the command line and the desktop app |
 | `source` | Read-only device/image access: sector alignment for raw devices, bad-sector tolerant reads |
 | `partition` | MBR (incl. extended/logical) and GPT discovery, file-system detection |
 | `fs::ntfs` | MFT parsing, fixups, run lists, attribute lists, LZNT1 |
 | `fs::fat`, `fs::exfat` | Directory walking, long-name recovery, cluster assignment |
 | `carve` | Deep-search scanner and per-format structure parsers |
-| `recover` | Orchestration, de-duplication between stages, progress, report |
+| `recover` | Scan / save orchestration, de-duplication between stages, report |
 | `output` | Safe naming — recovered names are untrusted and can never escape the output folder |
 
 </details>

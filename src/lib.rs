@@ -19,6 +19,7 @@ pub mod filter;
 pub mod fs;
 pub mod output;
 pub mod partition;
+pub mod progress;
 pub mod ranges;
 pub mod recover;
 pub mod source;
