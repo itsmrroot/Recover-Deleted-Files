@@ -7,6 +7,8 @@ use eframe::egui::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::i18n;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Accent {
     Blue,
@@ -31,11 +33,11 @@ impl Accent {
 
     pub fn name(self) -> &'static str {
         match self {
-            Accent::Blue => "Blue",
-            Accent::Violet => "Violet",
-            Accent::Emerald => "Emerald",
-            Accent::Orange => "Orange",
-            Accent::Rose => "Rose",
+            Accent::Blue => i18n::tr("Blue"),
+            Accent::Violet => i18n::tr("Violet"),
+            Accent::Emerald => i18n::tr("Emerald"),
+            Accent::Orange => i18n::tr("Orange"),
+            Accent::Rose => i18n::tr("Rose"),
         }
     }
 }
@@ -107,8 +109,11 @@ fn semibold_family() -> FontFamily {
     FontFamily::Name(SEMIBOLD.into())
 }
 
-/// System UI font (Segoe UI on Windows, SF on macOS) plus Phosphor icons.
-pub fn install_fonts(ctx: &egui::Context) {
+/// System UI font (Segoe UI on Windows, SF on macOS), the bundled Arabic font
+/// and Phosphor icons. While the interface is Arabic, the Arabic font comes
+/// first so that spaces and digits in Arabic sentences use it too (see
+/// `i18n::visual`); otherwise it is only a fallback for Arabic file names.
+pub fn install_fonts(ctx: &egui::Context, arabic_first: bool) {
     let mut fonts = FontDefinitions::default();
     let candidates: &[(&str, &str)] = if cfg!(windows) {
         &[("system", r"C:\Windows\Fonts\segoeui.ttf"), ("system-semibold", r"C:\Windows\Fonts\seguisb.ttf")]
@@ -117,6 +122,8 @@ pub fn install_fonts(ctx: &egui::Context) {
     } else {
         &[]
     };
+    fonts.font_data.insert("arabic".into(), Arc::new(FontData::from_static(i18n::ARABIC_FONT)));
+    fonts.font_data.insert("arabic-semibold".into(), Arc::new(FontData::from_static(i18n::ARABIC_FONT_SEMIBOLD)));
     let mut loaded = Vec::new();
     for (name, path) in candidates {
         if let Ok(bytes) = std::fs::read(path) {
@@ -135,6 +142,16 @@ pub fn install_fonts(ctx: &egui::Context) {
     // Icons are inserted right after the text font of each family.
     egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
     semibold.insert(semibold.len().min(1), "phosphor".into());
+    // Added after the icons, which must stay right behind the text font.
+    let proportional = fonts.families.entry(FontFamily::Proportional).or_default();
+    if arabic_first {
+        proportional.insert(0, "arabic".into());
+        semibold.insert(0, "arabic-semibold".into());
+    } else {
+        proportional.push("arabic".into());
+        semibold.push("arabic-semibold".into());
+    }
+    fonts.families.entry(FontFamily::Monospace).or_default().push("arabic".into());
     fonts.families.insert(semibold_family(), semibold);
     ctx.set_fonts(fonts);
 }
@@ -327,7 +344,8 @@ pub fn stat(ui: &mut Ui, p: &Palette, label: &str, value: &str) {
     });
 }
 
-/// A notice box with an icon, e.g. a warning.
+/// A notice box with an icon, e.g. a warning. `text` is in logical order
+/// (see [`paragraph`]).
 pub fn notice(ui: &mut Ui, p: &Palette, color: Color32, icon: &str, text: &str) {
     Frame::new()
         .fill(p.tint(color))
@@ -338,7 +356,45 @@ pub fn notice(ui: &mut Ui, p: &Palette, color: Color32, icon: &str, text: &str) 
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
                 ui.label(RichText::new(icon).size(18.0).color(color));
-                ui.add(egui::Label::new(RichText::new(text).color(p.text)).wrap());
+                paragraph(ui, text, 14.5, p.text);
             });
         });
+}
+
+/// Text wrapped to the available width. `text` is in logical order
+/// (`i18n::trl`); right-to-left text is broken into lines here, because egui
+/// would put the lines of reordered text in the wrong order. The lines line
+/// up with the rest of the (left-to-right) layout.
+pub fn paragraph(ui: &mut Ui, text: &str, size: f32, color: Color32) {
+    if !i18n::is_rtl() {
+        ui.add(egui::Label::new(RichText::new(text).size(size).color(color)).wrap());
+        return;
+    }
+    let width = ui.available_width();
+    let font = FontId::proportional(size);
+    let measure = |ui: &Ui, s: &str| {
+        let shown = i18n::visual(s).into_owned();
+        ui.ctx().fonts_mut(|f| f.layout_no_wrap(shown, font.clone(), color).size().x)
+    };
+    let mut lines: Vec<String> = Vec::new();
+    for para in text.split('\n') {
+        let mut line = String::new();
+        for word in para.split(' ') {
+            let candidate = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
+            if !line.is_empty() && measure(ui, &candidate) > width {
+                lines.push(std::mem::replace(&mut line, word.to_string()));
+            } else {
+                line = candidate;
+            }
+        }
+        lines.push(line);
+    }
+    let centered = ui.layout().is_vertical() && ui.layout().horizontal_align() == egui::Align::Center;
+    let align = if centered { egui::Align::Center } else { egui::Align::Min };
+    ui.with_layout(egui::Layout::top_down(align), |ui| {
+        ui.spacing_mut().item_spacing.y = 2.0;
+        for line in lines {
+            ui.label(RichText::new(i18n::visual(&line)).size(size).color(color));
+        }
+    });
 }

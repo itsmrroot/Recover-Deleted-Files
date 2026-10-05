@@ -10,6 +10,7 @@ use wdfr::filter::Filter;
 use wdfr::recover::{self, Found, Method, SaveOptions, ScanOptions, Session, Summary};
 
 use crate::home::{self, Home};
+use crate::i18n::{self, tr, trf, trl};
 use crate::jobs::Job;
 use crate::preview::Previewer;
 use crate::results::{self, Results};
@@ -31,6 +32,7 @@ enum Page {
 pub struct App {
     settings: Settings,
     applied: Option<(theme::Accent, f32, settings::ThemeChoice)>,
+    language: Option<i18n::Lang>,
     page: Page,
     home: Home,
     scan: Option<(ScanJob, String)>,
@@ -52,7 +54,8 @@ type ScanJob = Job<(Arc<Session>, Found)>;
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let settings: Settings = cc.storage.and_then(|s| eframe::get_value(s, SETTINGS_KEY)).unwrap_or_default();
-        theme::install_fonts(&cc.egui_ctx);
+        let lang = i18n::set_language(settings.language);
+        theme::install_fonts(&cc.egui_ctx, i18n::is_rtl());
         let logo = {
             let img = image::load_from_memory(include_bytes!("../assets/icon.png")).map(|i| i.to_rgba8());
             let color = match img {
@@ -67,6 +70,7 @@ impl App {
             home: Home::new(&cc.egui_ctx, &settings),
             settings,
             applied: None,
+            language: Some(lang),
             page: Page::Home,
             scan: None,
             results: None,
@@ -87,6 +91,11 @@ impl App {
             ctx.set_theme(self.settings.theme.preference());
             ctx.set_zoom_factor(self.settings.ui_scale);
             self.applied = Some(want);
+        }
+        let lang = i18n::set_language(self.settings.language);
+        if self.language != Some(lang) {
+            theme::install_fonts(ctx, i18n::is_rtl());
+            self.language = Some(lang);
         }
         if let Some(r) = &mut self.results {
             r.set_show_overwritten(self.settings.show_overwritten);
@@ -172,7 +181,7 @@ impl App {
                     self.page = Page::Results;
                 }
                 Err(e) => {
-                    self.error = Some(format!("The scan could not be completed.\n\n{e:#}"));
+                    self.error = Some(format!("{}\n\n{e:#}", trl("The scan could not be completed.")));
                     self.page = Page::Home;
                 }
             }
@@ -191,7 +200,7 @@ impl App {
                     self.page = Page::Done;
                 }
                 Err(e) => {
-                    self.error = Some(format!("The files could not be saved.\n\n{e:#}"));
+                    self.error = Some(format!("{}\n\n{e:#}", trl("The files could not be saved.")));
                     self.page = Page::Results;
                 }
             }
@@ -234,8 +243,8 @@ impl App {
             ui.add(egui::Image::new(&self.logo).fit_to_exact_size(Vec2::splat(40.0)));
             ui.vertical(|ui| {
                 ui.add_space(2.0);
-                ui.label(theme::semibold("Deleted Files", 16.0).color(p.text));
-                ui.label(RichText::new("Recovery").color(p.weak).size(13.0));
+                ui.label(theme::semibold(tr("Deleted Files"), 16.0).color(p.text));
+                ui.label(RichText::new(tr("Recovery")).color(p.weak).size(13.0));
             });
         });
         ui.add_space(22.0);
@@ -252,16 +261,16 @@ impl App {
         };
         let results_badge = self.results.as_ref().map(|r| r.rows.len());
         let items: [(&str, &str, Page, bool, Option<String>); 4] = [
-            (icon::MAGNIFYING_GLASS, "Recover", flow_target, in_flow, self.busy().then(|| "●".to_string())),
+            (icon::MAGNIFYING_GLASS, tr("Recover"), flow_target, in_flow, self.busy().then(|| "●".to_string())),
             (
                 icon::LIST_CHECKS,
-                "Results",
+                tr("Results"),
                 Page::Results,
                 self.page == Page::Results,
                 results_badge.map(|n| n.to_string()),
             ),
-            (icon::GEAR_SIX, "Settings", Page::Settings, self.page == Page::Settings, None),
-            (icon::INFO, "About", Page::About, self.page == Page::About, None),
+            (icon::GEAR_SIX, tr("Settings"), Page::Settings, self.page == Page::Settings, None),
+            (icon::INFO, tr("About"), Page::About, self.page == Page::About, None),
         ];
         for (glyph, label, target, active, badge) in items {
             let enabled = target != Page::Results || self.results.is_some();
@@ -300,8 +309,8 @@ impl App {
             Page::Scanning => {
                 if let Some((job, name)) = &self.scan {
                     let st = job.progress.snapshot();
-                    let subtitle = format!("Looking for deleted files on {name}");
-                    let info = views::ProgressInfo { title: "Scanning…", subtitle: &subtitle, show_found: true };
+                    let subtitle = trf("Looking for deleted files on {name}", &[("name", name)]);
+                    let info = views::ProgressInfo { title: tr("Scanning…"), subtitle: &subtitle, show_found: true };
                     let stop = views::progress(ui, p, &info, &st, job.started.elapsed(), job.stopping());
                     if stop {
                         job.stop();
@@ -322,9 +331,11 @@ impl App {
             Page::Saving => {
                 if let Some((job, out)) = &self.save {
                     let st = job.progress.snapshot();
-                    let subtitle = format!("Saving to {}", out.display());
+                    let subtitle = trf("Saving to {folder}", &[("folder", &out.display())]);
                     let info =
-                        views::ProgressInfo { title: "Recovering files…", subtitle: &subtitle, show_found: false };
+                        views::ProgressInfo {
+                            title: tr("Recovering files…"), subtitle: &subtitle, show_found: false
+                        };
                     let stop = views::progress(ui, p, &info, &st, job.started.elapsed(), job.stopping());
                     if stop {
                         job.stop();
@@ -366,21 +377,21 @@ impl App {
             ui.set_width(460.0);
             ui.horizontal(|ui| {
                 ui.label(RichText::new(icon::WARNING_CIRCLE).size(26.0).color(p.danger));
-                ui.label(theme::semibold("Something went wrong", 18.0).color(p.text));
+                ui.label(theme::semibold(tr("Something went wrong"), 18.0).color(p.text));
             });
             ui.add_space(8.0);
-            ui.add(egui::Label::new(RichText::new(&msg).color(p.text)).wrap());
+            theme::paragraph(ui, &msg, 14.5, p.text);
             if msg.contains("denied") || msg.contains("Administrator") || msg.contains("sudo") {
                 ui.add_space(8.0);
                 let hint = if cfg!(windows) {
-                    "Reading a drive needs administrator rights: close the app, right-click it and choose \"Run as administrator\"."
+                    trl("Reading a drive needs administrator rights: close the app, right-click it and choose \"Run as administrator\".")
                 } else {
-                    "Reading a drive needs administrator rights: start the app with sudo."
+                    trl("Reading a drive needs administrator rights: start the app with sudo.")
                 };
-                ui.add(egui::Label::new(RichText::new(hint).color(p.weak)).wrap());
+                theme::paragraph(ui, hint, 14.5, p.weak);
             }
             ui.add_space(12.0);
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| theme::primary_button(ui, p, "  OK  ", true).clicked())
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| theme::primary_button(ui, p, &format!("  {}  ", tr("OK")), true).clicked())
                 .inner
         });
         if modal.inner || modal.should_close() {
@@ -512,6 +523,7 @@ pub fn open_path(path: &Path) {
 /// Development aid (debug builds only): with `WDFR_TOUR_DIR` and
 /// `WDFR_TOUR_IMAGE` set, the app walks through every screen using the
 /// given disk image and saves a screenshot of each, then exits.
+/// `WDFR_TOUR_LANG` (`en`, `de`, `ar`) picks the interface language.
 #[cfg(debug_assertions)]
 mod tour {
     use std::path::PathBuf;
@@ -522,6 +534,7 @@ mod tour {
         pub step: usize,
         pub frames: u32,
         pub waiting_for_shot: Option<&'static str>,
+        pub language: Option<crate::i18n::Language>,
     }
 
     impl Tour {
@@ -529,7 +542,13 @@ mod tour {
             let dir = PathBuf::from(std::env::var_os("WDFR_TOUR_DIR")?);
             let image = std::env::var("WDFR_TOUR_IMAGE").ok()?;
             std::fs::create_dir_all(&dir).ok()?;
-            Some(Self { dir, image, step: 0, frames: 0, waiting_for_shot: None })
+            let language = match std::env::var("WDFR_TOUR_LANG").as_deref() {
+                Ok("en") => Some(crate::i18n::Language::English),
+                Ok("de") => Some(crate::i18n::Language::German),
+                Ok("ar") => Some(crate::i18n::Language::Arabic),
+                _ => None,
+            };
+            Some(Self { dir, image, step: 0, frames: 0, waiting_for_shot: None, language })
         }
     }
 }
@@ -569,7 +588,12 @@ impl App {
             ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
         };
         match step {
-            0 if frames == 1 => self.home.add_image(image),
+            0 if frames == 1 => {
+                if let Some(l) = self.tour.as_ref().and_then(|t| t.language) {
+                    self.settings.language = l;
+                }
+                self.home.add_image(image);
+            }
             0 if frames > 40 && self.home.drives.is_some() => shoot("1-home", ctx, self.tour.as_mut().unwrap()),
             1 if frames == 1 => self.start_scan(ctx, None),
             1 if frames == 12 => shoot("2-scanning", ctx, self.tour.as_mut().unwrap()),

@@ -18,6 +18,9 @@ image = { version = "0.25.10", default-features = false, features = ["jpeg", "pn
 log = "0.4.34"
 rfd = "0.17.2"
 serde = { version = "1.0.229", features = ["derive"] }
+skrifa = { version = "0.44", default-features = false, features = ["std"] }
+sys-locale = "0.3.2"
+unicode-bidi = "0.3.18"
 wdfr = { version = "0.2.1", path = ".." }
 
 [build-dependencies]

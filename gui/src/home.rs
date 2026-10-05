@@ -10,6 +10,7 @@ use wdfr::recover::Method;
 use wdfr::source::{DiskSource, Source};
 use wdfr::units::format_size;
 
+use crate::i18n::{icon_label, tr, trf, trl};
 use crate::jobs::Job;
 use crate::results::{category_icon, category_label};
 use crate::settings::Settings;
@@ -25,11 +26,12 @@ fn describe(path: &str) -> String {
     let Ok(d) = DiskSource::open(path) else { return String::new() };
     let disk: Source = Arc::new(d);
     let parts = wdfr::partition::discover(&disk);
-    let fs: Vec<String> = parts.iter().map(|p| p.fs.map_or_else(|| "Unknown".into(), |f| f.to_string())).collect();
+    let fs: Vec<String> =
+        parts.iter().map(|p| p.fs.map_or_else(|| tr("Unknown").to_string(), |f| f.to_string())).collect();
     match fs.len() {
         0 => String::new(),
         1 => fs[0].clone(),
-        n => format!("{n} partitions: {}", fs.join(", ")),
+        n => trf("{n} partitions: {list}", &[("n", &n), ("list", &fs.join(", "))]),
     }
 }
 
@@ -105,8 +107,8 @@ impl Home {
         theme::page_title(
             ui,
             p,
-            "Recover deleted files",
-            "Choose the drive the files were deleted from. Nothing is written to it.",
+            tr("Recover deleted files"),
+            tr("Choose the drive the files were deleted from. Nothing is written to it."),
         );
         // The start button stays visible however long the drive list is.
         egui::Panel::bottom("start-bar")
@@ -115,15 +117,15 @@ impl Home {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     let ready = self.selected.is_some();
-                    let label = format!("{}  Start scan", icon::MAGNIFYING_GLASS);
+                    let label = icon_label(icon::MAGNIFYING_GLASS, "Start scan");
                     if theme::primary_button(ui, p, &label, ready).clicked() {
                         action = Action::Scan;
                     }
                     ui.add_space(8.0);
                     let hint = if ready {
-                        format!("Ready to scan {}", self.source_name())
+                        trf("Ready to scan {name}", &[("name", &self.source_name())])
                     } else {
-                        "Select a drive or disk image first".into()
+                        tr("Select a drive or disk image first").into()
                     };
                     ui.label(RichText::new(hint).color(p.weak));
                 });
@@ -143,15 +145,15 @@ impl Home {
         theme::card(ui, p, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
-                theme::section_title(ui, p, icon::HARD_DRIVES, "1. Choose a drive");
+                theme::section_title(ui, p, icon::HARD_DRIVES, tr("1. Choose a drive"));
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button(format!("{} Refresh", icon::ARROWS_CLOCKWISE)).clicked() {
+                    if ui.button(icon_label(icon::ARROWS_CLOCKWISE, "Refresh")).clicked() {
                         self.refresh(ui.ctx());
                     }
-                    if ui.button(format!("{} Open disk image…", icon::FILE_PLUS)).clicked()
+                    if ui.button(icon_label(icon::FILE_PLUS, "Open disk image…")).clicked()
                         && let Some(f) = rfd::FileDialog::new()
-                            .add_filter("Disk images", &["img", "dd", "raw", "bin", "iso", "dmg", "vhd", "001"])
-                            .add_filter("All files", &["*"])
+                            .add_filter(trl("Disk images"), &["img", "dd", "raw", "bin", "iso", "dmg", "vhd", "001"])
+                            .add_filter(trl("All files"), &["*"])
                             .pick_file()
                     {
                         self.add_image(f.display().to_string());
@@ -162,7 +164,7 @@ impl Home {
             let Some(drives) = &self.drives else {
                 ui.horizontal(|ui| {
                     ui.spinner();
-                    ui.label(RichText::new("Looking for drives…").color(p.weak));
+                    ui.label(RichText::new(tr("Looking for drives…")).color(p.weak));
                 });
                 return;
             };
@@ -170,9 +172,13 @@ impl Home {
                 drives.iter().filter(|d| s.show_whole_disks || d.device.kind != DeviceKind::Disk).collect();
             if shown.iter().all(|d| d.device.size.is_none()) {
                 let msg = if cfg!(windows) {
-                    "No drive could be opened. Close the app, right-click it and choose \"Run as administrator\". Disk images work without it."
+                    trl(
+                        "No drive could be opened. Close the app, right-click it and choose \"Run as administrator\". Disk images work without it.",
+                    )
                 } else {
-                    "Reading drives needs administrator rights: start the app with sudo. Disk images work without it."
+                    trl(
+                        "Reading drives needs administrator rights: start the app with sudo. Disk images work without it.",
+                    )
                 };
                 theme::notice(ui, p, p.warning, icon::WARNING, msg);
                 ui.add_space(8.0);
@@ -182,7 +188,13 @@ impl Home {
             let mut cards: Vec<(String, &str, String, String, bool)> = Vec::new();
             for img in &self.images {
                 let size = std::fs::metadata(img).map(|m| format_size(m.len())).unwrap_or_default();
-                cards.push((img.clone(), icon::FILE_DASHED, file_name(img), format!("Disk image · {size}"), true));
+                cards.push((
+                    img.clone(),
+                    icon::FILE_DASHED,
+                    file_name(img),
+                    trf("Disk image · {size}", &[("size", &size)]),
+                    true,
+                ));
             }
             for d in &shown {
                 let dev = &d.device;
@@ -195,7 +207,7 @@ impl Home {
                 let detail = match dev.size {
                     Some(sz) if d.fs.is_empty() => format_size(sz),
                     Some(sz) => format!("{} · {}", format_size(sz), d.fs),
-                    None => "Needs administrator rights".into(),
+                    None => tr("Needs administrator rights").into(),
                 };
                 cards.push((dev.path.clone(), glyph, dev.display_name(), detail, ok));
             }
@@ -203,7 +215,8 @@ impl Home {
             let gap = 10.0;
             let per_row = (((ui.available_width() + gap) / (CARD_W + 30.0 + gap)).floor() as usize).max(1);
             for row in cards.chunks(per_row) {
-                ui.horizontal(|ui| {
+                // Top-aligned: cards with Arabic text are slightly taller.
+                ui.horizontal_top(|ui| {
                     ui.spacing_mut().item_spacing.x = gap;
                     for (path, glyph, title, detail, ok) in row {
                         let sel = self.selected.as_deref() == Some(path.as_str());
@@ -220,7 +233,7 @@ impl Home {
             }
             ui.add_space(6.0);
             ui.label(
-                RichText::new(format!("{} Tip: you can also drag a disk image file onto this window.", icon::INFO))
+                RichText::new(icon_label(icon::INFO, "Tip: you can also drag a disk image file onto this window."))
                     .color(p.weak)
                     .size(12.5),
             );
@@ -230,17 +243,24 @@ impl Home {
     fn types_card(&mut self, ui: &mut Ui, p: &Palette) {
         theme::card(ui, p, |ui| {
             ui.set_width(ui.available_width());
-            theme::section_title(ui, p, icon::FUNNEL, "2. What are you looking for?");
+            theme::section_title(ui, p, icon::FUNNEL, tr("2. What are you looking for?"));
             ui.add_space(8.0);
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = Vec2::new(8.0, 8.0);
                 let everything = self.categories.is_empty();
-                if chip(ui, p, everything, &format!("{} Everything", icon::SQUARES_FOUR)).clicked() {
+                if chip(ui, p, everything, &icon_label(icon::SQUARES_FOUR, "Everything")).clicked() {
                     self.categories.clear();
                 }
                 for (slot, c) in Category::ALL.iter().enumerate() {
                     let on = self.categories.contains(c);
-                    if chip(ui, p, on, &format!("{} {}", category_icon(Some(*c)), category_label(slot))).clicked() {
+                    if chip(
+                        ui,
+                        p,
+                        on,
+                        &crate::i18n::visual(&format!("{} {}", category_icon(Some(*c)), category_label(slot))),
+                    )
+                    .clicked()
+                    {
                         if on {
                             self.categories.retain(|x| x != c);
                         } else {
@@ -255,26 +275,26 @@ impl Home {
     fn mode_card(&mut self, ui: &mut Ui, p: &Palette) {
         theme::card(ui, p, |ui| {
             ui.set_width(ui.available_width());
-            theme::section_title(ui, p, icon::GAUGE, "3. How deep should I search?");
+            theme::section_title(ui, p, icon::GAUGE, tr("3. How deep should I search?"));
             ui.add_space(8.0);
             let modes = [
                 (
                     Method::Fs,
                     icon::LIGHTNING,
-                    "Quick",
-                    "Deleted files that still have their names and folders. Takes seconds to minutes.",
+                    tr("Quick"),
+                    trl("Deleted files that still have their names and folders. Takes seconds to minutes."),
                 ),
                 (
                     Method::All,
                     icon::SPARKLE,
-                    "Recommended",
-                    "Names and folders first, then a deep search of free space for everything else.",
+                    tr("Recommended"),
+                    trl("Names and folders first, then a deep search of free space for everything else."),
                 ),
                 (
                     Method::Carve,
                     icon::MAGNIFYING_GLASS,
-                    "Formatted drive",
-                    "For formatted or corrupted drives. Finds files by their content only.",
+                    tr("Formatted drive"),
+                    trl("For formatted or corrupted drives. Finds files by their content only."),
                 ),
             ];
             ui.columns(3, |cols| {
@@ -287,10 +307,10 @@ impl Home {
                             ui.label(RichText::new(glyph).size(20.0).color(p.accent));
                             ui.label(theme::semibold(title, 15.5).color(p.text));
                             if m == Method::All {
-                                theme::pill(ui, p, "Best", p.success);
+                                theme::pill(ui, p, tr("Best"), p.success);
                             }
                         });
-                        ui.add(egui::Label::new(RichText::new(text).color(p.weak).size(12.5)).wrap());
+                        theme::paragraph(ui, text, 12.5, p.weak);
                     });
                     if r.clicked() {
                         self.method = m;

@@ -5,11 +5,13 @@
 
 mod app;
 mod home;
+mod i18n;
 mod jobs;
 mod preview;
 mod results;
 mod settings;
 mod theme;
+mod translations;
 mod views;
 
 use eframe::egui;
