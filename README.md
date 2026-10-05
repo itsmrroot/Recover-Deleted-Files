@@ -1,108 +1,144 @@
-# Windows Deleted Files Recovery (`wdfr`)
+<div align="center">
 
-**Powered by Bashar Salmo**
+<img src="assets/banner.svg" alt="Windows Deleted Files Recovery — Powered by Bashar Salmo" width="100%">
 
-A fast, safe, single-binary tool that recovers deleted **photos, videos, music,
-documents, archives and databases** from hard drives, SSDs, USB sticks, SD
-cards and disk images.
+<br>
 
-- **File-system recovery** for **NTFS**, **FAT12/16/32** and **exFAT** —
-  restores original file names, folders and timestamps.
-- **Signature carving** for ~50 file types — finds files even after a quick
-  format, on a corrupted or unknown file system (ext4, APFS, HFS+, ...) or in
-  unpartitioned space.
-- **Read-only, always.** The source is never opened for writing, and the tool
-  refuses to write recovered files onto the volume being recovered.
-- One static executable. No installer, no runtime, nothing written to the
-  damaged disk.
+[![CI](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/actions/workflows/ci.yml/badge.svg)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/itsmrroot/Windows-Deleted-Files-Recovery?color=0b5cad)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/itsmrroot/Windows-Deleted-Files-Recovery/total?color=16a34a)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-6b7280)](#-download)
+[![Built with Rust](https://img.shields.io/badge/built%20with-Rust-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org)
+[![License: MIT](https://img.shields.io/github/license/itsmrroot/Windows-Deleted-Files-Recovery?color=a78bfa)](LICENSE)
 
-```text
-> wdfr scan E:
-== partition1_exFAT (7 deleted files) ==
-CONDITION                    SIZE  MODIFIED             PATH
-recoverable             114.1 KiB  2026-10-01 11:34:22  DCIM/Camera/IMG_20260101_120000.jpg
-recoverable               1.9 MiB  2026-10-01 11:34:22  DCIM/Camera/VID_20260101_fragmented.mp4
-recoverable             282.4 KiB  2026-10-01 11:34:22  Pictures/Trip/Day1/clip.mov
-recoverable             377.9 KiB  2026-10-01 11:34:22  Pictures/Trip/scan.tif
-recoverable              94.8 KiB  2026-10-01 11:34:22  Pictures/Trip/song.mp3
-recoverable             232.0 KiB  2026-10-01 11:34:22  keep/contacts.sqlite
-recoverable              74.7 KiB  2026-10-01 11:34:22  keep/manual.pdf
-7 of 7 look recoverable.
-```
+**Bring back deleted photos, videos, music and documents —<br>from hard drives, USB sticks, SD cards and disk images.**
+
+[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
+[![Download for macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
+[![Download for Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
+
+[Quick start](#-quick-start) •
+[Features](#-features) •
+[Command line](#-command-line) •
+[How it works](#%EF%B8%8F-how-it-works) •
+[File types](#%EF%B8%8F-supported-file-types) •
+[FAQ](#-faq)
+
+</div>
 
 ---
 
-## Before you start — read this
+## ✨ Features
 
-1. **Stop using the drive immediately.** Every file written to it (including
-   browser caches and updates) can overwrite deleted data.
-2. **Do not download or install anything onto that drive.** Run `wdfr` from a
-   different drive or a USB stick.
-3. **Recover to a different drive.** `wdfr` enforces this for volumes it can
-   identify.
-4. **Failing drive (clicking, very slow, read errors)?** Image it first with
-   [GNU ddrescue](https://www.gnu.org/software/ddrescue/) and run `wdfr` on the
-   image. `wdfr` tolerates bad sectors (it zero-fills them and keeps going),
-   but every extra read stresses a dying disk.
-5. **SSDs:** Windows sends TRIM when files are deleted, and the SSD may erase
-   those blocks within seconds or minutes. Recovery from an SSD's own volume
-   is often impossible; USB sticks, SD cards and hard drives are usually fine.
+<table>
+<tr>
+<td width="50%" valign="top">
 
-## Quick start (Windows) — no typing needed
+### 🖱️ No typing needed
+Double-click and choose from a menu with the arrow keys. A step-by-step guide
+asks what you lost and where to save it.
 
-1. Download `wdfr.exe` from the [Releases](../../releases) page and put it on
-   a **different** drive than the one you want to recover.
-2. Right-click `wdfr.exe` → **Run as administrator** (needed to read drives).
-3. Pick everything from the menu with the arrow keys and Enter:
+</td>
+<td width="50%" valign="top">
 
-```text
-  ================================================================
-    Windows Deleted Files Recovery  v0.1.0
-    Recover deleted photos, videos, documents and more
-    Powered by Bashar Salmo
-  ================================================================
+### 📁 Original names & folders
+On **NTFS**, **FAT32** and **exFAT**, deleted files come back with their real
+names, folders and dates.
 
-? What would you like to do? ›
-❯ Recover deleted files
-  Preview deleted files (scan only, nothing is saved)
-  Show drive information
-  List supported file types
-  Read this first: tips for a successful recovery
-  Exit
-```
+</td>
+</tr>
+<tr>
+<td valign="top">
 
-The guide asks, one question at a time: which drive, what you are looking for
-(everything, photos, videos, music, documents, or specific types), how deep to
-search, and where to save the files. A folder on another drive is suggested
-for you, and saving onto the drive being recovered is refused. At the end it
-offers to open the folder with your files.
+### 🔍 Deep search
+Formatted card? Corrupted drive? Files are found by their content in **~50 file
+types**, and each is cut at its **exact** length — no broken or bloated files.
 
-### Command line (advanced)
+</td>
+<td valign="top">
 
-Every option is also available as a command, for scripts and power users:
+### 🛡️ Safe by design
+The drive is opened **read-only**, and saving onto the drive you are recovering
+is refused. Bad sectors are skipped, not fatal.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🩺 Honest results
+Every file is checked against the drive's allocation map and marked
+**recoverable**, **partial** or **overwritten** — no guessing.
+
+</td>
+<td valign="top">
+
+### ⚡ Fast & portable
+One ~1 MB executable. No installer, no runtime, nothing written to the damaged
+drive. Scans at full disk speed.
+
+</td>
+</tr>
+</table>
+
+## 🚀 Quick start
+
+> [!IMPORTANT]
+> **Stop using the drive right away.** Every new file saved to it can overwrite the files you want back.
+
+1. **[Download](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)**
+   `wdfr-…-x86_64-pc-windows-msvc.zip` and unzip it on a **different** drive
+   than the one you want to recover.
+2. Right-click **`wdfr.exe`** → **Run as administrator** (needed to read drives).
+3. Choose **Recover deleted files** and follow the questions.
+
+<div align="center">
+<img src="assets/menu.svg" alt="The wdfr menu" width="720">
+</div>
+
+The guide asks, one question at a time:
+
+| Step | You choose |
+|:---:|---|
+| 1 | **Which drive** — every drive is listed with its size and file system |
+| 2 | **What to look for** — everything, photos, videos, music, documents, or specific types like `jpg, mp4` |
+| 3 | **How deep to search** — *Recommended*, *Quick*, or *Formatted / corrupted drive* |
+| 4 | **Where to save** — a folder on your Desktop is suggested; it must be on another drive |
+
+When it finishes, it offers to open the folder with your files.
+
+> [!TIP]
+> Not sure what can be saved? Pick **Preview deleted files** first — it lists what was found without writing anything.
+
+> [!NOTE]
+> Windows may show **"Windows protected your PC"** the first time, because the program is new and not code-signed. Click **More info → Run anyway**.
+
+## 📥 Download
+
+| Your computer | File |
+|---|---|
+| **Windows** (most PCs) | `wdfr-…-x86_64-pc-windows-msvc.zip` |
+| Windows on ARM | `wdfr-…-aarch64-pc-windows-msvc.zip` |
+| Mac with Apple Silicon (M1–M4) | `wdfr-…-aarch64-apple-darwin.tar.gz` |
+| Mac with Intel | `wdfr-…-x86_64-apple-darwin.tar.gz` |
+| Linux | `wdfr-…-x86_64-unknown-linux-musl.tar.gz` |
+
+All downloads are on the **[latest release](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)** page.
+On macOS and Linux, run `sudo ./wdfr` to open the menu.
+
+## 💻 Command line
+
+Everything in the menu is also available as a command — handy for scripts and power users.
 
 ```powershell
-# 1. What disks and volumes are there?
-wdfr devices
-
-# 2. What is on the card / drive?
-wdfr info E:
-
-# 3. List what can be recovered (writes nothing)
-wdfr scan E:
-
-# 4. Recover everything to another drive
-wdfr recover E: -o D:\Recovered
+wdfr devices                         # list drives
+wdfr info E:                         # partitions and file systems on E:
+wdfr scan E:                         # list deleted files (writes nothing)
+wdfr recover E: -o D:\Recovered      # recover everything to another drive
 ```
 
-On macOS and Linux use the device path with `sudo`, e.g.
-`sudo wdfr recover /dev/rdisk4 -o ~/Recovered` or
-`sudo wdfr recover /dev/sdb -o ~/Recovered`.
-
-Disk images (`.dd`, `.img`, `.raw`, ddrescue output) work everywhere without
-admin rights: `wdfr recover card.img -o Recovered`.
-
-## Common recipes
+<details>
+<summary><b>More recipes</b></summary>
 
 ```powershell
 # Only photos and videos
@@ -117,7 +153,7 @@ wdfr scan C: --name "Users/*/Documents/**" --type docx,xlsx,pdf
 # Skip tiny files (thumbnails, icons)
 wdfr recover E: -o D:\Recovered --category image --min-size 100K
 
-# Card was formatted / file system is unreadable: carve only
+# Card was formatted / file system is unreadable: search by content only
 wdfr recover E: -o D:\Recovered --method carve
 
 # Whole physical disk (all partitions + unpartitioned space,
@@ -132,36 +168,61 @@ wdfr recover \\.\PhysicalDrive1 -p 2 -o D:\Recovered
 wdfr scan E: --json > deleted.json
 ```
 
-Press **Ctrl+C** once to stop gracefully (the report is still written), twice
-to abort immediately.
+On macOS and Linux use the device path with `sudo`, e.g. `sudo wdfr recover /dev/rdisk4 -o ~/Recovered`.
+Disk images (`.dd`, `.img`, `.raw`, ddrescue output) work everywhere without admin rights:
+`wdfr recover card.img -o Recovered`.
 
-## Output
+Press **Ctrl+C** once to stop gracefully (everything found so far is kept), twice to abort immediately.
+
+</details>
+
+<details>
+<summary><b>What you get in the output folder</b></summary>
 
 ```text
 D:\Recovered\
-├── partition1_NTFS\           files recovered from file-system metadata,
-│   ├── Users\bob\Pictures\…   with their original folders and names
+├── partition1_NTFS\           files recovered with their names,
+│   ├── Users\bob\Pictures\…   in their original folders
 │   └── $Orphan\…              files whose parent folder no longer exists
-├── carved\                    files found by signature carving
+├── carved\                    files found by deep search, sorted by type
 │   ├── images\f00001a2b3000.jpg
 │   ├── videos\…
-│   ├── audio\  documents\  archives\  databases\
+│   └── audio\  documents\  archives\  databases\
 └── report.csv                 one row per recovered file
 ```
 
-Carved files are named after their byte offset on the disk (`f<hex offset>`),
-which makes every result traceable. `report.csv` lists, for every file: how it
-was recovered, its original path, the recovered path, size, disk offset,
-condition, modification time, notes and the number of unreadable bytes.
+Deep-search files are named after their position on the disk (`f<hex offset>`), so every result is traceable.
+`report.csv` lists how each file was recovered, its original and new path, size, disk offset, condition,
+modification time and notes. Recovered files keep their original modification time.
 
-Recovered files keep their original modification time.
+</details>
 
-## How it works
+## ⚙️ How it works
 
-`wdfr recover` (default `--method all`) runs two stages:
+```mermaid
+flowchart LR
+    A["💽 Drive or image<br/>(opened read-only)"] --> B["Find partitions<br/>MBR · GPT"]
+    B --> C{"File system<br/>recognised?"}
+    C -- "NTFS · FAT · exFAT" --> D["Find deleted entries<br/>in the metadata"]
+    D --> E["Check allocation map<br/>recoverable · partial · overwritten"]
+    E --> F["Restore files with<br/>names & folders"]
+    C -- "unknown / formatted" --> G
+    F --> G["Deep search free space<br/>(minus files already restored)"]
+    G --> H["Measure each file's exact<br/>length from its structure"]
+    F --> I[("📂 Output folder<br/>+ report.csv")]
+    H --> I
+```
 
-**1. File-system metadata.** For each volume it walks the on-disk structures
-and finds entries marked as deleted:
+**Stage 1 — file-system metadata.** Deleted files usually leave their entry behind. `wdfr` reads it to restore the
+name, folder, dates and the location of the data, then checks whether those clusters were reused since.
+
+**Stage 2 — deep search (carving).** The free space of every volume and any unpartitioned space is scanned for file
+signatures. Rather than cutting at a fixed size, each format parser walks the file's own structure — JPEG segments,
+MP4 boxes, ZIP central directory, PDF trailers, … — to find exactly where it ends. Space already restored in stage 1 is
+skipped, so nothing is recovered twice and existing files are left out.
+
+<details>
+<summary><b>Technical details per file system</b></summary>
 
 | File system | What survives deletion | What `wdfr` does |
 |---|---|---|
@@ -169,92 +230,123 @@ and finds entries marked as deleted:
 | **FAT12/16/32** | The directory entry, minus its first character; the cluster chain is erased | Reconstructs long file names (recovering the lost first character from the LFN checksum), walks into deleted folders (verifying each claimed folder cluster through its `..` back-pointer), and assigns clusters to files around other files to undo common fragmentation; restores the high word of FAT32 start clusters that Windows clears |
 | **exFAT** | The whole entry set, with the "in use" bit cleared | Recovers exact names and sizes; uses the `NoFatChain` flag or the FAT chain when it survives, contiguous allocation otherwise |
 
-Every file is checked against the volume's allocation map (`$Bitmap`, the FAT,
-the exFAT bitmap): clusters that have since been reused mean the content was
-overwritten. Files are labelled `recoverable`, `partial (N% intact)` or
-`overwritten`; overwritten files are skipped unless you pass
-`--include-overwritten`.
+Carving parsers: JPEG marker segments and entropy-coded scans, PNG chunks, MP4/MOV box trees, Matroska EBML elements,
+RIFF chunks (incl. AVI OpenDML), ASF headers, transport-stream packets, MP3 frames, Ogg pages, ZIP central directories
+with offset consistency checks, OLE2 sector allocation tables, and 7z/RAR headers with CRC validation.
 
-**2. Carving.** The unallocated space of every volume, plus any disk space not
-covered by a partition, is scanned for file signatures. Space belonging to
-files already recovered in stage 1 is excluded, so nothing is recovered twice
-and existing files are not "recovered" (use `--carve-all-space` to scan
-everything).
+</details>
 
-Rather than cutting at a fixed size or at the next footer, each format parser
-**walks the file's own structure to find its exact end**: JPEG marker segments
-and entropy-coded scans, PNG chunks, MP4/MOV box trees, Matroska EBML
-elements, RIFF chunks (including AVI's OpenDML extensions), ASF headers,
-transport-stream packets, MP3 frames, Ogg pages, ZIP central directories (with
-offset consistency checks), OLE2 sector allocation tables, 7z/RAR headers with
-CRC validation, and so on. The result is far fewer truncated, bloated or
-broken files.
+## 🗂️ Supported file types
 
-### Supported carving formats
-
-| Category | Formats |
+| | Formats |
 |---|---|
-| Images | JPEG, PNG, GIF, BMP, TIFF, HEIC/HEIF, AVIF, WebP, camera RAW (CR2, CR3, NEF, ARW, DNG, PEF, SRW) |
-| Video | MP4, MOV (incl. legacy QuickTime without `ftyp`), M4V, 3GP, MKV, WebM, AVI, WMV, MTS/M2TS (AVCHD), TS |
-| Audio | MP3, WAV, M4A, WMA, OGG, Opus |
-| Documents | PDF, DOCX, XLSX, PPTX, DOC, XLS, PPT, MSG, ODT, ODS, ODP, EPUB |
-| Archives | ZIP, 7z, RAR (v4 and v5), JAR, APK |
-| Databases | SQLite |
+| 🖼️ **Images** | JPEG · PNG · GIF · BMP · TIFF · HEIC/HEIF · AVIF · WebP · camera RAW (CR2 · CR3 · NEF · ARW · DNG · PEF · SRW) |
+| 🎬 **Video** | MP4 · MOV · M4V · 3GP · MKV · WebM · AVI · WMV · MTS/M2TS (AVCHD) · TS |
+| 🎵 **Audio** | MP3 · WAV · M4A · WMA · OGG · Opus |
+| 📄 **Documents** | PDF · DOCX · XLSX · PPTX · DOC · XLS · PPT · MSG · ODT · ODS · ODP · EPUB |
+| 🗜️ **Archives** | ZIP · 7z · RAR (v4 & v5) · JAR · APK |
+| 🗄️ **Databases** | SQLite |
 
-`wdfr formats` prints the current list.
+Files recovered through the file system (stage 1) can be **any** type — the list above applies to the deep search.
 
-## Validation
+## ✅ Tested on real data
 
-Besides its unit and integration tests, `wdfr` has been checked against:
+Besides 40+ unit and integration tests running on Windows, macOS and Linux for every change, `wdfr` was checked against
+the public [Digital Forensics Tool Testing](https://dftt.sourceforge.net/) images and real volumes:
 
 | Test | Result |
 |---|---|
-| [DFTT #7 — NTFS undelete](https://dftt.sourceforge.net/) (resident, fragmented and multi-cluster files, alternate data stream, deleted and reallocated directories, leap-year dates) | **9/9** files with correct MD5, correct dates; `dir3\sing2.dat` reported under `$Orphan` because its parent's MFT entry was reallocated (as the test intends) |
-| [DFTT #6 — FAT undelete](https://dftt.sourceforge.net/) | **4/6** correct MD5 (incl. one fragmented file in deleted nested directories, at its correct path). The two remaining files are deliberately interleaved cluster-by-cluster and cannot be told apart from metadata alone |
-| [DFTT #11 — basic data carving](https://dftt.sourceforge.net/) | **13/15** exact MD5. Misses: a deliberately corrupted JPEG header, and a WAV whose reference file has one byte beyond its RIFF structure (the recovered audio is complete) |
-| Real FAT32 (MBR) and exFAT (GPT) volumes with deleted files, deleted folder trees and a fragmented video | All files recovered byte-identical |
-| 19 real files of different formats embedded in random data | 19/19 byte-identical, no false positives |
-| 1 GiB of random data | 0 false positives |
+| DFTT #7 — NTFS undelete | **9 / 9** files with correct MD5 and dates (incl. fragmented files, deleted folders and an alternate data stream) |
+| DFTT #11 — deep search | **13 / 15** exact MD5 — misses are a deliberately corrupted JPEG and a WAV with one extra byte outside its structure |
+| DFTT #6 — FAT undelete | **4 / 6** correct MD5 — the other two are deliberately interleaved cluster by cluster, which no metadata can untangle |
+| Real FAT32 and exFAT volumes | **All** deleted files byte-identical, incl. a fragmented video and whole deleted folder trees |
+| 19 real files hidden in random data | **19 / 19** byte-identical, no false results |
+| 1 GB of random data | **0** false results |
 
-## Limitations
+## ❓ FAQ
 
-- **SSDs with TRIM** usually erase deleted data — nothing can recover what the
-  drive has wiped.
-- **Encryption:** for BitLocker, recover from the *unlocked* volume
-  (`\\.\C:`), not the physical disk. EFS-encrypted files are recovered as
-  ciphertext (flagged in the report).
-- **Fragmentation:** carving assumes a file is stored contiguously (true for
-  most camera and phone media). FAT fragment reconstruction is a best guess
-  and is labelled as such.
-- **Other file systems** (ext4, APFS, HFS+, Btrfs, ReFS) are supported by
-  carving only.
-- `--deep` (byte-granular carving) is CPU-bound (~150 MB/s); the default
-  sector-aligned scan runs at disk speed.
+<details>
+<summary><b>Can it recover files from an SSD?</b></summary>
 
-## Building from source
+Often not. Windows tells the SSD which blocks were freed (TRIM), and the SSD may erase them within seconds or minutes.
+Nothing can recover data the drive itself has wiped. USB sticks, SD cards and hard drives usually recover well.
+
+</details>
+
+<details>
+<summary><b>Why is a file marked "overwritten"?</b></summary>
+
+Its space on the drive has since been used by another file, so the original content is gone. Such files are skipped by
+default; `--include-overwritten` writes them anyway (usually as garbage).
+
+</details>
+
+<details>
+<summary><b>Why do some files have names like <code>_mage.jpg</code> or <code>f0001a2b3000.jpg</code>?</b></summary>
+
+FAT/exFAT deletion destroys the first character of short names, so it is replaced by `_`. Files found by the deep
+search have no name left at all; they are named after their position on the disk.
+
+</details>
+
+<details>
+<summary><b>The drive makes noises or is very slow.</b></summary>
+
+Copy it to an image file first with [GNU ddrescue](https://www.gnu.org/software/ddrescue/) and run `wdfr` on the image.
+`wdfr` tolerates bad sectors, but every extra read stresses a dying drive.
+
+</details>
+
+<details>
+<summary><b>Does it work with BitLocker or EFS?</b></summary>
+
+For BitLocker, recover from the *unlocked* volume (e.g. `E:`), not the physical disk. EFS-encrypted files are recovered
+as ciphertext and flagged in the report.
+
+</details>
+
+<details>
+<summary><b>What about ext4, APFS, HFS+ or other file systems?</b></summary>
+
+They are supported by the deep search (content-based), without original names. The deep search assumes each file is
+stored in one piece, which is true for most camera and phone media.
+
+</details>
+
+## 🛠️ Build from source
 
 Requires [Rust](https://rustup.rs) 1.88 or newer.
 
 ```sh
-cargo build --release          # target/release/wdfr(.exe)
-cargo test                     # unit + integration tests
+cargo build --release    # → target/release/wdfr(.exe)
+cargo test               # unit + integration tests
 ```
 
-The Windows release binary is built with a statically linked C runtime (see
-`.cargo/config.toml`), so it runs on a bare Windows install.
+Release builds for every platform are produced automatically when a version tag (`v*`) is pushed. The Windows binary
+links the C runtime statically, so it runs on a bare Windows install.
 
-### Code layout
+<details>
+<summary><b>Code layout</b></summary>
 
 | Module | Responsibility |
 |---|---|
+| `menu` | Interactive, menu-driven mode |
 | `source` | Read-only device/image access: sector alignment for raw devices, bad-sector tolerant reads |
 | `partition` | MBR (incl. extended/logical) and GPT discovery, file-system detection |
 | `fs::ntfs` | MFT parsing, fixups, run lists, attribute lists, LZNT1 |
-| `fs::fat`, `fs::exfat` | Directory walking, LFN recovery, cluster assignment |
-| `carve` | Scanner and per-format structure parsers |
+| `fs::fat`, `fs::exfat` | Directory walking, long-name recovery, cluster assignment |
+| `carve` | Deep-search scanner and per-format structure parsers |
 | `recover` | Orchestration, de-duplication between stages, progress, report |
-| `output` | Safe naming (recovered names are untrusted input and can never escape the output folder) |
+| `output` | Safe naming — recovered names are untrusted and can never escape the output folder |
 
-## License
+</details>
 
-[MIT](LICENSE) — Powered by Bashar Salmo
+---
+
+<div align="center">
+
+**Powered by Bashar Salmo**
+
+Released under the [MIT License](LICENSE)
+
+</div>
