@@ -1,6 +1,7 @@
+mod menu;
+
 use std::path::PathBuf;
 use std::process::ExitCode;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
@@ -15,17 +16,36 @@ use wdfr::{devices, fs};
 /// Recover deleted photos, videos, documents and other files from NTFS,
 /// FAT12/16/32 and exFAT volumes, whole disks, memory cards and disk images.
 ///
+/// Run without arguments for an easy, menu-driven mode.
+///
 /// The source is only ever opened read-only. Always write recovered files
 /// to a different drive than the one you are recovering from.
 #[derive(Parser)]
-#[command(name = "wdfr", version, about, long_about, propagate_version = true)]
+#[command(name = "wdfr", version, about, long_about, propagate_version = true, after_help = menu::POWERED_BY)]
 struct Cli {
     /// More logging (-v info, -vv debug).
     #[arg(short, long, global = true, action = clap::ArgAction::Count)]
     verbose: u8,
 
+    /// Leave out to start the interactive menu.
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
+}
+
+/// Set by Ctrl+C while a recovery is running: finish the current file,
+/// write the report and stop.
+static CANCEL: AtomicBool = AtomicBool::new(false);
+/// True while a recovery is running; otherwise Ctrl+C exits at once.
+static BUSY: AtomicBool = AtomicBool::new(false);
+
+fn install_ctrlc_handler() {
+    let _ = ctrlc::set_handler(|| {
+        if !BUSY.load(Ordering::SeqCst) || CANCEL.swap(true, Ordering::SeqCst) {
+            let _ = console::Term::stdout().show_cursor();
+            std::process::exit(130);
+        }
+        eprintln!("\nStopping after the current file (Ctrl+C again to abort immediately)...");
+    });
 }
 
 #[derive(Subcommand)]
@@ -128,7 +148,17 @@ fn main() -> ExitCode {
         _ => "debug",
     };
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(level)).format_timestamp(None).init();
-    match run(cli.command) {
+    install_ctrlc_handler();
+    let result = match cli.command {
+        Some(cmd) => run(cmd),
+        // No arguments: guided menu when a person is at the keyboard.
+        None if console::user_attended() => menu::run(),
+        None => {
+            use clap::CommandFactory;
+            Cli::command().print_long_help().map(|_| ExitCode::SUCCESS).map_err(Into::into)
+        }
+    };
+    match result {
         Ok(code) => code,
         Err(e) => {
             eprintln!("error: {e:#}");
@@ -293,23 +323,18 @@ fn cmd_scan(
 
 fn cmd_recover(source: &str, opts: &Options) -> Result<ExitCode> {
     let s = Session::open(source)?;
-    let cancel = Arc::new(AtomicBool::new(false));
-    {
-        let c = cancel.clone();
-        let _ = ctrlc::set_handler(move || {
-            if c.swap(true, Ordering::SeqCst) {
-                std::process::exit(130);
-            }
-            eprintln!("\nStopping after the current file (Ctrl+C again to abort immediately)...");
-        });
-    }
     if !opts.quiet {
+        eprintln!("wdfr {} - {}", env!("CARGO_PKG_VERSION"), menu::POWERED_BY);
         eprintln!("Source: {} ({})", s.path, format_size(s.disk.size()));
         for p in s.selected(opts.partition)? {
             eprintln!("  {} at {:#x}, {}", p.label(), p.start, format_size(p.len));
         }
     }
-    let sum = recover::run(&s, opts, &cancel)?;
+    CANCEL.store(false, Ordering::SeqCst);
+    BUSY.store(true, Ordering::SeqCst);
+    let sum = recover::run(&s, opts, &CANCEL);
+    BUSY.store(false, Ordering::SeqCst);
+    let sum = sum?;
     println!();
     println!("Recovered from file system: {} files ({})", sum.fs_files, format_size(sum.fs_bytes));
     println!("Recovered by carving:       {} files ({})", sum.carved_files, format_size(sum.carved_bytes));

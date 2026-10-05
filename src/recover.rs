@@ -101,10 +101,10 @@ pub fn scan_partition(session: &Session, p: &Partition, filter: &Filter, quiet: 
 }
 
 pub fn run(session: &Session, opts: &Options, cancel: &AtomicBool) -> Result<Summary> {
-    std::fs::create_dir_all(&opts.out).with_context(|| format!("creating {}", opts.out.display()))?;
     if !opts.allow_same_volume {
         output::ensure_not_on_source(&session.path, &opts.out)?;
     }
+    std::fs::create_dir_all(&opts.out).with_context(|| format!("creating {}", opts.out.display()))?;
     let mut report = Report::create(&opts.out)?;
     let mut sum = Summary::default();
     let parts = session.selected(opts.partition)?;

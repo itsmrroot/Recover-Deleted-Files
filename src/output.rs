@@ -119,8 +119,12 @@ impl Report {
 
 /// Refuses to write recovered files onto the volume being recovered —
 /// every byte written there may overwrite a deleted file.
+/// `out` does not need to exist yet: the check uses its nearest existing
+/// ancestor, so nothing is created on the source before it passes.
 pub fn ensure_not_on_source(source: &str, out: &Path) -> Result<()> {
-    let out = fs::canonicalize(out).with_context(|| format!("resolving {}", out.display()))?;
+    let absolute = std::path::absolute(out).with_context(|| format!("resolving {}", out.display()))?;
+    let existing = absolute.ancestors().find(|p| p.exists()).unwrap_or(&absolute);
+    let out = fs::canonicalize(existing).with_context(|| format!("resolving {}", out.display()))?;
     if same_volume(source, &out) {
         anyhow::bail!(
             "the output directory {} is on the volume being recovered ({source}).\n\

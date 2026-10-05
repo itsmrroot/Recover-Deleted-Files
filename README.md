@@ -1,5 +1,7 @@
 # Windows Deleted Files Recovery (`wdfr`)
 
+**Powered by Bashar Salmo**
+
 A fast, safe, single-binary tool that recovers deleted **photos, videos, music,
 documents, archives and databases** from hard drives, SSDs, USB sticks, SD
 cards and disk images.
@@ -46,11 +48,38 @@ recoverable              74.7 KiB  2026-10-01 11:34:22  keep/manual.pdf
    those blocks within seconds or minutes. Recovery from an SSD's own volume
    is often impossible; USB sticks, SD cards and hard drives are usually fine.
 
-## Quick start (Windows)
+## Quick start (Windows) — no typing needed
 
-Download `wdfr.exe` from the [Releases](../../releases) page, put it on a
-**different** drive than the one you want to recover, and open
-**Command Prompt or PowerShell as Administrator** (raw disk access requires it).
+1. Download `wdfr.exe` from the [Releases](../../releases) page and put it on
+   a **different** drive than the one you want to recover.
+2. Right-click `wdfr.exe` → **Run as administrator** (needed to read drives).
+3. Pick everything from the menu with the arrow keys and Enter:
+
+```text
+  ================================================================
+    Windows Deleted Files Recovery  v0.1.0
+    Recover deleted photos, videos, documents and more
+    Powered by Bashar Salmo
+  ================================================================
+
+? What would you like to do? ›
+❯ Recover deleted files
+  Preview deleted files (scan only, nothing is saved)
+  Show drive information
+  List supported file types
+  Read this first: tips for a successful recovery
+  Exit
+```
+
+The guide asks, one question at a time: which drive, what you are looking for
+(everything, photos, videos, music, documents, or specific types), how deep to
+search, and where to save the files. A folder on another drive is suggested
+for you, and saving onto the drive being recovered is refused. At the end it
+offers to open the folder with your files.
+
+### Command line (advanced)
+
+Every option is also available as a command, for scripts and power users:
 
 ```powershell
 # 1. What disks and volumes are there?
@@ -228,4 +257,4 @@ The Windows release binary is built with a statically linked C runtime (see
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — Powered by Bashar Salmo

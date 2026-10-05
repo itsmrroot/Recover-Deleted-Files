@@ -104,8 +104,20 @@ impl DiskSource {
     /// is translated to the volume device `\\.\E:`.
     pub fn open(path: &str) -> Result<Self> {
         let path = normalize_device_path(path);
-        let file = platform::open_readonly(&path)
-            .with_context(|| format!("cannot open {path} (raw devices need Administrator/root)"))?;
+        let file = platform::open_readonly(&path).map_err(|e| {
+            let hint = match e.kind() {
+                std::io::ErrorKind::NotFound => " (no such drive or file)",
+                std::io::ErrorKind::PermissionDenied => {
+                    if cfg!(windows) {
+                        " (run as Administrator to read drives)"
+                    } else {
+                        " (run with sudo to read drives)"
+                    }
+                }
+                _ => "",
+            };
+            anyhow::Error::new(e).context(format!("cannot open {path}{hint}"))
+        })?;
         let is_device = platform::is_device(&path, &file);
         let size = if is_device {
             platform::device_size(&file).with_context(|| format!("cannot determine size of {path}"))?
