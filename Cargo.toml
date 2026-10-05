@@ -1,12 +1,12 @@
 [package]
 name = "wdfr"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Recover deleted photos, videos, documents and other files from NTFS, FAT and exFAT volumes, raw disks and disk images"
 authors = ["Bashar Salmo"]
 license = "MIT"
-repository = "https://github.com/itsmrroot/Windows-Deleted-Files-Recovery"
+repository = "https://github.com/itsmrroot/Recover-Deleted-Files"
 readme = "README.md"
 keywords = ["data-recovery", "undelete", "forensics", "ntfs", "file-carving"]
 categories = ["command-line-utilities", "filesystem"]

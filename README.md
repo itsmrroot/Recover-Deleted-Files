@@ -4,18 +4,18 @@
 
 <br>
 
-[![CI](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/actions/workflows/ci.yml/badge.svg)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/itsmrroot/Windows-Deleted-Files-Recovery?color=0b5cad)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/itsmrroot/Windows-Deleted-Files-Recovery/total?color=16a34a)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases)
+[![CI](https://github.com/itsmrroot/Recover-Deleted-Files/actions/workflows/ci.yml/badge.svg)](https://github.com/itsmrroot/Recover-Deleted-Files/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/itsmrroot/Recover-Deleted-Files?color=0b5cad)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/itsmrroot/Recover-Deleted-Files/total?color=16a34a)](https://github.com/itsmrroot/Recover-Deleted-Files/releases)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-6b7280)](#-download)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![License: MIT](https://img.shields.io/github/license/itsmrroot/Windows-Deleted-Files-Recovery?color=a78bfa)](LICENSE)
+[![License: MIT](https://img.shields.io/github/license/itsmrroot/Recover-Deleted-Files?color=a78bfa)](LICENSE)
 
 **Bring back deleted photos, videos, music and documents —<br>from hard drives, USB sticks, SD cards and disk images.**
 
-[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
-[![Download for macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
-[![Download for Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)
+[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
+[![Download for macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
+[![Download for Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
 
 [Quick start](#-quick-start) •
 [Desktop app](#%EF%B8%8F-the-desktop-app) •
@@ -87,7 +87,7 @@ damaged drive. Scans at full disk speed.
 > [!IMPORTANT]
 > **Stop using the drive right away.** Every new file saved to it can overwrite the files you want back.
 
-1. **[Download](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)**
+1. **[Download](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)**
    `wdfr-…-x86_64-pc-windows-msvc.zip` and unzip it on a **different** drive
    than the one you want to recover.
 2. Double-click **`wdfr-gui.exe`** and click **Yes** when Windows asks for
@@ -140,7 +140,7 @@ unsafe, allowing saves to the source drive.
 | Linux | `wdfr-…-x86_64-unknown-linux-gnu-desktop.tar.gz` | desktop app |
 | Linux (any distribution) | `wdfr-…-x86_64-unknown-linux-musl.tar.gz` | command line (fully static) |
 
-All downloads are on the **[latest release](https://github.com/itsmrroot/Windows-Deleted-Files-Recovery/releases/latest)** page.
+All downloads are on the **[latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)** page.
 On macOS and Linux, start it with `sudo ./wdfr-gui` (or `sudo ./wdfr` for the text menu) to read drives;
 disk images work without `sudo`.
 
