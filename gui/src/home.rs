@@ -10,6 +10,7 @@ use wdfr::recover::Method;
 use wdfr::source::{DiskSource, Source};
 use wdfr::units::format_size;
 
+use crate::elevate;
 use crate::i18n::{icon_label, tr, trf, trl};
 use crate::jobs::Job;
 use crate::results::{category_icon, category_label};
@@ -53,6 +54,8 @@ pub fn discover() -> Vec<DriveInfo> {
 pub enum Action {
     None,
     Scan,
+    /// Restart the app with administrator rights (macOS, Linux).
+    Elevate,
 }
 
 pub struct Home {
@@ -62,6 +65,9 @@ pub struct Home {
     pub images: Vec<String>,
     pub categories: Vec<Category>,
     pub method: Method,
+    /// A restart with administrator rights is waiting for the password.
+    pub restarting: bool,
+    elevate: bool,
 }
 
 impl Home {
@@ -73,6 +79,8 @@ impl Home {
             images: Vec::new(),
             categories: s.categories.clone(),
             method: s.method,
+            restarting: false,
+            elevate: false,
         };
         h.refresh(ctx);
         h
@@ -135,6 +143,9 @@ impl Home {
                     ui.label(RichText::new(hint).color(p.weak));
                 });
             });
+        if std::mem::take(&mut self.elevate) {
+            action = Action::Elevate;
+        }
         egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
             self.drives_card(ui, p, s);
             ui.add_space(14.0);
@@ -181,12 +192,23 @@ impl Home {
                         "No drive could be opened. Close the app, right-click it and choose \"Run as administrator\". Disk images work without it.",
                     )
                 } else {
-                    trl(
-                        "Reading drives needs administrator rights: start the app with sudo. Disk images work without it.",
-                    )
+                    trl("Reading drives needs administrator rights. Disk images work without them.")
                 };
                 theme::notice(ui, p, p.warning, icon::WARNING, msg);
                 ui.add_space(8.0);
+                if elevate::supported() && !elevate::is_root() {
+                    ui.horizontal(|ui| {
+                        let label = icon_label(icon::SHIELD_CHECK, "Restart with administrator rights");
+                        if theme::primary_button(ui, p, &label, !self.restarting).clicked() {
+                            self.elevate = true;
+                        }
+                        if self.restarting {
+                            ui.spinner();
+                            ui.label(RichText::new(tr("Waiting for the password…")).color(p.weak));
+                        }
+                    });
+                    ui.add_space(8.0);
+                }
             }
             let mut clicked = None;
             // (path, icon, title, detail, readable): opened images first, then drives.

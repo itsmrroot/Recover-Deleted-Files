@@ -76,8 +76,8 @@ Every file is checked against the drive's allocation map and marked
 <td valign="top">
 
 ### ⚡ Fast & portable
-Single executables, no installer and no runtime — nothing is written to the
-damaged drive. Scans at full disk speed.
+Installers for Windows, macOS and Linux, or portable single executables with no
+runtime — nothing is written to the damaged drive. Scans at full disk speed.
 
 </td>
 </tr>
@@ -133,18 +133,37 @@ unsafe, allowing saves to the source drive.
 
 ## 📥 Download
 
+All downloads are on the **[latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)** page.
+
+**Installers** (recommended): they add the app to the Start menu, Applications folder or app menu.
+
+| Your computer | Installer |
+|---|---|
+| **Windows** (most PCs) | `wdfr-…-windows-x64-setup.exe` |
+| Windows on ARM | `wdfr-…-windows-arm64-setup.exe` |
+| Mac with Apple Silicon (M1 and newer) | `wdfr-…-macos-apple-silicon.dmg` |
+| Mac with Intel | `wdfr-…-macos-intel.dmg` |
+| Ubuntu, Debian, Mint | `wdfr-…-linux-x86_64.deb` |
+| Fedora, openSUSE | `wdfr-…-linux-x86_64.rpm` |
+| Any other Linux | `wdfr-…-linux-x86_64.AppImage` |
+
+The installers also include the command line (`wdfr`). Reading drives needs administrator rights:
+Windows asks when the app starts; on macOS and Linux click **Restart with administrator rights** in the app.
+Disk images work without them.
+
+**Portable** (no installation, just unpack and run):
+
 | Your computer | File | Contains |
 |---|---|---|
 | **Windows** (most PCs) | `wdfr-…-x86_64-pc-windows-msvc.zip` | desktop app + command line |
 | Windows on ARM | `wdfr-…-aarch64-pc-windows-msvc.zip` | desktop app + command line |
-| Mac with Apple Silicon (M1–M4) | `wdfr-…-aarch64-apple-darwin.tar.gz` | desktop app + command line |
+| Mac with Apple Silicon | `wdfr-…-aarch64-apple-darwin.tar.gz` | desktop app + command line |
 | Mac with Intel | `wdfr-…-x86_64-apple-darwin.tar.gz` | desktop app + command line |
 | Linux | `wdfr-…-x86_64-unknown-linux-gnu-desktop.tar.gz` | desktop app |
 | Linux (any distribution) | `wdfr-…-x86_64-unknown-linux-musl.tar.gz` | command line (fully static) |
 
-All downloads are on the **[latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)** page.
-On macOS and Linux, start it with `sudo ./wdfr-gui` (or `sudo ./wdfr` for the text menu) to read drives;
-disk images work without `sudo`.
+The installers are not code-signed yet. The first time, Windows may show "Windows protected your PC": click
+**More info → Run anyway**. On a Mac, right-click the app → **Open** → **Open**.
 
 ## 💻 Command line
 

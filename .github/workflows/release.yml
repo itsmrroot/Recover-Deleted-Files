@@ -15,15 +15,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows and macOS packages contain the desktop app and the command line.
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, packages: "-p wdfr -p wdfr-gui", bins: "wdfr.exe wdfr-gui.exe" }
-          - { os: windows-latest, target: aarch64-pc-windows-msvc, packages: "-p wdfr -p wdfr-gui", bins: "wdfr.exe wdfr-gui.exe" }
-          - { os: macos-latest, target: aarch64-apple-darwin, packages: "-p wdfr -p wdfr-gui", bins: "wdfr wdfr-gui" }
-          - { os: macos-latest, target: x86_64-apple-darwin, packages: "-p wdfr -p wdfr-gui", bins: "wdfr wdfr-gui" }
+          # Windows and macOS packages contain the desktop app and the command
+          # line; `installer` adds a setup program / disk image next to them.
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, packages: "-p wdfr -p wdfr-gui", bins: "wdfr.exe wdfr-gui.exe", installer: nsis, label: windows-x64 }
+          - { os: windows-latest, target: aarch64-pc-windows-msvc, packages: "-p wdfr -p wdfr-gui", bins: "wdfr.exe wdfr-gui.exe", installer: nsis, label: windows-arm64 }
+          - { os: macos-latest, target: aarch64-apple-darwin, packages: "-p wdfr -p wdfr-gui", bins: "wdfr wdfr-gui", installer: dmg, label: macos-apple-silicon }
+          - { os: macos-latest, target: x86_64-apple-darwin, packages: "-p wdfr -p wdfr-gui", bins: "wdfr wdfr-gui", installer: dmg, label: macos-intel }
           # Linux: a fully static command line, plus the desktop app (which
           # loads the system's graphics libraries, so it is built for glibc).
           - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, packages: "-p wdfr", bins: "wdfr" }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, packages: "-p wdfr-gui", bins: "wdfr-gui", suffix: "-desktop" }
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, packages: "-p wdfr -p wdfr-gui", bins: "wdfr-gui", suffix: "-desktop", installer: linux, label: linux-x86_64 }
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -51,3 +52,41 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ASSET }}
+
+      # Installers (configured in gui/Cargo.toml). They run after the archive is
+      # published, so a failing installer never holds back the plain download.
+      - name: Install packaging tools
+        if: matrix.installer
+        shell: bash
+        run: |
+          cargo install --locked cargo-packager@0.11.8
+          if [[ "${{ matrix.installer }}" == linux ]]; then cargo install --locked cargo-generate-rpm@0.21.0; fi
+      - name: Build installers
+        if: matrix.installer
+        shell: bash
+        env:
+          # linuxdeploy is itself an AppImage; this lets it run without FUSE.
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        run: |
+          base=wdfr-${GITHUB_REF_NAME}-${{ matrix.label }}
+          pack="cargo packager --release --target ${{ matrix.target }} -p wdfr-gui -o pkg"
+          mkdir installers
+          case "${{ matrix.installer }}" in
+            nsis)
+              $pack -f nsis
+              cp pkg/*.exe "installers/$base-setup.exe" ;;
+            dmg)
+              $pack -f dmg
+              cp pkg/*.dmg "installers/$base.dmg" ;;
+            linux)
+              $pack -f deb,appimage
+              cargo generate-rpm -p gui --target ${{ matrix.target }} -o pkg
+              cp pkg/*.deb "installers/$base.deb"
+              cp pkg/*.AppImage "installers/$base.AppImage"
+              cp pkg/*.rpm "installers/$base.rpm" ;;
+          esac
+          ls -la installers
+      - if: matrix.installer
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installers/*

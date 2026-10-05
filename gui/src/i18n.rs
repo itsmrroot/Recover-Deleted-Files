@@ -328,6 +328,7 @@ mod tests {
 
     const SOURCES: &[&str] = &[
         include_str!("app.rs"),
+        include_str!("elevate.rs"),
         include_str!("home.rs"),
         include_str!("i18n.rs"),
         include_str!("jobs.rs"),

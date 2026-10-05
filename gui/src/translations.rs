@@ -26,8 +26,12 @@ pub const GERMAN: &[(&str, &str)] = &[
         "Zum Lesen eines Laufwerks sind Administratorrechte nötig: Schließen Sie die App, klicken Sie mit der rechten Maustaste darauf und wählen Sie „Als Administrator ausführen“.",
     ),
     (
-        "Reading a drive needs administrator rights: start the app with sudo.",
-        "Zum Lesen eines Laufwerks sind Administratorrechte nötig: Starten Sie die App mit sudo.",
+        "Reading a drive needs administrator rights: click \"Restart with administrator rights\" on the start screen, or start the app with sudo.",
+        "Zum Lesen eines Laufwerks sind Administratorrechte nötig: Klicken Sie auf dem Startbildschirm auf „Mit Administratorrechten neu starten“ oder starten Sie die App mit sudo.",
+    ),
+    (
+        "The app could not be restarted with administrator rights.",
+        "Die App konnte nicht mit Administratorrechten neu gestartet werden.",
     ),
     // Home
     ("1. Choose a drive", "1. Laufwerk auswählen"),
@@ -43,9 +47,11 @@ pub const GERMAN: &[(&str, &str)] = &[
         "Es konnte kein Laufwerk geöffnet werden. Schließen Sie die App, klicken Sie mit der rechten Maustaste darauf und wählen Sie „Als Administrator ausführen“. Disk-Images funktionieren auch ohne.",
     ),
     (
-        "Reading drives needs administrator rights: start the app with sudo. Disk images work without it.",
-        "Zum Lesen von Laufwerken sind Administratorrechte nötig: Starten Sie die App mit sudo. Disk-Images funktionieren auch ohne.",
+        "Reading drives needs administrator rights. Disk images work without them.",
+        "Zum Lesen von Laufwerken sind Administratorrechte nötig. Disk-Images funktionieren auch ohne.",
     ),
+    ("Restart with administrator rights", "Mit Administratorrechten neu starten"),
+    ("Waiting for the password…", "Warte auf das Passwort…"),
     ("Disk image · {size}", "Disk-Image · {size}"),
     ("Needs administrator rights", "Benötigt Administratorrechte"),
     ("Unknown", "Unbekannt"),
@@ -348,9 +354,10 @@ pub const ARABIC: &[(&str, &str)] = &[
         "قراءة المحرك تتطلب صلاحيات المسؤول: أغلق التطبيق، ثم انقر عليه بزر الفأرة الأيمن واختر \"تشغيل كمسؤول\".",
     ),
     (
-        "Reading a drive needs administrator rights: start the app with sudo.",
-        "قراءة المحرك تتطلب صلاحيات المسؤول: شغّل التطبيق باستخدام sudo.",
+        "Reading a drive needs administrator rights: click \"Restart with administrator rights\" on the start screen, or start the app with sudo.",
+        "قراءة المحرك تتطلب صلاحيات المسؤول: انقر على \"إعادة التشغيل بصلاحيات المسؤول\" في شاشة البداية، أو شغّل التطبيق باستخدام sudo.",
     ),
+    ("The app could not be restarted with administrator rights.", "تعذّرت إعادة تشغيل التطبيق بصلاحيات المسؤول."),
     // Home
     ("1. Choose a drive", "1. اختر محركًا"),
     ("2. What are you looking for?", "2. عمّ تبحث؟"),
@@ -365,9 +372,11 @@ pub const ARABIC: &[(&str, &str)] = &[
         "تعذّر فتح أي محرك. أغلق التطبيق، ثم انقر عليه بزر الفأرة الأيمن واختر \"تشغيل كمسؤول\". صور الأقراص تعمل بدون ذلك.",
     ),
     (
-        "Reading drives needs administrator rights: start the app with sudo. Disk images work without it.",
-        "قراءة المحركات تتطلب صلاحيات المسؤول: شغّل التطبيق باستخدام sudo. صور الأقراص تعمل بدون ذلك.",
+        "Reading drives needs administrator rights. Disk images work without them.",
+        "قراءة المحركات تتطلب صلاحيات المسؤول. صور الأقراص تعمل بدونها.",
     ),
+    ("Restart with administrator rights", "إعادة التشغيل بصلاحيات المسؤول"),
+    ("Waiting for the password…", "في انتظار كلمة المرور…"),
     ("Disk image · {size}", "صورة قرص · {size}"),
     ("Needs administrator rights", "يتطلب صلاحيات المسؤول"),
     ("Unknown", "غير معروف"),

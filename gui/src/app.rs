@@ -9,6 +9,7 @@ use egui_phosphor::regular as icon;
 use wdfr::filter::Filter;
 use wdfr::recover::{self, Found, Method, SaveOptions, ScanOptions, Session, Summary};
 
+use crate::elevate;
 use crate::home::{self, Home};
 use crate::i18n::{self, tr, trf, trl};
 use crate::jobs::Job;
@@ -42,6 +43,7 @@ pub struct App {
     previewer: Previewer,
     logo: egui::TextureHandle,
     error: Option<String>,
+    restart: Option<elevate::Restart>,
     #[cfg(debug_assertions)]
     tour: Option<tour::Tour>,
 }
@@ -53,7 +55,12 @@ type ScanJob = Job<(Arc<Session>, Found)>;
 
 impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let settings: Settings = cc.storage.and_then(|s| eframe::get_value(s, SETTINGS_KEY)).unwrap_or_default();
+        // After a restart with administrator rights, continue with the
+        // settings of the instance that asked for it.
+        let handed_over = std::env::var(elevate::SETTINGS_ENV).ok().and_then(|j| serde_json::from_str(&j).ok());
+        let settings: Settings =
+            handed_over.or_else(|| cc.storage.and_then(|s| eframe::get_value(s, SETTINGS_KEY))).unwrap_or_default();
+        elevate::announce_ready();
         let lang = i18n::set_language(settings.language);
         theme::install_fonts(&cc.egui_ctx, i18n::is_rtl());
         let logo = {
@@ -79,6 +86,7 @@ impl App {
             previewer: Previewer::default(),
             logo,
             error: None,
+            restart: None,
             #[cfg(debug_assertions)]
             tour: tour::Tour::from_env(),
         }
@@ -161,6 +169,35 @@ impl App {
         self.page = Page::Saving;
     }
 
+    fn start_restart(&mut self) {
+        let mut settings = self.settings.clone();
+        settings.method = self.home.method;
+        settings.categories = self.home.categories.clone();
+        let json = serde_json::to_string(&settings).unwrap_or_default();
+        match elevate::restart(&json) {
+            Ok(r) => {
+                self.restart = Some(r);
+                self.home.restarting = true;
+            }
+            Err(e) => {
+                self.error =
+                    Some(format!("{}\n\n{e}", trl("The app could not be restarted with administrator rights.")))
+            }
+        }
+    }
+
+    fn poll_restart(&mut self, ctx: &egui::Context) {
+        let Some(r) = &mut self.restart else { return };
+        match r.poll() {
+            elevate::Status::Waiting => ctx.request_repaint_after(Duration::from_millis(200)),
+            elevate::Status::Started => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+            elevate::Status::Failed => {
+                self.restart = None;
+                self.home.restarting = false;
+            }
+        }
+    }
+
     fn poll_jobs(&mut self) {
         self.home.poll();
         if let Some((job, name)) = &self.scan
@@ -193,6 +230,8 @@ impl App {
             self.save = None;
             match result {
                 Ok(sum) => {
+                    // When running as root, the files belong to the real user.
+                    elevate::give_back(&out);
                     if self.settings.open_folder_when_done && !sum.cancelled && sum.fs_files + sum.carved_files > 0 {
                         open_path(&out);
                     }
@@ -215,7 +254,8 @@ impl App {
         if !self.settings.destination.trim().is_empty() {
             return PathBuf::from(self.settings.destination.trim()).join(folder);
         }
-        let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
+        let home = elevate::user_home()
+            .or_else(|| std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from));
         let desktop = home.map(|h| if h.join("Desktop").is_dir() { h.join("Desktop") } else { h }).unwrap_or_default();
         let preferred = desktop.join(&folder);
         if self.settings.allow_same_volume || wdfr::output::ensure_not_on_source(source, &preferred).is_ok() {
@@ -301,11 +341,11 @@ impl App {
     fn content(&mut self, ui: &mut Ui, p: &Palette) {
         let ctx = ui.ctx().clone();
         match self.page {
-            Page::Home => {
-                if let home::Action::Scan = self.home.page(ui, p, &self.settings) {
-                    self.start_scan(&ctx, None);
-                }
-            }
+            Page::Home => match self.home.page(ui, p, &self.settings) {
+                home::Action::Scan => self.start_scan(&ctx, None),
+                home::Action::Elevate => self.start_restart(),
+                home::Action::None => {}
+            },
             Page::Scanning => {
                 if let Some((job, name)) = &self.scan {
                     let st = job.progress.snapshot();
@@ -386,7 +426,7 @@ impl App {
                 let hint = if cfg!(windows) {
                     trl("Reading a drive needs administrator rights: close the app, right-click it and choose \"Run as administrator\".")
                 } else {
-                    trl("Reading a drive needs administrator rights: start the app with sudo.")
+                    trl("Reading a drive needs administrator rights: click \"Restart with administrator rights\" on the start screen, or start the app with sudo.")
                 };
                 theme::paragraph(ui, hint, 14.5, p.weak);
             }
@@ -405,6 +445,7 @@ impl eframe::App for App {
         let ctx = ui.ctx().clone();
         self.apply_settings(&ctx);
         self.poll_jobs();
+        self.poll_restart(&ctx);
         if self.previewer.poll(&ctx) {
             ctx.request_repaint();
         }

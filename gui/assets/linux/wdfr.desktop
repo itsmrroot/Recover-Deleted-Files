@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Deleted Files Recovery
+Name[de]=Gelöschte Dateien wiederherstellen
+Name[ar]=استعادة الملفات المحذوفة
+Comment=Recover deleted photos, videos, music and documents
+Exec=wdfr-gui
+Icon=wdfr
+Terminal=false
+Categories=Utility;System;
