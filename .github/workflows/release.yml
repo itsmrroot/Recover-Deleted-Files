@@ -69,21 +69,23 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: 1
         run: |
           base=wdfr-${GITHUB_REF_NAME}-${{ matrix.label }}
+          # cargo-packager takes its output folder relative to gui/.
+          pkg=gui/pkg
           pack="cargo packager --release --target ${{ matrix.target }} -p wdfr-gui -o pkg"
           mkdir installers
           case "${{ matrix.installer }}" in
             nsis)
               $pack -f nsis
-              cp pkg/*.exe "installers/$base-setup.exe" ;;
+              cp "$pkg"/*.exe "installers/$base-setup.exe" ;;
             dmg)
               $pack -f dmg
-              cp pkg/*.dmg "installers/$base.dmg" ;;
+              cp "$pkg"/*.dmg "installers/$base.dmg" ;;
             linux)
               $pack -f deb,appimage
-              cargo generate-rpm -p gui --target ${{ matrix.target }} -o pkg
-              cp pkg/*.deb "installers/$base.deb"
-              cp pkg/*.AppImage "installers/$base.AppImage"
-              cp pkg/*.rpm "installers/$base.rpm" ;;
+              cargo generate-rpm -p gui --target ${{ matrix.target }} -o "$GITHUB_WORKSPACE/$pkg"
+              cp "$pkg"/*.deb "installers/$base.deb"
+              cp "$pkg"/*.AppImage "installers/$base.AppImage"
+              cp "$pkg"/*.rpm "installers/$base.rpm" ;;
           esac
           ls -la installers
       - if: matrix.installer
