@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="420" viewBox="0 0 860 420" role="img" aria-label="The wdfr interactive menu">
+  <rect width="860" height="420" rx="12" fill="#0c0c0c"/>
+  <rect width="860" height="40" rx="12" fill="#1f1f1f"/>
+  <rect y="28" width="860" height="12" fill="#1f1f1f"/>
+  <g font-family="Segoe UI, -apple-system, Helvetica, Arial, sans-serif" font-size="14" fill="#d4d4d4">
+    <text x="20" y="25">Administrator: wdfr.exe</text>
+    <text x="790" y="25" fill="#8a8a8a">—   ☐   ✕</text>
+  </g>
+  <g font-family="Cascadia Mono, Consolas, Menlo, monospace" font-size="16">
+    <text x="43.2" y="84" fill="#22d3ee">================================================================</text>
+    <text x="62.4" y="110"><tspan fill="#ffffff" font-weight="700">Windows Deleted Files Recovery</tspan><tspan fill="#7a7a7a">  v0.1.0</tspan></text>
+    <text x="62.4" y="134" fill="#d4d4d4">Recover deleted photos, videos, documents and more</text>
+    <text x="62.4" y="158" fill="#facc15" font-weight="700">Powered by Bashar Salmo</text>
+    <text x="43.2" y="182" fill="#22d3ee">================================================================</text>
+    <text x="24" y="226"><tspan fill="#facc15">?</tspan><tspan fill="#ffffff" font-weight="700"> What would you like to do?</tspan><tspan fill="#7a7a7a"> ›</tspan></text>
+    <text x="24" y="254"><tspan fill="#4ade80">❯</tspan><tspan fill="#22d3ee"> Recover deleted files</tspan></text>
+    <text x="43.2" y="278" fill="#d4d4d4">Preview deleted files (scan only, nothing is saved)</text>
+    <text x="43.2" y="302" fill="#d4d4d4">Show drive information</text>
+    <text x="43.2" y="326" fill="#d4d4d4">List supported file types</text>
+    <text x="43.2" y="350" fill="#d4d4d4">Read this first: tips for a successful recovery</text>
+    <text x="43.2" y="374" fill="#d4d4d4">Exit</text>
+  </g>
+</svg>
