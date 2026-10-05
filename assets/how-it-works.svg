@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="350" viewBox="0 0 1200 350" role="img" aria-label="How wdfr works: the drive is opened read-only, partitions are found; recognised file systems are scanned for deleted entries, checked against the allocation map and restored with names; then free space is deep-searched and each file measured exactly; everything goes to the output folder with a report.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#0f2a4a"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="350" rx="20" fill="url(#bg)"/>
+
+  <g fill="none" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M190 175H218"/>
+    <path d="M390 175H408"/>
+    <path d="M480 125V76H578"/>
+    <path d="M480 225V274H578"/>
+    <path d="M760 76H788"/>
+    <path d="M760 274H788"/>
+    <path d="M980 76H1100V136"/>
+    <path d="M980 274H1100V214"/>
+    <path d="M885 112V175H670V236" stroke-dasharray="6 6"/>
+  </g>
+
+  <g font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" text-anchor="middle">
+    <!-- Source -->
+    <rect x="20" y="139" width="170" height="72" rx="12" fill="#13233b" stroke="#64748b" stroke-width="2"/>
+    <text x="105" y="170" fill="#ffffff" font-size="16" font-weight="600">Drive or image</text>
+    <text x="105" y="192" fill="#94a3b8" font-size="14">opened read-only</text>
+
+    <rect x="220" y="139" width="170" height="72" rx="12" fill="#13233b" stroke="#64748b" stroke-width="2"/>
+    <text x="305" y="170" fill="#ffffff" font-size="16" font-weight="600">Find partitions</text>
+    <text x="305" y="192" fill="#94a3b8" font-size="14">MBR · GPT</text>
+
+    <!-- Decision -->
+    <path d="M480 125L550 175L480 225L410 175Z" fill="#13233b" stroke="#64748b" stroke-width="2"/>
+    <text x="480" y="171" fill="#ffffff" font-size="14" font-weight="600">File system</text>
+    <text x="480" y="189" fill="#ffffff" font-size="14" font-weight="600">recognised?</text>
+    <text x="470" y="72" fill="#38bdf8" font-size="13" text-anchor="end">NTFS · FAT · exFAT</text>
+    <text x="470" y="290" fill="#a78bfa" font-size="13" text-anchor="end">unknown / formatted</text>
+
+    <!-- Stage 1 -->
+    <rect x="580" y="40" width="180" height="72" rx="12" fill="#0c2740" stroke="#38bdf8" stroke-width="2"/>
+    <text x="670" y="69" fill="#ffffff" font-size="16" font-weight="600">Find deleted entries</text>
+    <text x="670" y="91" fill="#94a3b8" font-size="14">in the metadata</text>
+
+    <rect x="790" y="40" width="190" height="72" rx="12" fill="#0c2740" stroke="#38bdf8" stroke-width="2"/>
+    <text x="885" y="69" fill="#ffffff" font-size="16" font-weight="600">Restore with names</text>
+    <text x="885" y="91" fill="#94a3b8" font-size="14">skips overwritten files</text>
+
+    <text x="680" y="166" fill="#64748b" font-size="13" text-anchor="start">then search the rest</text>
+
+    <!-- Stage 2 -->
+    <rect x="580" y="238" width="180" height="72" rx="12" fill="#1e1b3b" stroke="#a78bfa" stroke-width="2"/>
+    <text x="670" y="267" fill="#ffffff" font-size="16" font-weight="600">Deep search</text>
+    <text x="670" y="289" fill="#94a3b8" font-size="14">free space only</text>
+
+    <rect x="790" y="238" width="190" height="72" rx="12" fill="#1e1b3b" stroke="#a78bfa" stroke-width="2"/>
+    <text x="885" y="267" fill="#ffffff" font-size="16" font-weight="600">Measure exact length</text>
+    <text x="885" y="289" fill="#94a3b8" font-size="14">from the file's structure</text>
+
+    <!-- Output -->
+    <rect x="1020" y="139" width="160" height="72" rx="12" fill="#0f2e1f" stroke="#22c55e" stroke-width="2"/>
+    <text x="1100" y="170" fill="#ffffff" font-size="16" font-weight="600">Output folder</text>
+    <text x="1100" y="192" fill="#94a3b8" font-size="14">+ report.csv</text>
+
+    <!-- Stage labels -->
+    <text x="580" y="28" fill="#38bdf8" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">STAGE 1 · FILE SYSTEM</text>
+    <text x="580" y="332" fill="#a78bfa" font-size="12" font-weight="700" text-anchor="start" letter-spacing="1">STAGE 2 · DEEP SEARCH</text>
+  </g>
+</svg>
