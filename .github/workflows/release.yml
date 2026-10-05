@@ -40,8 +40,11 @@ jobs:
           mkdir "$name"
           for b in ${{ matrix.bins }}; do cp "target/${{ matrix.target }}/release/$b" "$name/"; done
           cp README.md LICENSE "$name/"
-          # The desktop app embeds Noto Sans Arabic, whose licence must travel with it.
-          if [[ "${{ matrix.packages }}" == *wdfr-gui* ]]; then cp gui/assets/fonts/OFL.txt "$name/OFL-NotoSansArabic.txt"; fi
+          # The desktop app embeds Noto Sans Arabic and SC, whose licences must travel with it.
+          if [[ "${{ matrix.bins }}" == *wdfr-gui* ]]; then
+            cp gui/assets/fonts/OFL.txt "$name/OFL-NotoSansArabic.txt"
+            cp gui/assets/fonts/OFL-NotoSansSC.txt "$name/OFL-NotoSansSC.txt"
+          fi
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             7z a "$name.zip" "$name" >/dev/null
             echo "ASSET=$name.zip" >> "$GITHUB_ENV"

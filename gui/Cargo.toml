@@ -1,6 +1,6 @@
 [package]
 name = "wdfr-gui"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 rust-version = "1.88"
 description = "Desktop app for Windows Deleted Files Recovery"
@@ -22,7 +22,7 @@ serde_json = "1.0.151"
 skrifa = { version = "0.44", default-features = false, features = ["std"] }
 sys-locale = "0.3.2"
 unicode-bidi = "0.3.18"
-wdfr = { version = "0.2.4", path = ".." }
+wdfr = { version = "0.2.5", path = ".." }
 
 [build-dependencies]
 winresource = "0.1.31"
@@ -47,7 +47,10 @@ license-file = "../LICENSE"
 icons = ["assets/wdfr.icns", "assets/wdfr.ico", "assets/icon.png"]
 # The command line comes along for scripting and keyboard use.
 binaries = [{ path = "wdfr-gui", main = true }, { path = "wdfr", main = false }]
-resources = [{ src = "assets/fonts/OFL.txt", target = "OFL-NotoSansArabic.txt" }]
+resources = [
+    { src = "assets/fonts/OFL.txt", target = "OFL-NotoSansArabic.txt" },
+    { src = "assets/fonts/OFL-NotoSansSC.txt", target = "OFL-NotoSansSC.txt" },
+]
 
 [package.metadata.packager.macos]
 minimum-system-version = "10.13"
@@ -55,7 +58,7 @@ minimum-system-version = "10.13"
 [package.metadata.packager.nsis]
 # The app needs administrator rights anyway, so it installs for all users.
 installMode = "perMachine"
-languages = ["English", "German", "Arabic"]
+languages = ["English", "German", "Spanish", "French", "Turkish", "Russian", "Arabic", "SimpChinese"]
 display-language-selector = true
 
 [package.metadata.packager.deb]
@@ -76,6 +79,7 @@ assets = [
     { source = "gui/assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/wdfr.png", mode = "644" },
     { source = "LICENSE", dest = "/usr/share/licenses/wdfr/LICENSE", mode = "644", doc = true },
     { source = "gui/assets/fonts/OFL.txt", dest = "/usr/share/licenses/wdfr/OFL-NotoSansArabic.txt", mode = "644", doc = true },
+    { source = "gui/assets/fonts/OFL-NotoSansSC.txt", dest = "/usr/share/licenses/wdfr/OFL-NotoSansSC.txt", mode = "644", doc = true },
 ]
 
 [package.metadata.generate-rpm.requires]

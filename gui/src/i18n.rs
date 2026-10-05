@@ -30,6 +30,10 @@ use crate::translations;
 
 pub const ARABIC_FONT: &[u8] = include_bytes!("../assets/fonts/NotoSansArabic-Regular.ttf");
 pub const ARABIC_FONT_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/NotoSansArabic-SemiBold.ttf");
+/// Noto Sans SC cut down to the characters of the Chinese translation (see
+/// `assets/fonts/subset-chinese.py`).
+pub const CHINESE_FONT: &[u8] = include_bytes!("../assets/fonts/NotoSansSC-Regular-subset.otf");
+pub const CHINESE_FONT_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/NotoSansSC-Medium-subset.otf");
 
 /// The language chosen in Settings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -40,10 +44,26 @@ pub enum Language {
     English,
     German,
     Arabic,
+    Spanish,
+    French,
+    Russian,
+    Chinese,
+    Turkish,
 }
 
 impl Language {
-    pub const ALL: [Language; 4] = [Language::System, Language::English, Language::German, Language::Arabic];
+    /// In the order of the language picker.
+    pub const ALL: [Language; 9] = [
+        Language::System,
+        Language::English,
+        Language::German,
+        Language::Spanish,
+        Language::French,
+        Language::Turkish,
+        Language::Russian,
+        Language::Arabic,
+        Language::Chinese,
+    ];
 
     /// The name shown in the language picker: each language in its own words.
     pub fn label(self) -> Cow<'static, str> {
@@ -51,6 +71,11 @@ impl Language {
             Language::System => Cow::Borrowed(tr("System language")),
             Language::English => Cow::Borrowed("English"),
             Language::German => Cow::Borrowed("Deutsch"),
+            Language::Spanish => Cow::Borrowed("Español"),
+            Language::French => Cow::Borrowed("Français"),
+            Language::Russian => Cow::Borrowed("Русский"),
+            Language::Chinese => Cow::Borrowed("简体中文"),
+            Language::Turkish => Cow::Borrowed("Türkçe"),
             Language::Arabic => visual("العربية"),
         }
     }
@@ -60,13 +85,14 @@ impl Language {
             Language::English => Lang::En,
             Language::German => Lang::De,
             Language::Arabic => Lang::Ar,
+            Language::Spanish => Lang::Es,
+            Language::French => Lang::Fr,
+            Language::Russian => Lang::Ru,
+            Language::Chinese => Lang::Zh,
+            Language::Turkish => Lang::Tr,
             Language::System => {
                 let locale = sys_locale::get_locale().unwrap_or_default().to_ascii_lowercase();
-                match locale.get(..2) {
-                    Some("de") => Lang::De,
-                    Some("ar") => Lang::Ar,
-                    _ => Lang::En,
-                }
+                Lang::ALL.into_iter().find(|l| locale.starts_with(l.code())).unwrap_or(Lang::En)
             }
         }
     }
@@ -76,9 +102,46 @@ impl Language {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Lang {
-    En = 0,
-    De = 1,
-    Ar = 2,
+    En,
+    De,
+    Ar,
+    Es,
+    Fr,
+    Ru,
+    Zh,
+    Tr,
+}
+
+impl Lang {
+    const ALL: [Lang; 8] = [Lang::En, Lang::De, Lang::Ar, Lang::Es, Lang::Fr, Lang::Ru, Lang::Zh, Lang::Tr];
+
+    /// The ISO 639-1 code, as it starts the OS locale ("de-DE", "zh_CN").
+    fn code(self) -> &'static str {
+        match self {
+            Lang::En => "en",
+            Lang::De => "de",
+            Lang::Ar => "ar",
+            Lang::Es => "es",
+            Lang::Fr => "fr",
+            Lang::Ru => "ru",
+            Lang::Zh => "zh",
+            Lang::Tr => "tr",
+        }
+    }
+
+    /// Translations keyed by the English text (none for English itself).
+    fn table(self) -> &'static [(&'static str, &'static str)] {
+        match self {
+            Lang::En => &[],
+            Lang::De => translations::GERMAN,
+            Lang::Ar => translations::ARABIC,
+            Lang::Es => translations::SPANISH,
+            Lang::Fr => translations::FRENCH,
+            Lang::Ru => translations::RUSSIAN,
+            Lang::Zh => translations::CHINESE,
+            Lang::Tr => translations::TURKISH,
+        }
+    }
 }
 
 static CURRENT: AtomicU8 = AtomicU8::new(Lang::En as u8);
@@ -91,11 +154,8 @@ pub fn set_language(l: Language) -> Lang {
 }
 
 pub fn current() -> Lang {
-    match CURRENT.load(Ordering::Relaxed) {
-        1 => Lang::De,
-        2 => Lang::Ar,
-        _ => Lang::En,
-    }
+    let n = CURRENT.load(Ordering::Relaxed);
+    Lang::ALL.into_iter().find(|l| *l as u8 == n).unwrap_or(Lang::En)
 }
 
 pub fn is_rtl() -> bool {
@@ -104,14 +164,10 @@ pub fn is_rtl() -> bool {
 
 /// The translation of `en`, in logical (typing) order.
 fn lookup(en: &'static str) -> &'static str {
-    static TABLES: LazyLock<[HashMap<&'static str, &'static str>; 2]> = LazyLock::new(|| {
-        [translations::GERMAN.iter().copied().collect(), translations::ARABIC.iter().copied().collect()]
-    });
-    match current() {
-        Lang::En => en,
-        Lang::De => TABLES[0].get(en).copied().unwrap_or(en),
-        Lang::Ar => TABLES[1].get(en).copied().unwrap_or(en),
-    }
+    type Table = HashMap<&'static str, &'static str>;
+    static TABLES: LazyLock<Vec<Table>> =
+        LazyLock::new(|| Lang::ALL.iter().map(|l| l.table().iter().copied().collect()).collect());
+    TABLES[current() as usize].get(en).copied().unwrap_or(en)
 }
 
 /// A fixed label, translated and ready to display.
@@ -408,7 +464,8 @@ mod tests {
     fn every_string_is_translated() {
         let keys = keys();
         assert!(keys.len() > 100, "found only {} strings", keys.len());
-        for (name, table) in [("German", translations::GERMAN), ("Arabic", translations::ARABIC)] {
+        for lang in Lang::ALL.into_iter().filter(|l| *l != Lang::En) {
+            let (name, table) = (lang.code(), lang.table());
             let map: HashMap<&str, &str> = table.iter().copied().collect();
             assert_eq!(map.len(), table.len(), "{name}: duplicate entries");
             let missing: Vec<&String> = keys.iter().filter(|k| !map.contains_key(k.as_str())).collect();
@@ -427,6 +484,20 @@ mod tests {
             for c in t.chars() {
                 assert!(!is_arabic(c) || in_arabic_font(c), "{c:?} in the translation of {en:?}");
             }
+        }
+    }
+
+    #[test]
+    fn the_chinese_fonts_have_every_character_of_the_translation() {
+        for font in [CHINESE_FONT, CHINESE_FONT_SEMIBOLD] {
+            let font = skrifa::FontRef::new(font).expect("bundled Chinese font");
+            let missing: String = translations::CHINESE
+                .iter()
+                .flat_map(|(_, t)| t.chars())
+                .chain(Language::Chinese.label().chars().collect::<Vec<_>>())
+                .filter(|&c| c as u32 > 0x2000 && font.charmap().map(c).is_none())
+                .collect();
+            assert!(missing.is_empty(), "missing {missing:?}: run assets/fonts/subset-chinese.py");
         }
     }
 

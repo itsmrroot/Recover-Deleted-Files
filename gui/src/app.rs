@@ -62,7 +62,7 @@ impl App {
             handed_over.or_else(|| cc.storage.and_then(|s| eframe::get_value(s, SETTINGS_KEY))).unwrap_or_default();
         elevate::announce_ready();
         let lang = i18n::set_language(settings.language);
-        theme::install_fonts(&cc.egui_ctx, i18n::is_rtl());
+        theme::install_fonts(&cc.egui_ctx, lang);
         let logo = {
             let img = image::load_from_memory(include_bytes!("../assets/icon.png")).map(|i| i.to_rgba8());
             let color = match img {
@@ -102,7 +102,12 @@ impl App {
         }
         let lang = i18n::set_language(self.settings.language);
         if self.language != Some(lang) {
-            theme::install_fonts(ctx, i18n::is_rtl());
+            theme::install_fonts(ctx, lang);
+            // Drive descriptions ("2 partitions: …") are made in the language
+            // of the moment.
+            if self.language.is_some() {
+                self.home.refresh(ctx);
+            }
             self.language = Some(lang);
         }
         if let Some(r) = &mut self.results {
@@ -482,6 +487,11 @@ impl eframe::App for App {
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        // The screenshot tour changes settings that are not the user's.
+        #[cfg(debug_assertions)]
+        if self.tour.is_some() {
+            return;
+        }
         self.settings.method = self.home.method;
         self.settings.categories = self.home.categories.clone();
         eframe::set_value(storage, SETTINGS_KEY, &self.settings);
@@ -564,7 +574,8 @@ pub fn open_path(path: &Path) {
 /// Development aid (debug builds only): with `WDFR_TOUR_DIR` and
 /// `WDFR_TOUR_IMAGE` set, the app walks through every screen using the
 /// given disk image and saves a screenshot of each, then exits.
-/// `WDFR_TOUR_LANG` (`en`, `de`, `ar`) picks the interface language.
+/// `WDFR_TOUR_LANG` (`en`, `de`, `ar`, `es`, `fr`, `ru`, `zh`, `tr`) picks the
+/// interface language.
 #[cfg(debug_assertions)]
 mod tour {
     use std::path::PathBuf;
@@ -587,6 +598,11 @@ mod tour {
                 Ok("en") => Some(crate::i18n::Language::English),
                 Ok("de") => Some(crate::i18n::Language::German),
                 Ok("ar") => Some(crate::i18n::Language::Arabic),
+                Ok("es") => Some(crate::i18n::Language::Spanish),
+                Ok("fr") => Some(crate::i18n::Language::French),
+                Ok("ru") => Some(crate::i18n::Language::Russian),
+                Ok("zh") => Some(crate::i18n::Language::Chinese),
+                Ok("tr") => Some(crate::i18n::Language::Turkish),
                 _ => None,
             };
             Some(Self { dir, image, step: 0, frames: 0, waiting_for_shot: None, language })

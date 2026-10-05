@@ -109,11 +109,14 @@ fn semibold_family() -> FontFamily {
     FontFamily::Name(SEMIBOLD.into())
 }
 
-/// System UI font (Segoe UI on Windows, SF on macOS), the bundled Arabic font
-/// and Phosphor icons. While the interface is Arabic, the Arabic font comes
-/// first so that spaces and digits in Arabic sentences use it too (see
-/// `i18n::visual`); otherwise it is only a fallback for Arabic file names.
-pub fn install_fonts(ctx: &egui::Context, arabic_first: bool) {
+/// System UI font (Segoe UI on Windows, SF on macOS), the bundled Arabic and
+/// Chinese fonts and Phosphor icons. While the interface is Arabic, the
+/// Arabic font comes first so that spaces and digits in Arabic sentences use
+/// it too (see `i18n::visual`); otherwise it is only a fallback for Arabic
+/// file names. The bundled Chinese font only has the characters of the
+/// translation, so a Chinese interface also loads the system's Chinese font
+/// for file names.
+pub fn install_fonts(ctx: &egui::Context, lang: i18n::Lang) {
     let mut fonts = FontDefinitions::default();
     let candidates: &[(&str, &str)] = if cfg!(windows) {
         &[("system", r"C:\Windows\Fonts\segoeui.ttf"), ("system-semibold", r"C:\Windows\Fonts\seguisb.ttf")]
@@ -122,8 +125,18 @@ pub fn install_fonts(ctx: &egui::Context, arabic_first: bool) {
     } else {
         &[]
     };
-    fonts.font_data.insert("arabic".into(), Arc::new(FontData::from_static(i18n::ARABIC_FONT)));
-    fonts.font_data.insert("arabic-semibold".into(), Arc::new(FontData::from_static(i18n::ARABIC_FONT_SEMIBOLD)));
+    for (name, bytes) in [
+        ("arabic", i18n::ARABIC_FONT),
+        ("arabic-semibold", i18n::ARABIC_FONT_SEMIBOLD),
+        ("chinese", i18n::CHINESE_FONT),
+        ("chinese-semibold", i18n::CHINESE_FONT_SEMIBOLD),
+    ] {
+        fonts.font_data.insert(name.into(), Arc::new(FontData::from_static(bytes)));
+    }
+    let system_chinese = if lang == i18n::Lang::Zh { system_chinese_font() } else { None };
+    if let Some(data) = system_chinese {
+        fonts.font_data.insert("chinese-system".into(), Arc::new(data));
+    }
     let mut loaded = Vec::new();
     for (name, path) in candidates {
         if let Ok(bytes) = std::fs::read(path) {
@@ -144,16 +157,43 @@ pub fn install_fonts(ctx: &egui::Context, arabic_first: bool) {
     semibold.insert(semibold.len().min(1), "phosphor".into());
     // Added after the icons, which must stay right behind the text font.
     let proportional = fonts.families.entry(FontFamily::Proportional).or_default();
-    if arabic_first {
+    if lang == i18n::Lang::Ar {
         proportional.insert(0, "arabic".into());
         semibold.insert(0, "arabic-semibold".into());
     } else {
         proportional.push("arabic".into());
         semibold.push("arabic-semibold".into());
     }
-    fonts.families.entry(FontFamily::Monospace).or_default().push("arabic".into());
+    proportional.push("chinese".into());
+    semibold.push("chinese-semibold".into());
+    let monospace = fonts.families.entry(FontFamily::Monospace).or_default();
+    monospace.extend(["arabic".into(), "chinese".into()]);
+    if fonts.font_data.contains_key("chinese-system") {
+        for family in [FontFamily::Proportional, FontFamily::Monospace] {
+            fonts.families.entry(family).or_default().push("chinese-system".into());
+        }
+        semibold.push("chinese-system".into());
+    }
     fonts.families.insert(semibold_family(), semibold);
     ctx.set_fonts(fonts);
+}
+
+/// The system's own Chinese font (tens of MB), for characters that the
+/// bundled subset lacks, e.g. in Chinese file names.
+fn system_chinese_font() -> Option<FontData> {
+    let candidates: &[&str] = if cfg!(windows) {
+        &[r"C:\Windows\Fonts\msyh.ttc", r"C:\Windows\Fonts\simsun.ttc"]
+    } else if cfg!(target_os = "macos") {
+        &["/System/Library/Fonts/Hiragino Sans GB.ttc", "/System/Library/Fonts/STHeiti Medium.ttc"]
+    } else {
+        &[
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        ]
+    };
+    candidates.iter().find_map(|p| std::fs::read(p).ok()).map(FontData::from_owned)
 }
 
 pub fn apply_style(ctx: &egui::Context, accent: Accent) {
