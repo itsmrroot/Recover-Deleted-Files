@@ -15,7 +15,7 @@ use crate::results::{category_color, category_icon, category_label};
 use crate::theme::{self, Palette};
 
 pub const POWERED_BY: &str = "Powered by Bashar Salmo";
-pub const REPO: &str = "https://github.com/itsmrroot/Windows-Deleted-Files-Recovery";
+pub const REPO: &str = "https://github.com/itsmrroot/Recover-Deleted-Files";
 
 fn amount(unit: Unit, n: u64) -> String {
     match unit {

@@ -1,6 +1,6 @@
 [package]
 name = "wdfr-gui"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Desktop app for Windows Deleted Files Recovery"
@@ -18,7 +18,7 @@ image = { version = "0.25.10", default-features = false, features = ["jpeg", "pn
 log = "0.4.34"
 rfd = "0.17.2"
 serde = { version = "1.0.229", features = ["derive"] }
-wdfr = { version = "0.2.0", path = ".." }
+wdfr = { version = "0.2.1", path = ".." }
 
 [build-dependencies]
 winresource = "0.1.31"
