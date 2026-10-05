@@ -10,6 +10,7 @@ use wdfr::progress::Unit;
 use wdfr::recover::Summary;
 use wdfr::units::format_size;
 
+use crate::i18n::{icon_label, tr, trf, trl, trn, visual};
 use crate::jobs::{ProgressState, format_duration};
 use crate::results::{category_color, category_icon, category_label};
 use crate::theme::{self, Palette};
@@ -21,6 +22,20 @@ fn amount(unit: Unit, n: u64) -> String {
     match unit {
         Unit::Bytes => format_size(n),
         Unit::Items => n.to_string(),
+    }
+}
+
+/// The current step of a scan or save. The library names its steps in
+/// English: "Reading NTFS file system", "Deep search", "Recovering files".
+fn task_label(task: &str) -> String {
+    if let Some(fs) = task.strip_prefix("Reading ").and_then(|t| t.strip_suffix(" file system")) {
+        return trf("Reading the {fs} file system", &[("fs", &fs)]);
+    }
+    match task {
+        "Deep search" => tr("Deep search").into(),
+        "Recovering files" => tr("Recovering files").into(),
+        "Starting..." => tr("Starting…").into(),
+        other => other.into(),
     }
 }
 
@@ -48,7 +63,7 @@ pub fn progress(
         ui.set_width(ui.available_width());
         ui.horizontal(|ui| {
             ui.add(egui::Spinner::new().size(22.0).color(p.accent));
-            ui.label(theme::semibold(&st.task, 18.0).color(p.text));
+            ui.label(theme::semibold(task_label(&st.task), 18.0).color(p.text));
         });
         ui.add_space(10.0);
         let bar = match st.fraction() {
@@ -62,21 +77,21 @@ pub fn progress(
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 46.0;
             let progress = if st.total > 0 {
-                format!("{} of {}", amount(st.unit, st.done), amount(st.unit, st.total))
+                trf("{done} of {total}", &[("done", &amount(st.unit, st.done)), ("total", &amount(st.unit, st.total))])
             } else {
                 amount(st.unit, st.done)
             };
-            theme::stat(ui, p, "Progress", &progress);
+            theme::stat(ui, p, tr("Progress"), &progress);
             let speed = match st.unit {
                 Unit::Bytes if st.rate > 0.0 => format!("{}/s", format_size(st.rate as u64)),
-                Unit::Items if st.rate > 0.0 => format!("{:.0} /s", st.rate),
+                Unit::Items if st.rate > 0.0 => trf("{n} files/s", &[("n", &format!("{:.0}", st.rate))]),
                 _ => "—".into(),
             };
-            theme::stat(ui, p, "Speed", &speed);
-            theme::stat(ui, p, "Time left", &st.eta().map_or_else(|| "—".into(), format_duration));
-            theme::stat(ui, p, "Elapsed", &format_duration(elapsed));
+            theme::stat(ui, p, tr("Speed"), &speed);
+            theme::stat(ui, p, tr("Time left"), &st.eta().map_or_else(|| "—".into(), format_duration));
+            theme::stat(ui, p, tr("Elapsed"), &format_duration(elapsed));
             if show_found {
-                theme::stat(ui, p, "Files found", &st.found.to_string());
+                theme::stat(ui, p, tr("Files found"), &st.found.to_string());
             }
         });
         if show_found && st.found > 0 {
@@ -89,7 +104,7 @@ pub fn progress(
                         theme::pill(
                             ui,
                             p,
-                            &format!("{} {} {n}", category_icon(c), category_label(slot)),
+                            &visual(&format!("{} {} {n}", category_icon(c), category_label(slot))),
                             category_color(p, slot),
                         );
                     }
@@ -100,8 +115,8 @@ pub fn progress(
         ui.horizontal(|ui| {
             if stopping {
                 ui.add(egui::Spinner::new().size(16.0));
-                ui.label(RichText::new("Stopping… everything found so far is kept.").color(p.weak));
-            } else if theme::danger_button(ui, p, &format!("{} Stop", icon::STOP)).clicked() {
+                ui.label(RichText::new(tr("Stopping… everything found so far is kept.")).color(p.weak));
+            } else if theme::danger_button(ui, p, &icon_label(icon::STOP, "Stop")).clicked() {
                 stop = true;
             }
         });
@@ -109,7 +124,8 @@ pub fn progress(
     if !st.warnings.is_empty() {
         ui.add_space(12.0);
         egui::CollapsingHeader::new(
-            RichText::new(format!("{} {} warnings", icon::WARNING, st.warnings.len())).color(p.warning),
+            RichText::new(format!("{} {}", icon::WARNING, trn(st.warnings.len() as u64, "1 warning", "{n} warnings")))
+                .color(p.warning),
         )
         .id_salt("warnings")
         .show(ui, |ui| {
@@ -126,7 +142,9 @@ pub fn progress(
         p,
         p.accent,
         icon::INFO,
-        "Please don't use the drive while this runs: new files saved on it can overwrite what you are trying to recover.",
+        trl(
+            "Please don't use the drive while this runs: new files saved on it can overwrite what you are trying to recover.",
+        ),
     );
     stop
 }
@@ -149,28 +167,34 @@ pub fn done(ui: &mut Ui, p: &Palette, sum: &Summary, out: &Path) -> DoneAction {
         ui.vertical_centered(|ui| {
             ui.add_space(16.0);
             let (glyph, color, title) = if sum.cancelled {
-                (icon::WARNING_CIRCLE, p.warning, "Recovery stopped")
+                (icon::WARNING_CIRCLE, p.warning, tr("Recovery stopped"))
             } else if files == 0 && sum.failures > 0 {
-                (icon::X_CIRCLE, p.danger, "Nothing could be recovered")
+                (icon::X_CIRCLE, p.danger, tr("Nothing could be recovered"))
             } else {
-                (icon::CHECK_CIRCLE, p.success, "Recovery complete")
+                (icon::CHECK_CIRCLE, p.success, tr("Recovery complete"))
             };
             ui.label(RichText::new(glyph).size(64.0).color(color));
             ui.label(theme::semibold(title, 26.0).color(p.text));
             ui.label(
-                RichText::new(format!("{files} files · {} saved to", format_size(bytes))).color(p.weak).size(15.0),
+                RichText::new(if files == 1 {
+                    trf("1 file · {size} saved to", &[("size", &format_size(bytes))])
+                } else {
+                    trf("{n} files · {size} saved to", &[("n", &files), ("size", &format_size(bytes))])
+                })
+                .color(p.weak)
+                .size(15.0),
             );
             ui.label(RichText::new(out.display().to_string()).color(p.text).size(14.0));
             ui.add_space(18.0);
         });
         ui.columns(4, |cols| {
             for (col, (label, value)) in cols.iter_mut().zip([
-                ("With original names", sum.fs_files.to_string()),
-                ("Found by content", sum.carved_files.to_string()),
-                ("Could not be saved", sum.failures.to_string()),
+                (tr("With original names"), sum.fs_files.to_string()),
+                (tr("Found by content"), sum.carved_files.to_string()),
+                (tr("Could not be saved"), sum.failures.to_string()),
                 (
-                    "Unreadable data",
-                    if sum.unreadable_bytes > 0 { format_size(sum.unreadable_bytes) } else { "None".into() },
+                    tr("Unreadable data"),
+                    if sum.unreadable_bytes > 0 { format_size(sum.unreadable_bytes) } else { tr("None").into() },
                 ),
             ]) {
                 col.vertical_centered(|ui| {
@@ -183,17 +207,17 @@ pub fn done(ui: &mut Ui, p: &Palette, sum: &Summary, out: &Path) -> DoneAction {
         ui.horizontal(|ui| {
             let total_w = 640.0;
             ui.add_space(((ui.available_width() - total_w) / 2.0).max(0.0));
-            if theme::primary_button(ui, p, &format!("{}  Open folder", icon::FOLDER_OPEN), true).clicked() {
+            if theme::primary_button(ui, p, &icon_label(icon::FOLDER_OPEN, "Open folder"), true).clicked() {
                 action = DoneAction::OpenFolder;
             }
-            if sum.report.is_some() && theme::secondary_button(ui, &format!("{} Open report", icon::FILE_CSV)).clicked()
+            if sum.report.is_some() && theme::secondary_button(ui, &icon_label(icon::FILE_CSV, "Open report")).clicked()
             {
                 action = DoneAction::OpenReport;
             }
-            if theme::secondary_button(ui, &format!("{} Back to results", icon::ARROW_LEFT)).clicked() {
+            if theme::secondary_button(ui, &icon_label(icon::ARROW_LEFT, "Back to results")).clicked() {
                 action = DoneAction::BackToResults;
             }
-            if theme::secondary_button(ui, &format!("{} New scan", icon::ARROW_COUNTER_CLOCKWISE)).clicked() {
+            if theme::secondary_button(ui, &icon_label(icon::ARROW_COUNTER_CLOCKWISE, "New scan")).clicked() {
                 action = DoneAction::NewScan;
             }
         });
@@ -206,7 +230,9 @@ pub fn done(ui: &mut Ui, p: &Palette, sum: &Summary, out: &Path) -> DoneAction {
             p,
             p.warning,
             icon::WARNING,
-            "Some files could not be written. Check that the destination drive has enough free space and that you can write to it.",
+            trl(
+                "Some files could not be written. Check that the destination drive has enough free space and that you can write to it.",
+            ),
         );
     }
     action
@@ -222,47 +248,43 @@ pub fn about(ui: &mut Ui, p: &Palette, logo: &egui::TextureHandle) {
                 ui.vertical(|ui| {
                     ui.add_space(6.0);
                     ui.label(theme::semibold("Windows Deleted Files Recovery", 24.0).color(p.text));
-                    ui.label(RichText::new(format!("Version {}", env!("CARGO_PKG_VERSION"))).color(p.weak));
+                    ui.label(RichText::new(trf("Version {version}", &[("version", &env!("CARGO_PKG_VERSION"))])).color(p.weak));
                     ui.add_space(4.0);
                     theme::pill(ui, p, POWERED_BY, p.accent);
                 });
             });
             ui.add_space(12.0);
-            ui.add(
-                egui::Label::new(
-                    RichText::new(
-                        "Recovers deleted photos, videos, music, documents and more from NTFS, FAT32 and exFAT drives, \
-                         USB sticks, memory cards and disk images. Drives are only ever read, never written.",
-                    )
-                    .color(p.text),
-                )
-                .wrap(),
+            theme::paragraph(
+                ui,
+                trl("Recovers deleted photos, videos, music, documents and more from NTFS, FAT32 and exFAT drives, USB sticks, memory cards and disk images. Drives are only ever read, never written."),
+                14.5,
+                p.text,
             );
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                ui.hyperlink_to(format!("{} Project page", icon::GITHUB_LOGO), REPO);
+                ui.hyperlink_to(icon_label(icon::GITHUB_LOGO, "Project page"), REPO);
                 ui.add_space(12.0);
-                ui.hyperlink_to(format!("{} Latest version", icon::DOWNLOAD_SIMPLE), format!("{REPO}/releases/latest"));
+                ui.hyperlink_to(icon_label(icon::DOWNLOAD_SIMPLE, "Latest version"), format!("{REPO}/releases/latest"));
                 ui.add_space(12.0);
-                ui.hyperlink_to(format!("{} MIT License", icon::SCALES), format!("{REPO}/blob/main/LICENSE"));
+                ui.hyperlink_to(icon_label(icon::SCALES, "MIT License"), format!("{REPO}/blob/main/LICENSE"));
             });
         });
         ui.add_space(14.0);
         theme::card(ui, p, |ui| {
             ui.set_width(ui.available_width());
-            theme::section_title(ui, p, icon::LIFEBUOY, "Tips for a successful recovery");
+            theme::section_title(ui, p, icon::LIFEBUOY, tr("Tips for a successful recovery"));
             ui.add_space(4.0);
             for tip in [
-                "Stop using the drive right away. Every new file can overwrite deleted ones.",
-                "Never save recovered files to the same drive you are recovering from.",
-                "Memory cards, USB sticks and hard drives usually recover well.",
-                "SSDs often erase deleted files automatically (TRIM), so recovery may be impossible.",
-                "If the drive makes noises or is very slow, copy it to a disk image first and scan the image.",
-                "No luck with Quick or Recommended? A deep search finds files even after formatting.",
+                trl("Stop using the drive right away. Every new file can overwrite deleted ones."),
+                trl("Never save recovered files to the same drive you are recovering from."),
+                trl("Memory cards, USB sticks and hard drives usually recover well."),
+                trl("SSDs often erase deleted files automatically (TRIM), so recovery may be impossible."),
+                trl("If the drive makes noises or is very slow, copy it to a disk image first and scan the image."),
+                trl("No luck with Quick or Recommended? A deep search finds files even after formatting."),
             ] {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new(icon::CHECK).color(p.success));
-                    ui.add(egui::Label::new(RichText::new(tip).color(p.text)).wrap());
+                    theme::paragraph(ui, tip, 14.5, p.text);
                 });
             }
         });

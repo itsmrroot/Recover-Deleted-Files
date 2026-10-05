@@ -12,6 +12,8 @@ use eframe::egui;
 use wdfr::carve::Category;
 use wdfr::progress::{Progress, Unit};
 
+use crate::i18n::trf;
+
 /// Index into [`ProgressState::by_category`]: the six categories + other.
 pub fn category_slot(c: Option<Category>) -> usize {
     c.and_then(|c| Category::ALL.iter().position(|x| *x == c)).unwrap_or(Category::ALL.len())
@@ -177,8 +179,8 @@ impl<T: Send + 'static> Job<T> {
 pub fn format_duration(d: Duration) -> String {
     let s = d.as_secs();
     match s {
-        0..=59 => format!("{s} s"),
-        60..=3599 => format!("{} min {} s", s / 60, s % 60),
-        _ => format!("{} h {} min", s / 3600, (s % 3600) / 60),
+        0..=59 => trf("{s} s", &[("s", &s)]),
+        60..=3599 => trf("{m} min {s} s", &[("m", &(s / 60)), ("s", &(s % 60))]),
+        _ => trf("{h} h {m} min", &[("h", &(s / 3600)), ("m", &((s % 3600) / 60))]),
     }
 }

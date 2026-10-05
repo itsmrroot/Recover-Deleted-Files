@@ -37,7 +37,8 @@
 
 ### 🖥️ Modern desktop app
 Pick a drive, scan, preview photos, tick the files you want and click
-**Recover**. Light & dark themes, accent colours and saved settings.
+**Recover**. English, German and Arabic, light & dark themes, accent colours
+and saved settings.
 
 </td>
 <td width="50%" valign="top">
@@ -123,7 +124,8 @@ damaged drive. Scans at full disk speed.
 </tr>
 </table>
 
-**Settings** (saved automatically): theme (system / light / dark), accent colour, interface size, default
+**Settings** (saved automatically): language (system / English / Deutsch / العربية), theme
+(system / light / dark), accent colour, interface size, default
 search mode, minimum file size, whole-drive and byte-level deep search, largest file size, showing whole
 disks, default destination, folder layout (*original folders* or *sorted by type*), restoring original
 dates, the CSV report, opening the folder when done, showing overwritten files — and, clearly marked as
@@ -356,6 +358,8 @@ links the C runtime statically, so it runs on a bare Windows install.
 
 **Powered by Bashar Salmo**
 
-Released under the [MIT License](LICENSE)
+Released under the [MIT License](LICENSE). The desktop app bundles
+[Noto Sans Arabic](https://github.com/notofonts/arabic) under the
+[SIL Open Font License](gui/assets/fonts/OFL.txt).
 
 </div>

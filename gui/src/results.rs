@@ -11,6 +11,7 @@ use wdfr::fs::Condition;
 use wdfr::recover::{self, Found, Item, Session};
 use wdfr::units::format_size;
 
+use crate::i18n::{icon_label, tr, trf, trl, trn, visual};
 use crate::jobs::category_slot;
 use crate::preview::{Preview, Previewer};
 use crate::theme::{self, Palette};
@@ -70,6 +71,25 @@ enum SortCol {
     Folder,
 }
 
+/// Why the destination folder cannot be used.
+#[derive(Debug, Clone, Copy)]
+pub enum DestError {
+    Missing,
+    OnSource,
+}
+
+impl DestError {
+    fn message(self) -> String {
+        match self {
+            DestError::Missing => icon_label(icon::WARNING, "Choose where to save the recovered files."),
+            DestError::OnSource => icon_label(
+                icon::WARNING,
+                "This folder is on the drive you are recovering from. Choose a folder on another drive.",
+            ),
+        }
+    }
+}
+
 pub enum Action {
     None,
     Recover,
@@ -84,7 +104,7 @@ pub struct Results {
     pub rows: Vec<Row>,
     pub selected: Vec<bool>,
     pub dest: String,
-    pub dest_error: Option<String>,
+    pub dest_error: Option<DestError>,
     dest_checked: Option<String>,
     view: Vec<usize>,
     dirty: bool,
@@ -98,8 +118,17 @@ pub struct Results {
     counts: [usize; 7],
 }
 
+/// The name of a category slot, in logical order (compose, then `visual`).
 pub fn category_label(slot: usize) -> &'static str {
-    ["Images", "Videos", "Audio", "Documents", "Archives", "Databases", "Other"][slot.min(6)]
+    match slot {
+        0 => trl("Images"),
+        1 => trl("Videos"),
+        2 => trl("Audio"),
+        3 => trl("Documents"),
+        4 => trl("Archives"),
+        5 => trl("Databases"),
+        _ => trl("Other"),
+    }
 }
 
 pub fn category_icon(c: Option<Category>) -> &'static str {
@@ -124,10 +153,10 @@ fn status_of(c: Condition) -> Status {
 
 fn status_pill(ui: &mut Ui, p: &Palette, s: Status) {
     match s {
-        Status::Good => theme::pill(ui, p, "Recoverable", p.success),
-        Status::Partial(n) => theme::pill(ui, p, &format!("Partial · {n}%"), p.warning),
-        Status::Overwritten => theme::pill(ui, p, "Overwritten", p.danger),
-        Status::Found => theme::pill(ui, p, "Found by content", p.deep),
+        Status::Good => theme::pill(ui, p, tr("Recoverable"), p.success),
+        Status::Partial(n) => theme::pill(ui, p, &trf("Partial · {n}%", &[("n", &n)]), p.warning),
+        Status::Overwritten => theme::pill(ui, p, tr("Overwritten"), p.danger),
+        Status::Found => theme::pill(ui, p, tr("Found by content"), p.deep),
     };
 }
 
@@ -175,7 +204,7 @@ impl Results {
                 size: c.len,
                 modified: None,
                 status: Status::Found,
-                note: Some(format!("{} structure", c.format.to_uppercase())),
+                note: Some(trf("{format} structure", &[("format", &c.format.to_uppercase())])),
                 offset: Some(c.offset),
             });
         }
@@ -288,13 +317,13 @@ impl Results {
         }
         self.dest_checked = Some(self.dest.clone());
         self.dest_error = if self.dest.trim().is_empty() {
-            Some("Choose where to save the recovered files.".into())
+            Some(DestError::Missing)
         } else if allow_same_volume {
             None
         } else {
-            wdfr::output::ensure_not_on_source(&self.session.path, std::path::Path::new(self.dest.trim())).err().map(
-                |_| "This folder is on the drive you are recovering from. Choose a folder on another drive.".into(),
-            )
+            wdfr::output::ensure_not_on_source(&self.session.path, std::path::Path::new(self.dest.trim()))
+                .err()
+                .map(|_| DestError::OnSource)
         };
     }
 
@@ -310,15 +339,17 @@ impl Results {
             ui.vertical(|ui| {
                 let total =
                     self.rows.iter().filter(|r| self.show_overwritten || r.status != Status::Overwritten).count();
-                ui.label(theme::semibold(format!("{total} files found"), 26.0).color(p.text));
-                let mut sub = format!("on {}", self.source_name);
-                if self.found.cancelled {
-                    sub.push_str(" · scan was stopped early");
-                }
+                ui.label(theme::semibold(trn(total as u64, "1 file found", "{n} files found"), 26.0).color(p.text));
+                let name: &dyn std::fmt::Display = &self.source_name;
+                let sub = if self.found.cancelled {
+                    trf("on {name} · scan was stopped early", &[("name", name)])
+                } else {
+                    trf("on {name}", &[("name", name)])
+                };
                 ui.label(RichText::new(sub).color(p.weak).size(15.0));
             });
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if theme::secondary_button(ui, &format!("{} New scan", icon::ARROW_COUNTER_CLOCKWISE)).clicked() {
+                if theme::secondary_button(ui, &icon_label(icon::ARROW_COUNTER_CLOCKWISE, "New scan")).clicked() {
                     action = Action::NewScan;
                 }
             });
@@ -363,21 +394,21 @@ impl Results {
             ui.vertical_centered(|ui| {
                 ui.add_space(30.0);
                 ui.label(RichText::new(icon::MAGNIFYING_GLASS).size(54.0).color(p.weak));
-                ui.label(theme::semibold("No deleted files were found", 20.0).color(p.text));
-                ui.label(
-                    RichText::new(
-                        "If the drive was formatted, or the files were deleted a while ago, try a deep search: it looks for files by their content.",
-                    )
-                    .color(p.weak),
+                ui.label(theme::semibold(tr("No deleted files were found"), 20.0).color(p.text));
+                theme::paragraph(
+                    ui,
+                    trl("If the drive was formatted, or the files were deleted a while ago, try a deep search: it looks for files by their content."),
+                    14.5,
+                    p.weak,
                 );
                 ui.add_space(14.0);
                 ui.horizontal(|ui| {
                     let w = 380.0;
                     ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
-                    if theme::primary_button(ui, p, &format!("{} Run a deep search", icon::MAGNIFYING_GLASS), true).clicked() {
+                    if theme::primary_button(ui, p, &icon_label(icon::MAGNIFYING_GLASS, "Run a deep search"), true).clicked() {
                         *action = Action::DeepScan;
                     }
-                    if theme::secondary_button(ui, "Choose another drive").clicked() {
+                    if theme::secondary_button(ui, tr("Choose another drive")).clicked() {
                         *action = Action::NewScan;
                     }
                 });
@@ -389,7 +420,7 @@ impl Results {
     fn toolbar(&mut self, ui: &mut Ui, p: &Palette) {
         ui.horizontal_wrapped(|ui| {
             let search = egui::TextEdit::singleline(&mut self.query)
-                .hint_text(format!("{}  Search by name or folder", icon::MAGNIFYING_GLASS))
+                .hint_text(icon_label(icon::MAGNIFYING_GLASS, "Search by name or folder"))
                 .desired_width(260.0)
                 .margin(Vec2::new(10.0, 7.0));
             if ui.add(search).changed() {
@@ -398,14 +429,14 @@ impl Results {
             let before = self.origin;
             egui::ComboBox::from_id_salt("origin")
                 .selected_text(match self.origin {
-                    Origin::All => "All results",
-                    Origin::Named => "With original names",
-                    Origin::Deep => "Found by content",
+                    Origin::All => tr("All results"),
+                    Origin::Named => tr("With original names"),
+                    Origin::Deep => tr("Found by content"),
                 })
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.origin, Origin::All, "All results");
-                    ui.selectable_value(&mut self.origin, Origin::Named, "With original names");
-                    ui.selectable_value(&mut self.origin, Origin::Deep, "Found by content");
+                    ui.selectable_value(&mut self.origin, Origin::All, tr("All results"));
+                    ui.selectable_value(&mut self.origin, Origin::Named, tr("With original names"));
+                    ui.selectable_value(&mut self.origin, Origin::Deep, tr("Found by content"));
                 });
             if self.origin != before {
                 self.dirty = true;
@@ -413,7 +444,7 @@ impl Results {
             ui.add_space(6.0);
             let _ = p;
             let all: usize = self.counts.iter().sum();
-            if ui.selectable_label(self.cat.is_none(), format!("All  {all}")).clicked() {
+            if ui.selectable_label(self.cat.is_none(), trf("All  {n}", &[("n", &all)])).clicked() {
                 self.cat = None;
                 self.dirty = true;
             }
@@ -423,7 +454,7 @@ impl Results {
                     continue;
                 }
                 let c = Category::ALL.get(slot).copied();
-                let text = format!("{} {}  {n}", category_icon(c), category_label(slot));
+                let text = visual(&format!("{} {}  {n}", category_icon(c), category_label(slot))).into_owned();
                 if ui.selectable_label(self.cat == Some(slot), text).clicked() {
                     self.cat = if self.cat == Some(slot) { None } else { Some(slot) };
                     self.dirty = true;
@@ -470,18 +501,18 @@ impl Results {
             .header(30.0, |mut h| {
                 h.col(|ui| {
                     let mut all = !view.is_empty() && view.iter().all(|&i| selected[i]);
-                    if ui.checkbox(&mut all, "").on_hover_text("Select all shown").changed() {
+                    if ui.checkbox(&mut all, "").on_hover_text(tr("Select all shown")).changed() {
                         for &i in view {
                             selected[i] = all;
                         }
                     }
                 });
-                h.col(|ui| header(ui, "Name", SortCol::Name, &mut sort_click));
-                h.col(|ui| header(ui, "Size", SortCol::Size, &mut sort_click));
-                h.col(|ui| header(ui, "Modified", SortCol::Modified, &mut sort_click));
-                h.col(|ui| header(ui, "Status", SortCol::Status, &mut sort_click));
+                h.col(|ui| header(ui, tr("Name"), SortCol::Name, &mut sort_click));
+                h.col(|ui| header(ui, tr("Size"), SortCol::Size, &mut sort_click));
+                h.col(|ui| header(ui, tr("Modified"), SortCol::Modified, &mut sort_click));
+                h.col(|ui| header(ui, tr("Status"), SortCol::Status, &mut sort_click));
                 if show_location {
-                    h.col(|ui| header(ui, "Location", SortCol::Folder, &mut sort_click));
+                    h.col(|ui| header(ui, tr("Location"), SortCol::Folder, &mut sort_click));
                 }
             })
             .body(|body| {
@@ -512,7 +543,7 @@ impl Results {
                     if show_location {
                         row.col(|ui| {
                             let t = if matches!(r.r, RowRef::Carved(_)) {
-                                "Deep search".to_string()
+                                tr("Deep search").to_string()
                             } else if r.folder.is_empty() {
                                 "/".to_string()
                             } else {
@@ -545,7 +576,7 @@ impl Results {
                 ui.vertical_centered(|ui| {
                     ui.add_space(60.0);
                     ui.label(RichText::new(icon::EYE).size(40.0).color(p.weak));
-                    ui.label(RichText::new("Click a file to preview it").color(p.weak));
+                    ui.label(RichText::new(tr("Click a file to preview it")).color(p.weak));
                 });
                 return;
             };
@@ -588,12 +619,14 @@ impl Results {
             status_pill(ui, p, row.status);
             ui.add_space(6.0);
             let explain = match row.status {
-                Status::Good => "The space this file used has not been reused. It should open normally.",
-                Status::Partial(_) => "Part of this file's space was reused by other files. It may be damaged.",
-                Status::Overwritten => "Other files have been written over this one. It will most likely not open.",
-                Status::Found => "Found by its content in free space. The original name is not known.",
+                Status::Good => trl("The space this file used has not been reused. It should open normally."),
+                Status::Partial(_) => trl("Part of this file's space was reused by other files. It may be damaged."),
+                Status::Overwritten => {
+                    trl("Other files have been written over this one. It will most likely not open.")
+                }
+                Status::Found => trl("Found by its content in free space. The original name is not known."),
             };
-            ui.add(egui::Label::new(RichText::new(explain).color(p.weak).size(12.5)).wrap());
+            theme::paragraph(ui, explain, 12.5, p.weak);
             ui.add_space(8.0);
             egui::Grid::new("details").striped(false).num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
                 let mut kv = |k: &str, v: String| {
@@ -601,28 +634,30 @@ impl Results {
                     ui.add(egui::Label::new(RichText::new(v).color(p.text).size(12.5)).truncate());
                     ui.end_row();
                 };
-                kv("Size", format_size(row.size));
+                kv(tr("Size"), format_size(row.size));
                 if let Some([w, h]) = dims {
-                    kv("Dimensions", format!("{w} × {h}"));
+                    kv(tr("Dimensions"), format!("{w} × {h}"));
                 }
                 kv(
-                    "Modified",
-                    row.modified.map(|m| m.format("%Y-%m-%d %H:%M:%S").to_string()).unwrap_or_else(|| "Unknown".into()),
+                    tr("Modified"),
+                    row.modified
+                        .map(|m| m.format("%Y-%m-%d %H:%M:%S").to_string())
+                        .unwrap_or_else(|| tr("Unknown").into()),
                 );
-                kv("Location", if row.folder.is_empty() { "—".into() } else { row.folder.clone() });
+                kv(tr("Location"), if row.folder.is_empty() { "—".into() } else { row.folder.clone() });
                 if let Some(o) = row.offset {
-                    kv("Disk offset", format!("{o:#x}"));
+                    kv(tr("Disk offset"), format!("{o:#x}"));
                 }
                 if let Some(n) = &row.note {
-                    kv("Notes", n.clone());
+                    kv(tr("Notes"), n.clone());
                 }
             });
             ui.add_space(8.0);
             let sel = self.selected[i];
             let label = if sel {
-                format!("{} Selected", icon::CHECK_SQUARE)
+                icon_label(icon::CHECK_SQUARE, "Selected")
             } else {
-                format!("{} Select this file", icon::SQUARE)
+                icon_label(icon::SQUARE, "Select this file")
             };
             if theme::secondary_button(ui, &label).clicked() {
                 self.selected[i] = !sel;
@@ -638,41 +673,53 @@ impl Results {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
-                    ui.label(theme::semibold(format!("{n} selected"), 16.0).color(p.text));
+                    ui.label(theme::semibold(trf("{n} selected", &[("n", &n)]), 16.0).color(p.text));
                     ui.label(RichText::new(format_size(bytes)).color(p.weak));
                 });
                 ui.add_space(6.0);
-                if ui.small_button("Select all").clicked() {
+                if ui.small_button(tr("Select all")).clicked() {
                     for (r, s) in self.rows.iter().zip(self.selected.iter_mut()) {
                         *s = r.status != Status::Overwritten || self.show_overwritten;
                     }
                 }
-                if ui.small_button("Select none").clicked() {
+                if ui.small_button(tr("Select none")).clicked() {
                     self.selected.iter_mut().for_each(|s| *s = false);
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     let ok = n > 0 && self.dest_error.is_none();
-                    if theme::primary_button(ui, p, &format!("{}  Recover {n} files", icon::DOWNLOAD_SIMPLE), ok)
-                        .clicked()
+                    if theme::primary_button(
+                        ui,
+                        p,
+                        &format!("{}  {}", icon::DOWNLOAD_SIMPLE, trn(n as u64, "Recover 1 file", "Recover {n} files")),
+                        ok,
+                    )
+                    .clicked()
                     {
                         go = true;
                     }
-                    if ui.button(format!("{} Browse", icon::FOLDER_OPEN)).clicked()
+                    if ui.button(icon_label(icon::FOLDER_OPEN, "Browse")).clicked()
                         && let Some(dir) = rfd::FileDialog::new().pick_folder()
                     {
                         self.dest = dir.display().to_string();
                     }
+                    // Leave room for the label, whose length depends on the language.
+                    let label = RichText::new(tr("Save to")).color(p.weak);
+                    let label_w = egui::WidgetText::from(label.clone())
+                        .into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, egui::TextStyle::Body)
+                        .size()
+                        .x;
+                    let spacing = ui.spacing().item_spacing.x;
                     ui.add(
                         egui::TextEdit::singleline(&mut self.dest)
-                            .desired_width((ui.available_width() - 120.0).clamp(200.0, 420.0))
+                            .desired_width((ui.available_width() - label_w - 3.0 * spacing - 20.0).clamp(120.0, 420.0))
                             .margin(Vec2::new(10.0, 7.0)),
                     );
-                    ui.label(RichText::new("Save to").color(p.weak));
+                    ui.label(label);
                 });
             });
             if let Some(e) = &self.dest_error {
                 ui.add_space(4.0);
-                ui.label(RichText::new(format!("{} {e}", icon::WARNING)).color(p.danger));
+                ui.label(RichText::new(e.message()).color(p.danger));
             }
         });
         go

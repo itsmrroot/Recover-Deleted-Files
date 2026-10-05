@@ -7,6 +7,7 @@ use std::sync::mpsc::{Receiver, channel};
 use eframe::egui;
 use wdfr::recover::{self, Found, Session};
 
+use crate::i18n::{tr, trf};
 use crate::results::RowRef;
 
 /// Files larger than this are not read for a preview.
@@ -54,7 +55,7 @@ impl Previewer {
                 None
             };
             let entry = match kind {
-                None => Preview::Unavailable("No preview for this file type.".into()),
+                None => Preview::Unavailable(tr("No preview for this file type.").into()),
                 Some(is_image) => {
                     let (tx, rx) = channel();
                     let (session, found) = (session.clone(), found.clone());
@@ -110,13 +111,13 @@ fn decode(session: &Session, found: &Found, r: RowRef, is_image: bool) -> Decode
     let item = r.item(found);
     let bytes = match recover::read_item(session, item, MAX_PREVIEW_BYTES) {
         Ok(Some(b)) => b,
-        Ok(None) => return Decoded::Unavailable("Too large to preview.".into()),
-        Err(e) => return Decoded::Unavailable(format!("Could not read the file: {e}")),
+        Ok(None) => return Decoded::Unavailable(tr("Too large to preview.").into()),
+        Err(e) => return Decoded::Unavailable(trf("Could not read the file: {error}", &[("error", &e)])),
     };
     if !is_image {
         let head = &bytes[..bytes.len().min(8000)];
         if head.iter().filter(|&&b| b == 0).count() > head.len() / 50 {
-            return Decoded::Unavailable("The content does not look like text (it may be overwritten).".into());
+            return Decoded::Unavailable(tr("The content does not look like text (it may be overwritten).").into());
         }
         return Decoded::Text(String::from_utf8_lossy(head).into_owned());
     }
@@ -128,7 +129,7 @@ fn decode(session: &Session, found: &Found, r: RowRef, is_image: bool) -> Decode
             Decoded::Image(egui::ColorImage::from_rgba_unmultiplied([w, h], thumb.as_raw()), size)
         }
         Err(_) => {
-            Decoded::Unavailable("The image could not be decoded. It may be damaged or partly overwritten.".into())
+            Decoded::Unavailable(tr("The image could not be decoded. It may be damaged or partly overwritten.").into())
         }
     }
 }
