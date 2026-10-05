@@ -1,6 +1,6 @@
 [package]
 name = "wdfr-gui"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 rust-version = "1.88"
 description = "Desktop app for Windows Deleted Files Recovery"
@@ -21,7 +21,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 skrifa = { version = "0.44", default-features = false, features = ["std"] }
 sys-locale = "0.3.2"
 unicode-bidi = "0.3.18"
-wdfr = { version = "0.2.1", path = ".." }
+wdfr = { version = "0.2.2", path = ".." }
 
 [build-dependencies]
 winresource = "0.1.31"
