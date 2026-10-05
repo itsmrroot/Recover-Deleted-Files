@@ -201,15 +201,15 @@ modification time and notes. Recovered files keep their original modification ti
 
 ```mermaid
 flowchart LR
-    A["💽 Drive or image<br/>(opened read-only)"] --> B["Find partitions<br/>MBR · GPT"]
+    A["Drive or image<br/>opened read-only"] --> B["Find partitions<br/>MBR and GPT"]
     B --> C{"File system<br/>recognised?"}
-    C -- "NTFS · FAT · exFAT" --> D["Find deleted entries<br/>in the metadata"]
-    D --> E["Check allocation map<br/>recoverable · partial · overwritten"]
-    E --> F["Restore files with<br/>names & folders"]
-    C -- "unknown / formatted" --> G
-    F --> G["Deep search free space<br/>(minus files already restored)"]
-    G --> H["Measure each file's exact<br/>length from its structure"]
-    F --> I[("📂 Output folder<br/>+ report.csv")]
+    C -->|"NTFS, FAT, exFAT"| D["Find deleted entries<br/>in the metadata"]
+    D --> E["Check allocation map<br/>recoverable, partial, overwritten"]
+    E --> F["Restore files with<br/>names and folders"]
+    C -->|"unknown or formatted"| G
+    F --> G["Deep search free space<br/>minus files already restored"]
+    G --> H["Measure the exact length<br/>of each file from its structure"]
+    F --> I[("Output folder<br/>and report.csv")]
     H --> I
 ```
 
