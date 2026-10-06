@@ -1,6 +1,6 @@
 [package]
 name = "wdfr-gui"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2024"
 rust-version = "1.88"
 description = "Desktop app for Windows Deleted Files Recovery"
@@ -11,7 +11,7 @@ build = "build.rs"
 [dependencies]
 anyhow = "1.0.104"
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
-eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "wgpu", "persistence", "accesskit", "wayland", "x11"] }
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "wgpu", "persistence", "accesskit", "wayland", "x11", "links"] }
 egui-phosphor = "0.14.0"
 egui_extras = "0.36.2"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "gif", "bmp", "webp", "tiff"] }
@@ -22,7 +22,7 @@ serde_json = "1.0.151"
 skrifa = { version = "0.44", default-features = false, features = ["std"] }
 sys-locale = "0.3.2"
 unicode-bidi = "0.3.18"
-wdfr = { version = "0.2.6", path = ".." }
+wdfr = { version = "0.2.7", path = ".." }
 
 [build-dependencies]
 winresource = "0.1.31"

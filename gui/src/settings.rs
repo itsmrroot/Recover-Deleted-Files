@@ -122,7 +122,10 @@ pub fn page(ui: &mut Ui, p: &Palette, s: &mut Settings) -> bool {
             theme::section_title(ui, p, icon::PALETTE, tr("Appearance"));
             ui.add_space(6.0);
             row(ui, p, tr("Language"), "", |ui| {
-                egui::ComboBox::from_id_salt("language").selected_text(s.language.label()).show_ui(ui, |ui| {
+                egui::ComboBox::from_id_salt("language")
+                    .selected_text(s.language.label())
+                    // Tall enough to show every language without scrolling.
+                    .height(420.0).show_ui(ui, |ui| {
                     for l in Language::ALL {
                         ui.selectable_value(&mut s.language, l, l.label());
                     }

@@ -204,9 +204,25 @@ pub fn done(ui: &mut Ui, p: &Palette, sum: &Summary, out: &Path) -> DoneAction {
             }
         });
         ui.add_space(18.0);
-        ui.horizontal(|ui| {
-            let total_w = 640.0;
-            ui.add_space(((ui.available_width() - total_w) / 2.0).max(0.0));
+        // Centred when the buttons fit on one line (their width is measured
+        // in the previous frame), otherwise wrapped onto more lines.
+        let width_id = ui.id().with("done-buttons-width");
+        let width = ui.ctx().data(|d| d.get_temp::<f32>(width_id)).unwrap_or(640.0);
+        let fits = width <= ui.available_width();
+        let row = |ui: &mut Ui, add: &mut dyn FnMut(&mut Ui)| {
+            if fits {
+                ui.horizontal(|ui| {
+                    ui.add_space(((ui.available_width() - width) / 2.0).max(0.0));
+                    add(ui)
+                })
+                .response
+            } else {
+                ui.horizontal_wrapped(|ui| add(ui)).response
+            }
+        };
+        let mut used = 0.0;
+        row(ui, &mut |ui: &mut Ui| {
+            let start = ui.cursor().min.x;
             if theme::primary_button(ui, p, &icon_label(icon::FOLDER_OPEN, "Open folder"), true).clicked() {
                 action = DoneAction::OpenFolder;
             }
@@ -220,7 +236,11 @@ pub fn done(ui: &mut Ui, p: &Palette, sum: &Summary, out: &Path) -> DoneAction {
             if theme::secondary_button(ui, &icon_label(icon::ARROW_COUNTER_CLOCKWISE, "New scan")).clicked() {
                 action = DoneAction::NewScan;
             }
+            used = ui.min_rect().right() - start;
         });
+        if fits {
+            ui.ctx().data_mut(|d| d.insert_temp(width_id, used));
+        }
         ui.add_space(12.0);
     });
     if sum.failures > 0 {

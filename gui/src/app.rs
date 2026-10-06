@@ -44,11 +44,19 @@ pub struct App {
     logo: egui::TextureHandle,
     error: Option<String>,
     restart: Option<elevate::Restart>,
+    /// Whether the window has been checked against the screen size.
+    fitted: bool,
     #[cfg(debug_assertions)]
     tour: Option<tour::Tour>,
 }
 
 const SETTINGS_KEY: &str = "settings";
+
+/// The window size on first start, in points.
+pub const DEFAULT_SIZE: [f32; 2] = [1240.0, 800.0];
+/// The smallest window in which every screen still works, e.g. on a
+/// 1024 × 768 screen or in a small virtual machine window.
+pub const MIN_SIZE: [f32; 2] = [800.0, 540.0];
 
 /// A running scan: produces the opened source and what was found on it.
 type ScanJob = Job<(Arc<Session>, Found)>;
@@ -87,6 +95,7 @@ impl App {
             logo,
             error: None,
             restart: None,
+            fitted: false,
             #[cfg(debug_assertions)]
             tour: tour::Tour::from_env(),
         }
@@ -172,6 +181,30 @@ impl App {
         });
         self.save = Some((job, out));
         self.page = Page::Saving;
+    }
+
+    /// Shrinks and centres the window when it does not fit the screen: the
+    /// first-start size (or one saved on a bigger screen) is taller than,
+    /// for example, a 1366 × 768 laptop screen or a small VM window.
+    fn fit_to_screen(&mut self, ctx: &egui::Context) {
+        if self.fitted {
+            return;
+        }
+        let (monitor, inner) = ctx.input(|i| (i.viewport().monitor_size, i.viewport().inner_rect));
+        let (Some(monitor), Some(inner)) = (monitor, inner) else { return };
+        self.fitted = true;
+        // Leave room for the task bar or menu bar and the title bar.
+        let max = egui::vec2(monitor.x * 0.94, monitor.y * 0.88);
+        let size = inner.size();
+        if size.x <= max.x && size.y <= max.y {
+            return;
+        }
+        let min = egui::vec2(MIN_SIZE[0], MIN_SIZE[1]).min(max);
+        let fitted = size.min(max).max(min);
+        ctx.send_viewport_cmd(egui::ViewportCommand::MinInnerSize(min));
+        ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(fitted));
+        let corner = ((monitor - fitted) / 2.0).max(egui::Vec2::ZERO);
+        ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(corner.to_pos2()));
     }
 
     fn start_restart(&mut self) {
@@ -448,6 +481,7 @@ impl App {
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        self.fit_to_screen(&ctx);
         self.apply_settings(&ctx);
         self.poll_jobs();
         self.poll_restart(&ctx);
@@ -639,6 +673,17 @@ impl App {
             return;
         }
         t.frames += 1;
+        // Keep the window at the requested size on every screen.
+        if t.frames == 1
+            && let Some((w, h)) = std::env::var("WDFR_TOUR_SIZE").ok().and_then(|s| {
+                let (w, h) = s.split_once('x')?;
+                Some((w.parse::<f32>().ok()?, h.parse::<f32>().ok()?))
+            })
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(w, h)));
+        }
         let (step, frames, image, dir) = (t.step, t.frames, t.image.clone(), t.dir.clone());
         let shoot = |name: &'static str, ctx: &egui::Context, t: &mut tour::Tour| {
             t.waiting_for_shot = Some(name);
@@ -649,6 +694,8 @@ impl App {
                 if let Some(l) = self.tour.as_ref().and_then(|t| t.language) {
                     self.settings.language = l;
                 }
+                // A file manager window would cover the app and stop it drawing.
+                self.settings.open_folder_when_done = false;
                 self.home.add_image(image);
             }
             0 if frames > 40 && self.home.drives.is_some() => shoot("1-home", ctx, self.tour.as_mut().unwrap()),

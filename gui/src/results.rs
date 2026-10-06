@@ -373,12 +373,21 @@ impl Results {
                     action = Action::Recover;
                 }
             });
-        egui::Panel::right("results-preview")
-            .exact_size(300.0)
-            .resizable(false)
-            .show_separator_line(false)
-            .frame(egui::Frame::new().inner_margin(egui::Margin { left: 12, right: 0, top: 0, bottom: 0 }))
-            .show(ui, |ui| self.preview_panel(ui, p, previewer));
+        // The preview gets narrower, then hides, so that the table stays usable
+        // in small windows.
+        let preview_w = match ui.available_width() {
+            w if w >= 940.0 => Some(300.0),
+            w if w >= 640.0 => Some(240.0),
+            _ => None,
+        };
+        if let Some(w) = preview_w {
+            egui::Panel::right("results-preview")
+                .exact_size(w)
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::new().inner_margin(egui::Margin { left: 12, right: 0, top: 0, bottom: 0 }))
+                .show(ui, |ui| self.preview_panel(ui, p, previewer));
+        }
         egui::CentralPanel::no_frame().show(ui, |ui| {
             theme::card(ui, p, |ui| {
                 ui.set_min_size(ui.available_size());
@@ -483,17 +492,20 @@ impl Results {
             }
         };
 
-        // The location column only appears when there is room for it.
+        // The location and date columns only appear when there is room for them.
         let show_location = ui.available_width() > 860.0;
+        let show_modified = ui.available_width() > 560.0;
         let mut table = TableBuilder::new(ui)
             .striped(true)
             .sense(Sense::click())
             .cell_layout(Layout::left_to_right(Align::Center))
             .column(Column::exact(30.0))
             .column(Column::remainder().at_least(150.0).clip(true))
-            .column(Column::exact(84.0))
-            .column(Column::exact(128.0))
-            .column(Column::exact(146.0));
+            .column(Column::exact(84.0));
+        if show_modified {
+            table = table.column(Column::exact(128.0));
+        }
+        table = table.column(Column::exact(146.0));
         if show_location {
             table = table.column(Column::exact(200.0).clip(true));
         }
@@ -509,7 +521,9 @@ impl Results {
                 });
                 h.col(|ui| header(ui, tr("Name"), SortCol::Name, &mut sort_click));
                 h.col(|ui| header(ui, tr("Size"), SortCol::Size, &mut sort_click));
-                h.col(|ui| header(ui, tr("Modified"), SortCol::Modified, &mut sort_click));
+                if show_modified {
+                    h.col(|ui| header(ui, tr("Modified"), SortCol::Modified, &mut sort_click));
+                }
                 h.col(|ui| header(ui, tr("Status"), SortCol::Status, &mut sort_click));
                 if show_location {
                     h.col(|ui| header(ui, tr("Location"), SortCol::Folder, &mut sort_click));
@@ -534,11 +548,15 @@ impl Results {
                     row.col(|ui| {
                         ui.label(RichText::new(format_size(r.size)).color(p.weak));
                     });
-                    row.col(|ui| {
-                        let t =
-                            r.modified.map(|m| m.format("%Y-%m-%d %H:%M").to_string()).unwrap_or_else(|| "—".into());
-                        ui.label(RichText::new(t).color(p.weak));
-                    });
+                    if show_modified {
+                        row.col(|ui| {
+                            let t = r
+                                .modified
+                                .map(|m| m.format("%Y-%m-%d %H:%M").to_string())
+                                .unwrap_or_else(|| "—".into());
+                            ui.label(RichText::new(t).color(p.weak));
+                        });
+                    }
                     row.col(|ui| status_pill(ui, p, r.status));
                     if show_location {
                         row.col(|ui| {
@@ -671,6 +689,10 @@ impl Results {
         let mut go = false;
         theme::card(ui, p, |ui| {
             ui.set_width(ui.available_width());
+            // In narrow windows the destination moves to a second row, and the
+            // Recover button too if it does not fit next to the selection.
+            let one_row = ui.available_width() >= 880.0;
+            let mut recover_in_first_row = false;
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
                     ui.label(theme::semibold(trf("{n} selected", &[("n", &n)]), 16.0).color(p.text));
@@ -685,38 +707,24 @@ impl Results {
                 if ui.small_button(tr("Select none")).clicked() {
                     self.selected.iter_mut().for_each(|s| *s = false);
                 }
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    let ok = n > 0 && self.dest_error.is_none();
-                    if theme::primary_button(
-                        ui,
-                        p,
-                        &format!("{}  {}", icon::DOWNLOAD_SIMPLE, trn(n as u64, "Recover 1 file", "Recover {n} files")),
-                        ok,
-                    )
-                    .clicked()
-                    {
-                        go = true;
-                    }
-                    if ui.button(icon_label(icon::FOLDER_OPEN, "Browse")).clicked()
-                        && let Some(dir) = rfd::FileDialog::new().pick_folder()
-                    {
-                        self.dest = dir.display().to_string();
-                    }
-                    // Leave room for the label, whose length depends on the language.
-                    let label = RichText::new(tr("Save to")).color(p.weak);
-                    let label_w = egui::WidgetText::from(label.clone())
-                        .into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, egui::TextStyle::Body)
-                        .size()
-                        .x;
-                    let spacing = ui.spacing().item_spacing.x;
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.dest)
-                            .desired_width((ui.available_width() - label_w - 3.0 * spacing - 20.0).clamp(120.0, 420.0))
-                            .margin(Vec2::new(10.0, 7.0)),
-                    );
-                    ui.label(label);
-                });
+                if one_row {
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        go = self.recover_button(ui, p, n);
+                        self.destination(ui, p);
+                    });
+                } else if ui.available_width() >= recover_button_width(ui, n) {
+                    recover_in_first_row = true;
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| go = self.recover_button(ui, p, n));
+                }
             });
+            if !one_row {
+                ui.add_space(8.0);
+                ui.horizontal(|ui| self.destination_row(ui, p));
+                if !recover_in_first_row {
+                    ui.add_space(4.0);
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| go = self.recover_button(ui, p, n));
+                }
+            }
             if let Some(e) = &self.dest_error {
                 ui.add_space(4.0);
                 ui.label(RichText::new(e.message()).color(p.danger));
@@ -724,6 +732,65 @@ impl Results {
         });
         go
     }
+
+    /// Returns true when clicked (see `recover_button_width`).
+    fn recover_button(&self, ui: &mut Ui, p: &Palette, n: usize) -> bool {
+        let ok = n > 0 && self.dest_error.is_none();
+        let text = format!("{}  {}", icon::DOWNLOAD_SIMPLE, trn(n as u64, "Recover 1 file", "Recover {n} files"));
+        theme::primary_button(ui, p, &text, ok).clicked()
+    }
+
+    /// "Save to [folder] Browse", laid out right to left (next to the
+    /// Recover button in wide windows).
+    fn destination(&mut self, ui: &mut Ui, p: &Palette) {
+        if ui.button(icon_label(icon::FOLDER_OPEN, "Browse")).clicked()
+            && let Some(dir) = rfd::FileDialog::new().pick_folder()
+        {
+            self.dest = dir.display().to_string();
+        }
+        // Leave room for the label, whose length depends on the language.
+        let label = RichText::new(tr("Save to")).color(p.weak);
+        let label_w = egui::WidgetText::from(label.clone())
+            .into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, egui::TextStyle::Body)
+            .size()
+            .x;
+        let spacing = ui.spacing().item_spacing.x;
+        ui.add(
+            egui::TextEdit::singleline(&mut self.dest)
+                .desired_width((ui.available_width() - label_w - 3.0 * spacing - 20.0).clamp(100.0, 420.0))
+                .margin(Vec2::new(10.0, 7.0)),
+        );
+        ui.label(label);
+    }
+
+    /// "Save to [folder……] Browse" across the whole width (narrow windows).
+    fn destination_row(&mut self, ui: &mut Ui, p: &Palette) {
+        ui.label(RichText::new(tr("Save to")).color(p.weak));
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            if ui.button(icon_label(icon::FOLDER_OPEN, "Browse")).clicked()
+                && let Some(dir) = rfd::FileDialog::new().pick_folder()
+            {
+                self.dest = dir.display().to_string();
+            }
+            ui.add(
+                egui::TextEdit::singleline(&mut self.dest)
+                    .desired_width(ui.available_width())
+                    .margin(Vec2::new(10.0, 7.0)),
+            );
+        });
+    }
+}
+
+/// The width of the Recover button, which depends on the language.
+fn recover_button_width(ui: &Ui, n: usize) -> f32 {
+    let text = format!("{}  {}", icon::DOWNLOAD_SIMPLE, trn(n as u64, "Recover 1 file", "Recover {n} files"));
+    let galley = egui::WidgetText::from(theme::semibold(text, 15.0)).into_galley(
+        ui,
+        Some(egui::TextWrapMode::Extend),
+        f32::INFINITY,
+        egui::TextStyle::Button,
+    );
+    galley.size().x + 2.0 * ui.spacing().button_padding.x + ui.spacing().item_spacing.x + 8.0
 }
 
 /// Text colour for the found-by-category counters.
