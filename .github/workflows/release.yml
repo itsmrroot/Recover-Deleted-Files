@@ -88,6 +88,9 @@ jobs:
               $pack -f nsis
               cp "$pkg"/*.exe "installers/$base-setup.exe" ;;
             dmg)
+              # Binaries linked for Intel on an Apple Silicon runner carry no
+              # signature at all, and the bundle cannot be signed around them.
+              codesign --force -s - target/${{ matrix.target }}/release/wdfr target/${{ matrix.target }}/release/wdfr-gui
               $pack -f app,dmg
               # A bundle that fails this check opens as "damaged" after download.
               codesign --verify --deep --strict --verbose=2 "$pkg"/*.app

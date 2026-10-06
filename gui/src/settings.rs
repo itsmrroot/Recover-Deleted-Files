@@ -14,6 +14,8 @@ pub enum ThemeChoice {
     System,
     Light,
     Dark,
+    /// Near-black with a deep blue top bar.
+    Midnight,
 }
 
 impl ThemeChoice {
@@ -21,7 +23,7 @@ impl ThemeChoice {
         match self {
             ThemeChoice::System => egui::ThemePreference::System,
             ThemeChoice::Light => egui::ThemePreference::Light,
-            ThemeChoice::Dark => egui::ThemePreference::Dark,
+            ThemeChoice::Dark | ThemeChoice::Midnight => egui::ThemePreference::Dark,
         }
     }
 }
@@ -54,6 +56,8 @@ pub struct Settings {
     pub write_report: bool,
     pub open_folder_when_done: bool,
     pub allow_same_volume: bool,
+    // Updates
+    pub check_updates: bool,
 }
 
 impl Default for Settings {
@@ -77,6 +81,7 @@ impl Default for Settings {
             write_report: true,
             open_folder_when_done: true,
             allow_same_volume: false,
+            check_updates: true,
         }
     }
 }
@@ -132,7 +137,12 @@ pub fn page(ui: &mut Ui, p: &Palette, s: &mut Settings) -> bool {
                 });
             });
             row(ui, p, tr("Theme"), trl("Follow the system, or always light or dark."), |ui| {
-                for (choice, label) in [(ThemeChoice::Dark, tr("Dark")), (ThemeChoice::Light, tr("Light")), (ThemeChoice::System, tr("System"))] {
+                for (choice, label) in [
+                    (ThemeChoice::Midnight, tr("Midnight")),
+                    (ThemeChoice::Dark, tr("Dark")),
+                    (ThemeChoice::Light, tr("Light")),
+                    (ThemeChoice::System, tr("System")),
+                ] {
                     ui.selectable_value(&mut s.theme, choice, label);
                 }
             });
@@ -231,6 +241,20 @@ pub fn page(ui: &mut Ui, p: &Palette, s: &mut Settings) -> bool {
                     let (label, color) = if s.allow_same_volume { (tr("Allowed"), p.danger) } else { (tr("Off"), p.text) };
                     ui.checkbox(&mut s.allow_same_volume, RichText::new(label).color(color));
                 },
+            );
+        });
+        ui.add_space(14.0);
+
+        theme::card(ui, p, |ui| {
+            ui.set_width(ui.available_width());
+            theme::section_title(ui, p, icon::ARROW_CIRCLE_UP, tr("Updates"));
+            ui.add_space(6.0);
+            row(
+                ui,
+                p,
+                tr("Check for updates at start"),
+                trl("Asks GitHub for the latest version when the app starts. Nothing about you or your files is sent."),
+                |ui| toggle(ui, &mut s.check_updates),
             );
         });
         ui.add_space(14.0);

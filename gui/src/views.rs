@@ -260,7 +260,7 @@ pub fn done(ui: &mut Ui, p: &Palette, sum: &Summary, out: &Path) -> DoneAction {
     action
 }
 
-pub fn about(ui: &mut Ui, p: &Palette, logo: &egui::TextureHandle) {
+pub fn about(ui: &mut Ui, p: &Palette, logo: &egui::TextureHandle, updater: &mut crate::update::Updater) {
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         theme::card(ui, p, |ui| {
             ui.set_width(ui.available_width());
@@ -275,6 +275,8 @@ pub fn about(ui: &mut Ui, p: &Palette, logo: &egui::TextureHandle) {
                     theme::pill(ui, p, POWERED_BY, p.accent);
                 });
             });
+            ui.add_space(10.0);
+            updater.status(ui, p);
             ui.add_space(12.0);
             theme::paragraph(
                 ui,

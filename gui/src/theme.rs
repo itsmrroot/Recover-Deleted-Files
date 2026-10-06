@@ -58,11 +58,32 @@ pub struct Palette {
     pub warning: Color32,
     pub danger: Color32,
     pub deep: Color32,
+    /// The top bar of the Midnight theme.
+    pub header: Option<Color32>,
 }
 
 impl Palette {
-    pub fn new(dark: bool, accent: Accent) -> Self {
-        if dark {
+    /// `midnight` only applies to the dark palette.
+    pub fn new(dark: bool, midnight: bool, accent: Accent) -> Self {
+        if dark && midnight {
+            // Near-black surfaces under a deep blue top bar.
+            Self {
+                dark,
+                bg: Color32::from_rgb(11, 12, 14),
+                sidebar: Color32::from_rgb(17, 18, 21),
+                card: Color32::from_rgb(22, 23, 27),
+                card_alt: Color32::from_rgb(30, 32, 37),
+                border: Color32::from_rgb(42, 45, 52),
+                text: Color32::from_rgb(236, 238, 242),
+                weak: Color32::from_rgb(148, 153, 165),
+                accent: accent.color(),
+                success: Color32::from_rgb(34, 197, 94),
+                warning: Color32::from_rgb(245, 158, 11),
+                danger: Color32::from_rgb(239, 68, 68),
+                deep: Color32::from_rgb(167, 139, 250),
+                header: Some(Color32::from_rgb(14, 40, 120)),
+            }
+        } else if dark {
             Self {
                 dark,
                 bg: Color32::from_rgb(15, 17, 23),
@@ -77,6 +98,7 @@ impl Palette {
                 warning: Color32::from_rgb(245, 158, 11),
                 danger: Color32::from_rgb(239, 68, 68),
                 deep: Color32::from_rgb(167, 139, 250),
+                header: None,
             }
         } else {
             Self {
@@ -93,6 +115,7 @@ impl Palette {
                 warning: Color32::from_rgb(217, 119, 6),
                 danger: Color32::from_rgb(220, 38, 38),
                 deep: Color32::from_rgb(124, 58, 237),
+                header: None,
             }
         }
     }
@@ -196,9 +219,9 @@ fn system_chinese_font() -> Option<FontData> {
     candidates.iter().find_map(|p| std::fs::read(p).ok()).map(FontData::from_owned)
 }
 
-pub fn apply_style(ctx: &egui::Context, accent: Accent) {
+pub fn apply_style(ctx: &egui::Context, accent: Accent, midnight: bool) {
     for theme in [Theme::Dark, Theme::Light] {
-        let pal = Palette::new(theme == Theme::Dark, accent);
+        let pal = Palette::new(theme == Theme::Dark, midnight, accent);
         ctx.style_mut_of(theme, |s| {
             s.visuals = visuals(&pal);
             s.spacing.item_spacing = Vec2::new(8.0, 8.0);
@@ -229,7 +252,13 @@ fn visuals(p: &Palette) -> Visuals {
     v.popup_shadow =
         Shadow { offset: [0, 4], blur: 16, spread: 0, color: Color32::from_black_alpha(if p.dark { 90 } else { 30 }) };
     v.menu_corner_radius = r;
-    v.extreme_bg_color = if p.dark { Color32::from_rgb(12, 14, 19) } else { Color32::WHITE };
+    v.extreme_bg_color = if p.header.is_some() {
+        Color32::from_rgb(6, 7, 8)
+    } else if p.dark {
+        Color32::from_rgb(12, 14, 19)
+    } else {
+        Color32::WHITE
+    };
     v.faint_bg_color = p.card_alt;
     v.hyperlink_color = p.accent;
     v.selection.bg_fill = blend(p.card, p.accent, if p.dark { 0.38 } else { 0.22 });
@@ -250,7 +279,13 @@ fn visuals(p: &Palette) -> Visuals {
     w.inactive.bg_stroke = Stroke::new(1.0, p.border);
     w.inactive.fg_stroke = Stroke::new(1.0, p.text);
     w.hovered.bg_fill = p.card_alt;
-    w.hovered.weak_bg_fill = if p.dark { Color32::from_rgb(40, 46, 60) } else { Color32::from_rgb(232, 236, 244) };
+    w.hovered.weak_bg_fill = if p.header.is_some() {
+        Color32::from_rgb(38, 40, 46)
+    } else if p.dark {
+        Color32::from_rgb(40, 46, 60)
+    } else {
+        Color32::from_rgb(232, 236, 244)
+    };
     w.hovered.bg_stroke = Stroke::new(1.0, p.accent.gamma_multiply(0.7));
     w.hovered.fg_stroke = Stroke::new(1.5, p.text);
     w.active.bg_fill = p.accent.gamma_multiply(0.35);

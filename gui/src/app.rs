@@ -17,6 +17,7 @@ use crate::preview::Previewer;
 use crate::results::{self, Results};
 use crate::settings::{self, Settings};
 use crate::theme::{self, Palette};
+use crate::update::Updater;
 use crate::views::{self, DoneAction, POWERED_BY};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,6 +51,7 @@ pub struct App {
     live_refreshed: Option<std::time::Instant>,
     /// The "scan" job is reopening a saved scan.
     opening_saved: bool,
+    updater: Updater,
     #[cfg(debug_assertions)]
     tour: Option<tour::Tour>,
 }
@@ -85,6 +87,16 @@ impl App {
             };
             cc.egui_ctx.load_texture("logo", color, egui::TextureOptions::LINEAR)
         };
+        #[cfg(debug_assertions)]
+        let tour = tour::Tour::from_env();
+        #[cfg(debug_assertions)]
+        let touring = tour.is_some();
+        #[cfg(not(debug_assertions))]
+        let touring = false;
+        let mut updater = Updater::default();
+        if settings.check_updates && !touring {
+            updater.check(&cc.egui_ctx, false);
+        }
         Self {
             home: Home::new(&cc.egui_ctx, &settings),
             settings,
@@ -102,15 +114,17 @@ impl App {
             fitted: false,
             live_refreshed: None,
             opening_saved: false,
+            updater,
             #[cfg(debug_assertions)]
-            tour: tour::Tour::from_env(),
+            tour,
         }
     }
 
     fn apply_settings(&mut self, ctx: &egui::Context) {
         let want = (self.settings.accent, self.settings.ui_scale, self.settings.theme);
         if self.applied != Some(want) {
-            theme::apply_style(ctx, self.settings.accent);
+            let midnight = self.settings.theme == settings::ThemeChoice::Midnight;
+            theme::apply_style(ctx, self.settings.accent, midnight);
             ctx.set_theme(self.settings.theme.preference());
             ctx.set_zoom_factor(self.settings.ui_scale);
             self.applied = Some(want);
@@ -425,17 +439,37 @@ impl App {
     // ------------------------------------------------------------------
     // Layout
 
-    fn sidebar(&mut self, ui: &mut Ui, p: &Palette) {
-        ui.add_space(18.0);
-        ui.horizontal(|ui| {
-            ui.add_space(6.0);
-            ui.add(egui::Image::new(&self.logo).fit_to_exact_size(Vec2::splat(40.0)));
-            ui.vertical(|ui| {
-                ui.add_space(2.0);
-                ui.label(theme::semibold(tr("Deleted Files"), 16.0).color(p.text));
-                ui.label(RichText::new(tr("Recovery")).color(p.weak).size(13.0));
+    /// The top bar of the Midnight theme: name on the left, updates on the right.
+    fn header(&mut self, ui: &mut Ui, p: &Palette) {
+        let white = Color32::from_rgb(245, 247, 252);
+        ui.horizontal_centered(|ui| {
+            ui.add(egui::Image::new(&self.logo).fit_to_exact_size(Vec2::splat(30.0)));
+            ui.add_space(4.0);
+            ui.label(theme::semibold(tr("Deleted Files"), 17.0).color(white));
+            ui.label(RichText::new(tr("Recovery")).color(white.gamma_multiply(0.75)).size(17.0));
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if self.updater.available().is_some() {
+                    self.updater.button(ui, p);
+                } else {
+                    ui.label(RichText::new(format!("v{}", env!("CARGO_PKG_VERSION"))).color(white.gamma_multiply(0.7)));
+                }
             });
         });
+    }
+
+    fn sidebar(&mut self, ui: &mut Ui, p: &Palette) {
+        if p.header.is_none() {
+            ui.add_space(18.0);
+            ui.horizontal(|ui| {
+                ui.add_space(6.0);
+                ui.add(egui::Image::new(&self.logo).fit_to_exact_size(Vec2::splat(40.0)));
+                ui.vertical(|ui| {
+                    ui.add_space(2.0);
+                    ui.label(theme::semibold(tr("Deleted Files"), 16.0).color(p.text));
+                    ui.label(RichText::new(tr("Recovery")).color(p.weak).size(13.0));
+                });
+            });
+        }
         ui.add_space(22.0);
 
         let in_flow = matches!(self.page, Page::Home | Page::Scanning | Page::Saving | Page::Done);
@@ -482,6 +516,13 @@ impl App {
                 ui.label(RichText::new(icon::SPARKLE).color(p.accent).size(13.0));
                 ui.label(theme::semibold(POWERED_BY, 12.5).color(p.text));
             });
+            if p.header.is_none() && self.updater.available().is_some() {
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(6.0);
+                    self.updater.button(ui, p);
+                });
+            }
             ui.add_space(4.0);
             ui.separator();
         });
@@ -575,7 +616,7 @@ impl App {
             Page::Settings => {
                 settings::page(ui, p, &mut self.settings);
             }
-            Page::About => views::about(ui, p, &self.logo),
+            Page::About => views::about(ui, p, &self.logo, &mut self.updater),
         }
     }
 
@@ -632,7 +673,21 @@ impl eframe::App for App {
             self.page = Page::Home;
         }
 
-        let p = Palette::new(ui.visuals().dark_mode, self.settings.accent);
+        if self.updater.poll(&ctx) {
+            // The installer takes over and starts the new version.
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+
+        let midnight = self.settings.theme == settings::ThemeChoice::Midnight;
+        let p = Palette::new(ui.visuals().dark_mode, midnight, self.settings.accent);
+        if let Some(fill) = p.header {
+            egui::Panel::top("header")
+                .exact_size(56.0)
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(Frame::new().fill(fill).inner_margin(Margin::symmetric(18, 0)))
+                .show(ui, |ui| self.header(ui, &p));
+        }
         egui::Panel::left("sidebar")
             .exact_size(236.0)
             .resizable(false)
@@ -644,6 +699,8 @@ impl eframe::App for App {
             .frame(Frame::new().fill(p.bg).inner_margin(Margin { left: 30, right: 30, top: 26, bottom: 22 }))
             .show(ui, |ui| self.content(ui, &p));
         self.error_modal(&ctx, &p);
+        let busy = self.busy();
+        self.updater.dialog(&ctx, &p, busy);
 
         #[cfg(debug_assertions)]
         self.run_tour(&ctx);
@@ -840,6 +897,49 @@ impl App {
                     shoot("reopened", ctx, self.tour.as_mut().unwrap())
                 }
                 2 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                _ => {}
+            }
+            return;
+        }
+        // WDFR_TOUR_UPDATE: find an update and install it, as "Update now" does.
+        if std::env::var_os("WDFR_TOUR_UPDATE").is_some() {
+            match step {
+                0 if frames == 1 => self.updater.check(ctx, true),
+                0 if self.updater.available().is_some() => {
+                    self.updater.update_now(ctx);
+                    self.tour.as_mut().unwrap().step = 1;
+                }
+                1 if frames == 30 => shoot("update-downloading", ctx, self.tour.as_mut().unwrap()),
+                _ => {}
+            }
+            return;
+        }
+        // WDFR_TOUR_MIDNIGHT: the Midnight theme with an update available
+        // (run with WDFR_PRETEND_VERSION set to an older version).
+        if std::env::var_os("WDFR_TOUR_MIDNIGHT").is_some() {
+            match step {
+                0 if frames == 1 => {
+                    self.settings.theme = settings::ThemeChoice::Midnight;
+                    self.home.add_image(image);
+                    self.updater.check(ctx, false);
+                }
+                0 if frames > 40 && self.home.drives.is_some() && self.updater.available().is_some() => {
+                    shoot("midnight-home", ctx, self.tour.as_mut().unwrap())
+                }
+                1 if frames == 1 => self.start_scan(ctx, None),
+                1 if self.page == Page::Results && self.scan.is_none() && frames > 30 => {
+                    shoot("midnight-results", ctx, self.tour.as_mut().unwrap())
+                }
+                2 if frames == 1 => self.page = Page::Settings,
+                2 if frames > 10 => shoot("midnight-settings", ctx, self.tour.as_mut().unwrap()),
+                3 if frames == 1 => {
+                    self.page = Page::About;
+                    self.updater.show_dialog();
+                }
+                3 if frames > 10 => shoot("midnight-update", ctx, self.tour.as_mut().unwrap()),
+                4 if frames == 1 => self.settings.theme = settings::ThemeChoice::Dark,
+                4 if frames > 10 => shoot("dark-sidebar-update", ctx, self.tour.as_mut().unwrap()),
+                5 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
                 _ => {}
             }
             return;

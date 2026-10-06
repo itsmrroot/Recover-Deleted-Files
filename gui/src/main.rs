@@ -13,6 +13,7 @@ mod results;
 mod settings;
 mod theme;
 mod translations;
+mod update;
 mod views;
 
 use eframe::egui;
