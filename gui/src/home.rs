@@ -203,7 +203,13 @@ impl Home {
             // until the app has Full Disk Access.
             let needs_full_disk_access =
                 cfg!(target_os = "macos") && (elevate::is_root() || elevate::has_drive_access());
-            if needs_full_disk_access && shown.iter().all(|d| d.device.size.is_none()) {
+            // A disk image or card the user mounted can be readable while the
+            // drives are not, so on macOS and Linux access is offered as soon
+            // as one drive is locked. (On Windows the app always runs as
+            // administrator.)
+            let unreadable = |d: &&DriveInfo| d.device.size.is_none();
+            let locked = if cfg!(windows) { shown.iter().all(unreadable) } else { shown.iter().any(unreadable) };
+            if needs_full_disk_access && locked {
                 theme::notice(
                     ui,
                     p,
@@ -220,7 +226,7 @@ impl Home {
                     elevate::open_full_disk_access_settings();
                 }
                 ui.add_space(8.0);
-            } else if shown.iter().all(|d| d.device.size.is_none()) {
+            } else if locked {
                 let msg = if cfg!(windows) {
                     trl(
                         "No drive could be opened. Close the app, right-click it and choose \"Run as administrator\". Disk images work without it.",
