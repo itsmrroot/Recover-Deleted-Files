@@ -23,14 +23,19 @@ jobs:
           - { os: macos-latest, target: x86_64-apple-darwin, packages: "-p wdfr -p wdfr-gui", bins: "wdfr wdfr-gui", installer: dmg, label: macos-intel }
           # Linux: a fully static command line, plus the desktop app (which
           # loads the system's graphics libraries, so it is built for glibc).
+          # The desktop app is built on the oldest supported Ubuntu, because a
+          # glibc program only runs on that glibc version or newer: built on
+          # 22.04 it runs on Ubuntu 22.04+, Debian 12+, Fedora 36+, Mint 21+.
           - { os: ubuntu-latest, target: x86_64-unknown-linux-musl, packages: "-p wdfr", bins: "wdfr" }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, packages: "-p wdfr -p wdfr-gui", bins: "wdfr-gui", suffix: "-desktop", installer: linux, label: linux-x86_64 }
+          - { os: ubuntu-22.04-arm, target: aarch64-unknown-linux-musl, packages: "-p wdfr", bins: "wdfr" }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, packages: "-p wdfr -p wdfr-gui", bins: "wdfr-gui", suffix: "-desktop", installer: linux, label: linux-x86_64 }
+          - { os: ubuntu-22.04-arm, target: aarch64-unknown-linux-gnu, packages: "-p wdfr -p wdfr-gui", bins: "wdfr-gui", suffix: "-desktop", installer: linux, label: linux-arm64 }
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - if: matrix.target == 'x86_64-unknown-linux-musl'
+      - if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
       - run: cargo build --release --locked --target ${{ matrix.target }} ${{ matrix.packages }}
       - name: Package
@@ -71,7 +76,9 @@ jobs:
           # linuxdeploy is itself an AppImage; this lets it run without FUSE.
           APPIMAGE_EXTRACT_AND_RUN: 1
         run: |
-          base=wdfr-${GITHUB_REF_NAME}-${{ matrix.label }}
+          # No version in the name, so that the README can link to
+          # releases/latest/download/<name> and always get the newest one.
+          base=wdfr-${{ matrix.label }}
           # cargo-packager takes its output folder relative to gui/.
           pkg=gui/pkg
           pack="cargo packager --release --target ${{ matrix.target }} -p wdfr-gui -o pkg"

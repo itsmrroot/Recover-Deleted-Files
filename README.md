@@ -7,17 +7,18 @@
 [![CI](https://github.com/itsmrroot/Recover-Deleted-Files/actions/workflows/ci.yml/badge.svg)](https://github.com/itsmrroot/Recover-Deleted-Files/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/itsmrroot/Recover-Deleted-Files?color=0b5cad)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/itsmrroot/Recover-Deleted-Files/total?color=16a34a)](https://github.com/itsmrroot/Recover-Deleted-Files/releases)
-[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-6b7280)](#-download)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-6b7280)](#-install)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/github/license/itsmrroot/Recover-Deleted-Files?color=a78bfa)](LICENSE)
 
 **Bring back deleted photos, videos, music and documents —<br>from hard drives, USB sticks, SD cards and disk images.**
 
-[![Download for Windows](https://img.shields.io/badge/Download%20for%20Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
-[![Download for macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
-[![Download for Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
+[![Install on Windows](https://img.shields.io/badge/Install%20on%20Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](#-windows)
+[![Install on macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](#-macos)
+[![Install on Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](#-linux)
 
 [Quick start](#-quick-start) •
+[Install](#-install) •
 [Desktop app](#%EF%B8%8F-the-desktop-app) •
 [Features](#-features) •
 [Command line](#-command-line) •
@@ -88,11 +89,10 @@ runtime — nothing is written to the damaged drive. Scans at full disk speed.
 > [!IMPORTANT]
 > **Stop using the drive right away.** Every new file saved to it can overwrite the files you want back.
 
-1. **[Download](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)**
-   `wdfr-…-x86_64-pc-windows-msvc.zip` and unzip it on a **different** drive
-   than the one you want to recover.
-2. Double-click **`wdfr-gui.exe`** and click **Yes** when Windows asks for
-   administrator rights (needed to read drives).
+1. **Install** the app for your system: **[Windows](#-windows)** · **[macOS](#-macos)** · **[Linux](#-linux)**
+   (on a **different** drive than the one you want to recover).
+2. Open **Deleted Files Recovery**. Windows asks for administrator rights: click **Yes**. On macOS and Linux,
+   click **Restart with administrator rights** and enter your password.
 3. Choose the drive, click **Start scan**, tick the files you want and click **Recover**.
 
 <div align="center">
@@ -100,10 +100,8 @@ runtime — nothing is written to the damaged drive. Scans at full disk speed.
 </div>
 
 > [!TIP]
-> Prefer the keyboard? **`wdfr.exe`** (in the same download) opens a step-by-step text menu, and offers every option on the command line.
-
-> [!NOTE]
-> Windows may show **"Windows protected your PC"** the first time, because the program is new and not code-signed. Click **More info → Run anyway**.
+> Prefer the keyboard? **`wdfr`** (included in every download) opens a step-by-step text menu, and offers every
+> option on the command line.
 
 ## 🖥️ The desktop app
 
@@ -132,39 +130,178 @@ disks, default destination, folder layout (*original folders* or *sorted by type
 dates, the CSV report, opening the folder when done, showing overwritten files — and, clearly marked as
 unsafe, allowing saves to the source drive.
 
-## 📥 Download
+## 📥 Install
 
-All downloads are on the **[latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)** page.
+Click your system to see which file to download and how to install it:
 
-**Installers** (recommended): they add the app to the Start menu, Applications folder or app menu.
+<div align="center">
 
-| Your computer | Installer |
+[![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)](#-windows)
+[![macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](#-macos)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](#-linux)
+[![Command line](https://img.shields.io/badge/Command%20line-4b5563?style=for-the-badge&logo=gnubash&logoColor=white)](#-command-line-only)
+[![Portable](https://img.shields.io/badge/Portable%20(no%20install)-6b7280?style=for-the-badge&logo=files&logoColor=white)](#-portable-no-installation)
+
+</div>
+
+Every installer contains the desktop app **and** the command line (`wdfr`). All files are also on the
+**[latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)** page.
+
+> [!IMPORTANT]
+> Download and install the app on a **different drive** than the one you want to recover, so that nothing
+> overwrites the deleted files.
+
+### 🪟 Windows
+
+**1. Download** the installer for your PC:
+
+| Your PC | Download |
 |---|---|
-| **Windows** (most PCs) | `wdfr-…-windows-x64-setup.exe` |
-| Windows on ARM | `wdfr-…-windows-arm64-setup.exe` |
-| Mac with Apple Silicon (M1 and newer) | `wdfr-…-macos-apple-silicon.dmg` |
-| Mac with Intel | `wdfr-…-macos-intel.dmg` |
-| Ubuntu, Debian, Mint | `wdfr-…-linux-x86_64.deb` |
-| Fedora, openSUSE | `wdfr-…-linux-x86_64.rpm` |
-| Any other Linux | `wdfr-…-linux-x86_64.AppImage` |
+| **Most PCs** (Intel or AMD) | **[wdfr-windows-x64-setup.exe](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-windows-x64-setup.exe)** |
+| ARM laptops (Snapdragon, Surface Pro X) | [wdfr-windows-arm64-setup.exe](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-windows-arm64-setup.exe) |
 
-The installers also include the command line (`wdfr`). Reading drives needs administrator rights:
-Windows asks when the app starts; on macOS and Linux click **Restart with administrator rights** in the app.
-Disk images work without them.
+<sub>Not sure? **Settings → System → About → System type** says *x64-based* or *ARM-based*.</sub>
 
-**Portable** (no installation, just unpack and run):
+**2. Install**
+
+1. Double-click the downloaded file.
+2. If Windows shows **"Windows protected your PC"**, click **More info → Run anyway**. (The app is new and
+   not code-signed yet.)
+3. Pick your language, click **Next → Install** and **Yes** when Windows asks for permission.
+
+**3. Start**: open the **Start menu** → **Deleted Files Recovery**, and click **Yes** when Windows asks for
+administrator rights (needed to read drives).
+
+<sub>**Uninstall:** Settings → Apps → Installed apps → *Deleted Files Recovery* → Uninstall.</sub>
+
+### 🍎 macOS
+
+**1. Download** the disk image for your Mac:
+
+| Your Mac | Download |
+|---|---|
+| **Apple Silicon** (M1, M2, M3, M4 and newer) | **[wdfr-macos-apple-silicon.dmg](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-macos-apple-silicon.dmg)** |
+| Intel | [wdfr-macos-intel.dmg](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-macos-intel.dmg) |
+
+<sub>Not sure? **Apple menu  → About This Mac** shows *Chip: Apple M…* or *Processor: Intel*.</sub>
+
+**2. Install**
+
+1. Open the downloaded `.dmg`.
+2. Drag **Deleted Files Recovery** onto the **Applications** folder.
+3. The first time, macOS blocks the app because it is not signed by Apple yet:
+   - **macOS 15 Sequoia and newer:** open the app, click **Done**, then go to **System Settings → Privacy &
+     Security**, scroll down and click **Open Anyway**.
+   - **macOS 14 and older:** in Applications, **right-click** (or Control-click) the app → **Open** → **Open**.
+
+   You only need to do this once.
+
+**3. Start**: open **Deleted Files Recovery** from Applications or Launchpad. To read drives, click
+**Restart with administrator rights** and enter your Mac password. Disk images work without it.
+
+> [!NOTE]
+> On a Mac, the app is most useful for **USB sticks, SD cards and external drives** (FAT32, exFAT, NTFS).
+> The Mac's own drive (APFS) can only be searched by content, and its SSD usually erases deleted data on its own.
+
+<sub>**Uninstall:** drag *Deleted Files Recovery* from Applications to the Trash.</sub>
+
+### 🐧 Linux
+
+**1. Download** the package for your distribution and processor:
+
+| Your distribution | Intel / AMD (`x86_64`) | ARM (`aarch64`) |
+|---|---|---|
+| **Ubuntu, Debian, Mint, Pop!_OS** | **[wdfr-linux-x86_64.deb](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-x86_64.deb)** | [wdfr-linux-arm64.deb](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-arm64.deb) |
+| **Fedora, openSUSE, RHEL** | [wdfr-linux-x86_64.rpm](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-x86_64.rpm) | [wdfr-linux-arm64.rpm](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-arm64.rpm) |
+| **Any other** (AppImage) | [wdfr-linux-x86_64.AppImage](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-x86_64.AppImage) | [wdfr-linux-arm64.AppImage](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-arm64.AppImage) |
+
+<sub>Not sure? Run `uname -m` in a terminal: `x86_64` is Intel/AMD, `aarch64` is ARM (Raspberry Pi 4/5 with
+a 64-bit system, ARM servers, Linux virtual machines on Apple Silicon Macs). The app needs Ubuntu 22.04,
+Debian 12, Fedora 36, Mint 21 or newer.</sub>
+
+**2. Install** (in a terminal, in the folder you downloaded to, e.g. `cd ~/Downloads`). Use the file name you
+downloaded; the examples show Intel/AMD.
+
+<details open>
+<summary><b>Ubuntu, Debian, Mint (.deb)</b></summary>
+
+```bash
+sudo apt install ./wdfr-linux-x86_64.deb
+```
+
+</details>
+
+<details>
+<summary><b>Fedora, openSUSE, RHEL (.rpm)</b></summary>
+
+```bash
+sudo dnf install ./wdfr-linux-x86_64.rpm       # Fedora, RHEL
+sudo zypper install ./wdfr-linux-x86_64.rpm    # openSUSE
+```
+
+</details>
+
+<details>
+<summary><b>Any distribution (AppImage, no installation)</b></summary>
+
+```bash
+chmod +x wdfr-linux-x86_64.AppImage
+./wdfr-linux-x86_64.AppImage
+```
+
+If it complains about `libfuse.so.2`, install FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04,
+`libfuse2t64` on 24.04) or start it with `--appimage-extract-and-run`.
+
+</details>
+
+**3. Start**: open **Deleted Files Recovery** from your app menu (or run `wdfr-gui` in a terminal). To read
+drives, click **Restart with administrator rights** and enter your password. Disk images work without it.
+
+<details>
+<summary><b>The app does not open</b></summary>
+
+Run `wdfr-gui` in a terminal to see why:
+
+- **`GLIBC_2.xx not found`**: your distribution is older than the versions above. Use the
+  [command line](#-command-line-only) instead, which runs everywhere.
+- **Nothing appears in a virtual machine**: turn on **3D acceleration** in the VM's display settings. The app
+  draws its window with your graphics card (Vulkan or OpenGL).
+
+</details>
+
+<sub>**Uninstall:** `sudo apt remove deleted-files-recovery` (.deb), `sudo dnf remove wdfr` (.rpm), or delete
+the AppImage.</sub>
+
+### 💻 Command line only
+
+The command line runs on any Linux, with no dependencies, and is also included in every installer and
+portable download. Download it from the [latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest):
+
+| Your computer | File |
+|---|---|
+| Linux, Intel/AMD | `wdfr-…-x86_64-unknown-linux-musl.tar.gz` |
+| Linux, ARM | `wdfr-…-aarch64-unknown-linux-musl.tar.gz` |
+
+```bash
+tar xzf wdfr-*-linux-musl.tar.gz
+sudo ./wdfr-*/wdfr          # step-by-step menu; see "Command line" below for all commands
+```
+
+### 📦 Portable (no installation)
+
+Unpack and run, nothing is installed. All files are on the
+[latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest) page:
 
 | Your computer | File | Contains |
 |---|---|---|
-| **Windows** (most PCs) | `wdfr-…-x86_64-pc-windows-msvc.zip` | desktop app + command line |
+| Windows (Intel/AMD) | `wdfr-…-x86_64-pc-windows-msvc.zip` | desktop app + command line |
 | Windows on ARM | `wdfr-…-aarch64-pc-windows-msvc.zip` | desktop app + command line |
 | Mac with Apple Silicon | `wdfr-…-aarch64-apple-darwin.tar.gz` | desktop app + command line |
 | Mac with Intel | `wdfr-…-x86_64-apple-darwin.tar.gz` | desktop app + command line |
-| Linux | `wdfr-…-x86_64-unknown-linux-gnu-desktop.tar.gz` | desktop app |
-| Linux (any distribution) | `wdfr-…-x86_64-unknown-linux-musl.tar.gz` | command line (fully static) |
+| Linux, Intel/AMD | `wdfr-…-x86_64-unknown-linux-gnu-desktop.tar.gz` | desktop app |
+| Linux, ARM | `wdfr-…-aarch64-unknown-linux-gnu-desktop.tar.gz` | desktop app |
 
-The installers are not code-signed yet. The first time, Windows may show "Windows protected your PC": click
-**More info → Run anyway**. On a Mac, right-click the app → **Open** → **Open**.
+On macOS and Linux, start the portable app with `sudo ./wdfr-gui` to read drives; disk images work without `sudo`.
 
 ## 💻 Command line
 
