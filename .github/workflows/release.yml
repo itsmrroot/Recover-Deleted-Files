@@ -88,7 +88,9 @@ jobs:
               $pack -f nsis
               cp "$pkg"/*.exe "installers/$base-setup.exe" ;;
             dmg)
-              $pack -f dmg
+              $pack -f app,dmg
+              # A bundle that fails this check opens as "damaged" after download.
+              codesign --verify --deep --strict --verbose=2 "$pkg"/*.app
               cp "$pkg"/*.dmg "installers/$base.dmg" ;;
             linux)
               $pack -f deb,appimage

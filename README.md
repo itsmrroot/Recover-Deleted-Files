@@ -112,7 +112,8 @@ without scanning again.
 
 1. **Install** the app for your system: **[Windows](#-windows)** · **[macOS](#-macos)** · **[Linux](#-linux)**
    (on a **different** drive than the one you want to recover).
-2. Open **Deleted Files Recovery**. Windows asks for administrator rights: click **Yes**. On macOS and Linux,
+2. Open **Deleted Files Recovery**. Windows asks for administrator rights: click **Yes**. On macOS, click
+   **Allow access to drives**, enter your password and give the app [Full Disk Access](#-macos). On Linux,
    click **Restart with administrator rights** and enter your password.
 3. Choose the drive, click **Start scan**, tick the files you want and click **Recover**.
 
@@ -217,8 +218,14 @@ administrator rights (needed to read drives).
 
    You only need to do this once.
 
-**3. Start**: open **Deleted Files Recovery** from Applications or Launchpad. To read drives, click
-**Restart with administrator rights** and enter your Mac password. Disk images work without it.
+**3. Start**: open **Deleted Files Recovery** from Applications or Launchpad. To read drives:
+
+1. Click **Allow access to drives** and enter your Mac password.
+2. macOS also needs **Full Disk Access**, even for administrators. Click **Open Full Disk Access settings**
+   (or go to **System Settings → Privacy & Security → Full Disk Access**), turn on **Deleted Files
+   Recovery** (use **+** if it is not listed), then click **Refresh** in the app.
+
+Disk images work without either step.
 
 > [!NOTE]
 > On a Mac, the app is most useful for **USB sticks, SD cards and external drives** (FAT32, exFAT, NTFS).
@@ -323,6 +330,7 @@ Unpack and run, nothing is installed. All files are on the
 | Linux, ARM | `wdfr-…-aarch64-unknown-linux-gnu-desktop.tar.gz` | desktop app |
 
 On macOS and Linux, start the portable app with `sudo ./wdfr-gui` to read drives; disk images work without `sudo`.
+On macOS, the Terminal app also needs Full Disk Access (System Settings → Privacy & Security).
 
 ## 💻 Command line
 
@@ -373,7 +381,8 @@ wdfr recover E: -o D:\Recovered --keep-duplicates
 wdfr scan E: --json > deleted.json
 ```
 
-On macOS and Linux use the device path with `sudo`, e.g. `sudo wdfr recover /dev/rdisk4 -o ~/Recovered`.
+On macOS and Linux use the device path with `sudo`, e.g. `sudo wdfr recover /dev/rdisk4 -o ~/Recovered`
+(on macOS, give your terminal app Full Disk Access in System Settings → Privacy & Security first).
 Disk images (`.dd`, `.img`, `.raw`, ddrescue output) work everywhere without admin rights:
 `wdfr recover card.img -o Recovered`.
 

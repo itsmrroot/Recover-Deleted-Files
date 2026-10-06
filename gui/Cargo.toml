@@ -1,6 +1,6 @@
 [package]
 name = "wdfr-gui"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Desktop app for Windows Deleted Files Recovery"
@@ -22,7 +22,7 @@ serde_json = "1.0.151"
 skrifa = { version = "0.44", default-features = false, features = ["std"] }
 sys-locale = "0.3.2"
 unicode-bidi = "0.3.18"
-wdfr = { version = "0.3.0", path = ".." }
+wdfr = { version = "0.3.1", path = ".." }
 
 [build-dependencies]
 winresource = "0.1.31"
@@ -54,6 +54,10 @@ resources = [
 
 [package.metadata.packager.macos]
 minimum-system-version = "10.13"
+# Ad-hoc signature over the whole bundle. Without it the app only carries
+# the linker signature, which Gatekeeper reports as "damaged" after a
+# download. Replace "-" with a Developer ID to sign and notarize.
+signing-identity = "-"
 
 [package.metadata.packager.nsis]
 # The app needs administrator rights anyway, so it installs for all users.

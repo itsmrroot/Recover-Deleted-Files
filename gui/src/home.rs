@@ -199,7 +199,28 @@ impl Home {
             };
             let shown: Vec<&DriveInfo> =
                 drives.iter().filter(|d| s.show_whole_disks || d.device.kind != DeviceKind::Disk).collect();
-            if shown.iter().all(|d| d.device.size.is_none()) {
+            // With administrator rights, macOS still refuses to read drives
+            // until the app has Full Disk Access.
+            let needs_full_disk_access =
+                cfg!(target_os = "macos") && (elevate::is_root() || elevate::has_drive_access());
+            if needs_full_disk_access && shown.iter().all(|d| d.device.size.is_none()) {
+                theme::notice(
+                    ui,
+                    p,
+                    p.warning,
+                    icon::WARNING,
+                    trl(
+                        "macOS also needs Full Disk Access to read drives: turn on Deleted Files Recovery in System Settings → Privacy & Security → Full Disk Access, then click Refresh.",
+                    ),
+                );
+                ui.add_space(8.0);
+                if theme::primary_button(ui, p, &icon_label(icon::GEAR_SIX, "Open Full Disk Access settings"), true)
+                    .clicked()
+                {
+                    elevate::open_full_disk_access_settings();
+                }
+                ui.add_space(8.0);
+            } else if shown.iter().all(|d| d.device.size.is_none()) {
                 let msg = if cfg!(windows) {
                     trl(
                         "No drive could be opened. Close the app, right-click it and choose \"Run as administrator\". Disk images work without it.",
@@ -209,9 +230,13 @@ impl Home {
                 };
                 theme::notice(ui, p, p.warning, icon::WARNING, msg);
                 ui.add_space(8.0);
-                if elevate::supported() && !elevate::is_root() {
+                if elevate::supported() && !elevate::is_root() && !elevate::has_drive_access() {
                     ui.horizontal(|ui| {
-                        let label = icon_label(icon::SHIELD_CHECK, "Restart with administrator rights");
+                        let label = if cfg!(target_os = "macos") {
+                            icon_label(icon::SHIELD_CHECK, "Allow access to drives")
+                        } else {
+                            icon_label(icon::SHIELD_CHECK, "Restart with administrator rights")
+                        };
                         if theme::primary_button(ui, p, &label, !self.restarting).clicked() {
                             self.elevate = true;
                         }

@@ -226,8 +226,12 @@ impl App {
                 self.home.restarting = true;
             }
             Err(e) => {
-                self.error =
-                    Some(format!("{}\n\n{e}", trl("The app could not be restarted with administrator rights.")))
+                let msg = if cfg!(target_os = "macos") {
+                    trl("Access to drives could not be requested.")
+                } else {
+                    trl("The app could not be restarted with administrator rights.")
+                };
+                self.error = Some(format!("{msg}\n\n{e}"))
             }
         }
     }
@@ -236,6 +240,11 @@ impl App {
         let Some(r) = &mut self.restart else { return };
         match r.poll() {
             elevate::Status::Waiting => ctx.request_repaint_after(Duration::from_millis(200)),
+            elevate::Status::Granted => {
+                self.restart = None;
+                self.home.restarting = false;
+                self.home.refresh(ctx);
+            }
             elevate::Status::Started => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             elevate::Status::Failed => {
                 self.restart = None;
@@ -584,6 +593,8 @@ impl App {
                 ui.add_space(8.0);
                 let hint = if cfg!(windows) {
                     trl("Reading a drive needs administrator rights: close the app, right-click it and choose \"Run as administrator\".")
+                } else if cfg!(target_os = "macos") {
+                    trl("Reading a drive needs administrator rights: click \"Allow access to drives\" on the start screen.")
                 } else {
                     trl("Reading a drive needs administrator rights: click \"Restart with administrator rights\" on the start screen, or start the app with sudo.")
                 };

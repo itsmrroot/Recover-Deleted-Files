@@ -13,7 +13,7 @@
 
 use std::fs::File;
 use std::io;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use anyhow::{Context, Result};
 
@@ -91,6 +91,18 @@ pub fn read_tolerant(src: &dyn ReadAt, offset: u64, buf: &mut [u8]) -> u64 {
     bad
 }
 
+/// Opens, read-only, a drive this process has no right to open itself.
+pub type DeviceOpener = Box<dyn Fn(&str) -> io::Result<File> + Send + Sync>;
+
+static DEVICE_OPENER: OnceLock<DeviceOpener> = OnceLock::new();
+
+/// Lets [`DiskSource::open`] fall back to `opener` when opening a path is
+/// denied, so that a program can read drives through a privileged helper
+/// instead of running as root itself. Only the first call has an effect.
+pub fn set_device_opener(opener: DeviceOpener) {
+    let _ = DEVICE_OPENER.set(opener);
+}
+
 /// A raw device or image file.
 pub struct DiskSource {
     file: File,
@@ -104,20 +116,27 @@ impl DiskSource {
     /// is translated to the volume device `\\.\E:`.
     pub fn open(path: &str) -> Result<Self> {
         let path = normalize_device_path(path);
-        let file = platform::open_readonly(&path).map_err(|e| {
-            let hint = match e.kind() {
-                std::io::ErrorKind::NotFound => " (no such drive or file)",
-                std::io::ErrorKind::PermissionDenied => {
-                    if cfg!(windows) {
-                        " (run as Administrator to read drives)"
-                    } else {
-                        " (run with sudo to read drives)"
+        let file = platform::open_readonly(&path)
+            .or_else(|e| match DEVICE_OPENER.get() {
+                Some(open) if e.kind() == std::io::ErrorKind::PermissionDenied => open(&path),
+                _ => Err(e),
+            })
+            .map_err(|e| {
+                let hint = match e.kind() {
+                    std::io::ErrorKind::NotFound => " (no such drive or file)",
+                    std::io::ErrorKind::PermissionDenied => {
+                        if cfg!(windows) {
+                            " (run as Administrator to read drives)"
+                        } else if cfg!(target_os = "macos") {
+                            " (run with sudo, and give the app or Terminal Full Disk Access in System Settings → Privacy & Security)"
+                        } else {
+                            " (run with sudo to read drives)"
+                        }
                     }
-                }
-                _ => "",
-            };
-            anyhow::Error::new(e).context(format!("cannot open {path}{hint}"))
-        })?;
+                    _ => "",
+                };
+                anyhow::Error::new(e).context(format!("cannot open {path}{hint}"))
+            })?;
         let is_device = platform::is_device(&path, &file);
         let size = if is_device {
             platform::device_size(&file).with_context(|| format!("cannot determine size of {path}"))?

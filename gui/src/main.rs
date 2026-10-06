@@ -27,6 +27,10 @@ fn icon() -> egui::IconData {
 }
 
 fn main() -> eframe::Result {
+    // Started as the macOS drive helper: no window at all.
+    if let Some(code) = elevate::run_drive_helper() {
+        std::process::exit(code);
+    }
     #[allow(unused_mut)]
     let mut viewport = egui::ViewportBuilder::default()
         .with_title("Windows Deleted Files Recovery")
