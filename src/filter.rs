@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use anyhow::{Context, Result};
+use chrono::{NaiveDate, NaiveDateTime};
 use globset::{GlobBuilder, GlobMatcher};
 
 use crate::carve::{self, Carved, Category, Format};
@@ -17,6 +18,10 @@ pub struct Filter {
     pub name: Option<(GlobMatcher, bool)>,
     pub min_size: u64,
     pub max_size: Option<u64>,
+    /// Only files dated on or after this day (inclusive).
+    pub after: Option<NaiveDate>,
+    /// Only files dated on or before this day (inclusive).
+    pub before: Option<NaiveDate>,
 }
 
 impl Filter {
@@ -44,7 +49,25 @@ impl Filter {
             name,
             min_size,
             max_size,
+            after: None,
+            before: None,
         })
+    }
+
+    /// Restricts to files dated between `after` and `before` (inclusive).
+    /// Files without a date are left out when either is set.
+    pub fn with_dates(mut self, after: Option<NaiveDate>, before: Option<NaiveDate>) -> Self {
+        self.after = after;
+        self.before = before;
+        self
+    }
+
+    fn date_ok(&self, date: Option<NaiveDateTime>) -> bool {
+        if self.after.is_none() && self.before.is_none() {
+            return true;
+        }
+        let Some(d) = date.map(|d| d.date()) else { return false };
+        self.after.is_none_or(|a| d >= a) && self.before.is_none_or(|b| d <= b)
     }
 
     fn size_ok(&self, size: u64) -> bool {
@@ -62,10 +85,11 @@ impl Filter {
         self.size_ok(f.size)
             && self.type_ok(ext, carve::category_for_ext(ext))
             && self.name.as_ref().is_none_or(|(m, full)| m.is_match(if *full { f.path.as_str() } else { f.name() }))
+            && self.date_ok(f.modified)
     }
 
     pub fn matches_carved(&self, c: &Carved) -> bool {
-        self.size_ok(c.len) && self.type_ok(c.ext, Some(c.category))
+        self.size_ok(c.len) && self.type_ok(c.ext, Some(c.category)) && self.date_ok(c.date)
     }
 
     /// Whether any output of `f` could pass the type filters.
@@ -103,5 +127,22 @@ mod tests {
         let f = Filter::new(&["jpeg".into()], &[], Some("Users/*/Pictures/**"), 0, None).unwrap();
         assert!(f.matches_file(&file("Users/bob/Pictures/2024/a.jpg", 1)));
         assert!(!f.matches_file(&file("Users/bob/Desktop/a.jpg", 1)));
+    }
+
+    #[test]
+    fn filters_by_date() {
+        let day = |s: &str| NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap();
+        let dated = |s: &str| {
+            let mut f = file("a.jpg", 1);
+            f.modified = Some(day(s).and_hms_opt(23, 59, 59).unwrap());
+            f
+        };
+        let f = Filter::default().with_dates(Some(day("2024-01-01")), Some(day("2024-12-31")));
+        assert!(f.matches_file(&dated("2024-01-01")));
+        assert!(f.matches_file(&dated("2024-12-31")));
+        assert!(!f.matches_file(&dated("2023-12-31")));
+        assert!(!f.matches_file(&dated("2025-01-01")));
+        assert!(!f.matches_file(&file("undated.jpg", 1)));
+        assert!(Filter::default().matches_file(&file("undated.jpg", 1)));
     }
 }

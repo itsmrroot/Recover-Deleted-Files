@@ -95,6 +95,10 @@ enum Command {
         /// Also write files that appear overwritten (usually garbage).
         #[arg(long)]
         include_overwritten: bool,
+        /// Also write files identical to another recovered file (they are
+        /// skipped by default; duplicates are confirmed byte by byte).
+        #[arg(long)]
+        keep_duplicates: bool,
         /// Carve the entire disk, not only unallocated space (finds copies
         /// of existing files too).
         #[arg(long)]
@@ -136,12 +140,25 @@ struct FilterArgs {
     /// Maximum file size (e.g. 2G).
     #[arg(long, value_parser = parse_size)]
     max_size: Option<u64>,
+    /// Only files dated on or after this day (YYYY-MM-DD). Files without a
+    /// date are left out. Carved files are dated from their metadata.
+    #[arg(long, value_parser = parse_date)]
+    after: Option<chrono::NaiveDate>,
+    /// Only files dated on or before this day (YYYY-MM-DD). Files without a
+    /// date are left out.
+    #[arg(long, value_parser = parse_date)]
+    before: Option<chrono::NaiveDate>,
 }
 
 impl FilterArgs {
     fn build(&self) -> Result<Filter> {
-        Filter::new(&self.types, &self.category, self.name.as_deref(), self.min_size, self.max_size)
+        Ok(Filter::new(&self.types, &self.category, self.name.as_deref(), self.min_size, self.max_size)?
+            .with_dates(self.after, self.before))
     }
+}
+
+fn parse_date(s: &str) -> std::result::Result<chrono::NaiveDate, String> {
+    chrono::NaiveDate::parse_from_str(s.trim(), "%Y-%m-%d").map_err(|_| format!("{s:?} is not a date like 2024-07-31"))
 }
 
 fn main() -> ExitCode {
@@ -186,6 +203,7 @@ fn run(cmd: Command) -> Result<ExitCode> {
             partition,
             filter,
             include_overwritten,
+            keep_duplicates,
             carve_all_space,
             deep,
             max_carve_size,
@@ -209,6 +227,7 @@ fn run(cmd: Command) -> Result<ExitCode> {
                     allow_same_volume,
                 },
                 include_overwritten,
+                keep_duplicates,
             };
             cmd_recover(&source, &opts, quiet)
         }
@@ -352,6 +371,12 @@ fn cmd_recover(source: &str, opts: &Options, quiet: bool) -> Result<ExitCode> {
         println!(
             "Skipped (overwritten):      {} files (use --include-overwritten to write them anyway)",
             sum.skipped_overwritten
+        );
+    }
+    if sum.skipped_duplicates > 0 {
+        println!(
+            "Skipped (duplicates):       {} files identical to another one (use --keep-duplicates to write them)",
+            sum.skipped_duplicates
         );
     }
     if sum.unreadable_bytes > 0 {

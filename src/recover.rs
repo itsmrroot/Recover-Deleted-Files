@@ -8,6 +8,7 @@
 //! [`run`] chains both for the command line; the desktop app lets the user
 //! choose between them.
 
+use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -72,6 +73,8 @@ pub struct Options {
     pub scan: ScanOptions,
     pub save: SaveOptions,
     pub include_overwritten: bool,
+    /// Also write files that are identical to another recovered file.
+    pub keep_duplicates: bool,
 }
 
 #[derive(Debug, Default)]
@@ -81,6 +84,7 @@ pub struct Summary {
     pub carved_files: u64,
     pub carved_bytes: u64,
     pub skipped_overwritten: u64,
+    pub skipped_duplicates: u64,
     pub unreadable_bytes: u64,
     pub failures: u64,
     pub cancelled: bool,
@@ -129,6 +133,27 @@ pub struct Found {
     pub fs: Vec<FsFound>,
     pub carved: Vec<Carved>,
     pub cancelled: bool,
+    /// Deleted files were erased by the drive itself (SSD TRIM).
+    pub erased_by_drive: bool,
+    /// Every duplicate, mapped to the copy it is identical to (see
+    /// [`crate::dedupe`]).
+    pub duplicates: HashMap<ItemRef, ItemRef>,
+}
+
+/// Identifies a found file: an index into [`Found::fs`] or [`Found::carved`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+pub enum ItemRef {
+    Fs(usize),
+    Carved(usize),
+}
+
+impl ItemRef {
+    pub fn item(self, found: &Found) -> Item<'_> {
+        match self {
+            ItemRef::Fs(i) => Item::Fs(&found.fs[i]),
+            ItemRef::Carved(i) => Item::Carved(&found.carved[i]),
+        }
+    }
 }
 
 /// One file to save.
@@ -161,8 +186,14 @@ impl Item<'_> {
     }
 }
 
+/// A carved file's name: from its own metadata when it has some
+/// ("2023-07-14 15.32.10 Canon EOS 80D.jpg"), otherwise from where it was
+/// found ("f0001a2b3000.jpg").
 pub fn carved_name(c: &Carved) -> String {
-    format!("f{:012x}.{}", c.offset, c.ext)
+    match &c.title {
+        Some(t) => format!("{t}.{}", c.ext),
+        None => format!("f{:012x}.{}", c.offset, c.ext),
+    }
 }
 
 pub fn file_category(f: &DeletedFile) -> Option<Category> {
@@ -188,8 +219,91 @@ pub fn scan_partition(
     let files = vol.scan_deleted(&mut |done, total| progress.set(done, total));
     progress.end();
     let mut files = files?;
+    // Before filtering, so that name filters see the original names.
+    fs::recycle::restore_names(&mut files, |f| {
+        let mut out = Vec::new();
+        fs::extract(vol.source().as_ref(), f, &mut out).ok()?;
+        Some(out)
+    });
+    if mark_erased(vol.source().as_ref(), &mut files) {
+        progress.warn(&format!(
+            "{}: the drive has erased the data of deleted files itself (SSD TRIM); they contain only zeros",
+            p.label()
+        ));
+    }
     files.retain(|f| filter.matches_file(f));
     Ok(Some((vol, files)))
+}
+
+/// Bytes read at each place [`mark_erased`] looks at.
+const PROBE: usize = 4096;
+/// Files checked before deciding whether the drive erases deleted data.
+const ERASE_SAMPLE: usize = 64;
+
+/// Detects deleted files whose data reads back as zeros at its start,
+/// middle and end: an SSD with TRIM erases freed space, so the file system
+/// still says "free" but nothing is left. To keep hard drives fast, a
+/// sample is checked first, and every file only when the sample shows that
+/// the drive erases deleted data. Returns true if it does.
+fn mark_erased(vol: &dyn ReadAt, files: &mut [DeletedFile]) -> bool {
+    let candidates: Vec<usize> = (0..files.len())
+        .filter(|&i| {
+            matches!(files[i].condition, Condition::Recoverable | Condition::Partial(_))
+                && matches!(files[i].data, fs::FileData::Extents(_))
+                && files[i].size >= PROBE as u64
+        })
+        .collect();
+    if candidates.is_empty() {
+        return false;
+    }
+    let step = candidates.len().div_ceil(ERASE_SAMPLE);
+    let sample: Vec<usize> = candidates.iter().copied().step_by(step).collect();
+    let erased = sample.iter().filter(|&&i| reads_as_zeros(vol, &files[i])).count();
+    // TRIM erases (nearly) everything; a few all-zero files are just files.
+    if erased * 2 < sample.len() {
+        return false;
+    }
+    for i in candidates {
+        if reads_as_zeros(vol, &files[i]) {
+            files[i].condition = Condition::Erased;
+        }
+    }
+    true
+}
+
+/// True when the file's data is zero at its start, middle and end.
+fn reads_as_zeros(vol: &dyn ReadAt, f: &DeletedFile) -> bool {
+    let fs::FileData::Extents(extents) = &f.data else { return false };
+    let size = f.size;
+    let probes = [0, (size / 2).saturating_sub(PROBE as u64 / 2), size.saturating_sub(PROBE as u64)];
+    let mut buf = vec![0u8; PROBE];
+    let mut checked = 0;
+    for logical in probes {
+        // Map the logical offset to a position on the volume.
+        let mut start = 0u64;
+        let mut physical = None;
+        for e in extents {
+            if logical < start + e.len {
+                physical = Some(e.offset.map(|o| o + (logical - start)));
+                break;
+            }
+            start += e.len;
+        }
+        match physical {
+            Some(Some(p)) => {
+                let n = ((size - logical) as usize).min(PROBE);
+                read_tolerant(vol, p, &mut buf[..n]);
+                if buf[..n].iter().any(|&b| b != 0) {
+                    return false;
+                }
+                checked += 1;
+            }
+            // A sparse run is zeros by design, not an erased file.
+            Some(None) => return false,
+            None => {}
+        }
+    }
+    checked > 0
 }
 
 /// Finds recoverable files without writing anything.
@@ -214,7 +328,10 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
                             claimed.extend(file.data_ranges().into_iter().map(|r| p.start + r.start..p.start + r.end));
                         }
                         progress.found(file_category(&file));
-                        found.fs.push(FsFound { partition: pos, file });
+                        found.erased_by_drive |= file.condition == Condition::Erased;
+                        let f = FsFound { partition: pos, file };
+                        progress.file_found(&f);
+                        found.fs.push(f);
                     }
                     Some(vol)
                 }
@@ -247,6 +364,9 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
         let todo = ranges::subtract(&ranges::normalize(free), &ranges::normalize(claimed));
         found.carved = carve_ranges(session, &todo, opts, progress, cancel)?;
     }
+    if !cancel.load(Ordering::Relaxed) {
+        found.duplicates = crate::dedupe::find(session, &found, progress, cancel);
+    }
     found.cancelled = cancel.load(Ordering::Relaxed);
     Ok(found)
 }
@@ -274,6 +394,7 @@ fn carve_ranges(
             // Files rejected by size are still skipped over by the scanner,
             // so nothing inside them is mistaken for another file.
             if opts.filter.matches_carved(c) {
+                progress.carved_found(c);
                 out.push(c.clone());
                 progress.found(Some(c.category));
                 progress.item(&format!("{} files found", out.len()));
@@ -349,7 +470,7 @@ pub fn save(
                     size: c.len,
                     disk_offset: format!("{:#x}", c.offset),
                     condition: "carved".into(),
-                    modified: String::new(),
+                    modified: c.date.map(|t| t.to_string()).unwrap_or_default(),
                     note: c.format.to_string(),
                     unreadable_bytes: unreadable,
                 }
@@ -381,21 +502,25 @@ pub fn run(session: &Session, opts: &Options, progress: &dyn Progress, cancel: &
         output::ensure_not_on_source(&session.path, &opts.save.out)?;
     }
     let found = scan(session, &opts.scan, progress, cancel)?;
-    let mut skipped = 0;
+    let (mut skipped, mut skipped_dups) = (0, 0);
     let mut items: Vec<Item> = Vec::with_capacity(found.fs.len() + found.carved.len());
-    for f in &found.fs {
-        if opts.include_overwritten || f.file.condition != Condition::Overwritten {
-            items.push(Item::Fs(f));
-        } else {
-            skipped += 1;
+    let refs = (0..found.fs.len()).map(ItemRef::Fs).chain((0..found.carved.len()).map(ItemRef::Carved));
+    for r in refs {
+        if !opts.keep_duplicates && found.duplicates.contains_key(&r) {
+            skipped_dups += 1;
+            continue;
+        }
+        match r.item(&found) {
+            Item::Fs(f) if !opts.include_overwritten && !f.file.condition.is_recoverable() => skipped += 1,
+            item => items.push(item),
         }
     }
-    items.extend(found.carved.iter().map(Item::Carved));
     // A scan stopped early still saves what it found.
     let never = AtomicBool::new(false);
     let save_cancel = if found.cancelled { &never } else { cancel };
     let mut sum = save(session, &items, &opts.save, progress, save_cancel)?;
     sum.skipped_overwritten = skipped;
+    sum.skipped_duplicates = skipped_dups;
     sum.cancelled |= found.cancelled;
     Ok(sum)
 }
@@ -446,10 +571,14 @@ fn save_fs(vol: &Source, p: &Partition, f: &FsFound, opts: &SaveOptions) -> Resu
     if opts.restore_dates
         && let Some(m) = file.modified
     {
-        let t = SystemTime::UNIX_EPOCH + Duration::from_secs(m.and_utc().timestamp().max(0) as u64);
-        let _ = out.set_modified(t);
+        set_modified(&out, m);
     }
     Ok((path, st))
+}
+
+fn set_modified(file: &std::fs::File, t: chrono::NaiveDateTime) {
+    let t = SystemTime::UNIX_EPOCH + Duration::from_secs(t.and_utc().timestamp().max(0) as u64);
+    let _ = file.set_modified(t);
 }
 
 fn save_carved(disk: &dyn ReadAt, c: &Carved, opts: &SaveOptions) -> Result<(PathBuf, u64)> {
@@ -461,6 +590,12 @@ fn save_carved(disk: &dyn ReadAt, c: &Carved, opts: &SaveOptions) -> Result<(Pat
     let mut w = BufWriter::with_capacity(1 << 20, file);
     let unreadable = copy_range(disk, c.offset, c.len, &mut w)?;
     w.flush()?;
+    if opts.restore_dates
+        && let Some(d) = c.date
+    {
+        let file = w.into_inner().map_err(|e| e.into_error())?;
+        set_modified(&file, d);
+    }
     Ok((path, unreadable))
 }
 
@@ -482,4 +617,63 @@ fn partition_of(parts: &[Partition], offset: u64) -> String {
 
 fn rel(base: &Path, p: &Path) -> String {
     p.strip_prefix(base).unwrap_or(p).to_string_lossy().replace('\\', "/")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fs::{Extent, FileData};
+    use crate::source::MemSource;
+
+    fn file(offset: u64, size: u64) -> DeletedFile {
+        DeletedFile {
+            id: 0,
+            path: "f".into(),
+            size,
+            created: None,
+            modified: None,
+            condition: Condition::Recoverable,
+            note: None,
+            data: FileData::Extents(vec![Extent { offset: Some(offset), len: size }]),
+        }
+    }
+
+    #[test]
+    fn files_erased_by_the_drive_are_detected() {
+        // 0..64K: data; 64K..: zeros (as TRIM leaves freed space).
+        let mut disk = vec![0u8; 1 << 20];
+        disk[..65536].iter_mut().enumerate().for_each(|(i, b)| *b = (i % 251) as u8 + 1);
+        let vol = MemSource(disk);
+        // Mostly erased files: the drive erases, so every file is checked.
+        let mut files: Vec<DeletedFile> = (0..10).map(|i| file(65536 + i * 16384, 16384)).collect();
+        files.push(file(0, 16384));
+        assert!(mark_erased(&vol, &mut files));
+        assert!(files[..10].iter().all(|f| f.condition == Condition::Erased));
+        assert_eq!(files[10].condition, Condition::Recoverable);
+    }
+
+    #[test]
+    fn a_few_empty_files_do_not_mean_the_drive_erases() {
+        let mut disk = vec![0u8; 1 << 20];
+        disk[..900_000].iter_mut().enumerate().for_each(|(i, b)| *b = (i % 251) as u8 + 1);
+        let vol = MemSource(disk);
+        let mut files: Vec<DeletedFile> = (0..10).map(|i| file(i * 16384, 16384)).collect();
+        files.push(file(950_000, 16384));
+        assert!(!mark_erased(&vol, &mut files));
+        assert!(files.iter().all(|f| f.condition == Condition::Recoverable));
+    }
+
+    #[test]
+    fn data_is_checked_at_start_middle_and_end() {
+        let mut disk = vec![0u8; 1 << 20];
+        // Zero at the start and end, data in the middle: not erased.
+        disk[30_000] = 7;
+        let vol = MemSource(disk);
+        assert!(!reads_as_zeros(&vol, &file(0, 60_000)));
+        assert!(reads_as_zeros(&vol, &file(100_000, 60_000)));
+        // Nothing mapped: no verdict.
+        let mut lost = file(0, 60_000);
+        lost.data = FileData::Extents(Vec::new());
+        assert!(!reads_as_zeros(&vol, &lost));
+    }
 }

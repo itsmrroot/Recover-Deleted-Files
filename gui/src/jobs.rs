@@ -9,8 +9,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
 use eframe::egui;
-use wdfr::carve::Category;
+use wdfr::carve::{Carved, Category};
 use wdfr::progress::{Progress, Unit};
+use wdfr::recover::{Found, FsFound, Session};
 
 use crate::i18n::trf;
 
@@ -76,6 +77,39 @@ impl ProgressState {
 #[derive(Default)]
 pub struct GuiProgress {
     state: Mutex<ProgressState>,
+    live: Mutex<Live>,
+}
+
+/// What a scan has found so far, to show results while it runs.
+#[derive(Default)]
+struct Live {
+    session: Option<Arc<Session>>,
+    fs: Vec<FsFound>,
+    carved: Vec<Carved>,
+}
+
+impl GuiProgress {
+    /// The opened source, needed to preview files found so far.
+    pub fn set_session(&self, session: Arc<Session>) {
+        self.live().session = Some(session);
+    }
+
+    /// Number of files found so far.
+    pub fn live_count(&self) -> usize {
+        let live = self.live();
+        live.fs.len() + live.carved.len()
+    }
+
+    /// The files found so far, once the source is open.
+    pub fn live_snapshot(&self) -> Option<(Arc<Session>, Found)> {
+        let live = self.live();
+        let session = live.session.clone()?;
+        Some((session, Found { fs: live.fs.clone(), carved: live.carved.clone(), ..Found::default() }))
+    }
+
+    fn live(&self) -> std::sync::MutexGuard<'_, Live> {
+        self.live.lock().unwrap_or_else(|e| e.into_inner())
+    }
 }
 
 impl GuiProgress {
@@ -121,6 +155,14 @@ impl Progress for GuiProgress {
         let mut s = self.lock();
         s.found += 1;
         s.by_category[category_slot(category)] += 1;
+    }
+
+    fn file_found(&self, file: &FsFound) {
+        self.live().fs.push(file.clone());
+    }
+
+    fn carved_found(&self, file: &Carved) {
+        self.live().carved.push(file.clone());
     }
 
     fn warn(&self, msg: &str) {

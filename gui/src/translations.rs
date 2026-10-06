@@ -330,6 +330,41 @@ pub const GERMAN: &[(&str, &str)] = &[
     ("On", "An"),
     ("Off", "Aus"),
     ("Reset to defaults", "Auf Standard zurücksetzen"),
+    ("Erased by the drive", "Vom Laufwerk gelöscht"),
+    (
+        "The drive has erased this file's data itself (SSD TRIM). Only zeros are left, so it cannot be recovered.",
+        "Das Laufwerk hat die Daten dieser Datei selbst gelöscht (SSD-TRIM). Es sind nur Nullen übrig, sie kann nicht wiederhergestellt werden.",
+    ),
+    (
+        "This drive erases deleted files by itself (SSD TRIM), so most of them contain only zeros and cannot be recovered. Files found by their content are not affected.",
+        "Dieses Laufwerk löscht gelöschte Dateien selbstständig (SSD-TRIM), daher enthalten die meisten nur Nullen und können nicht wiederhergestellt werden. Am Inhalt erkannte Dateien sind davon nicht betroffen.",
+    ),
+    ("Any date", "Jedes Datum"),
+    ("No date", "Ohne Datum"),
+    (
+        "Found by its content in free space. Its name comes from information inside the file (date, camera, title).",
+        "Im freien Speicher anhand des Inhalts gefunden. Der Name stammt aus Informationen in der Datei (Datum, Kamera, Titel).",
+    ),
+    ("Duplicate of", "Duplikat von"),
+    ("Hide duplicates ({n})", "Duplikate ausblenden ({n})"),
+    ("Files identical to another one, byte for byte.", "Dateien, die Byte für Byte mit einer anderen identisch sind."),
+    ("Checking for duplicates", "Suche nach Duplikaten"),
+    ("Show files found so far ({n})", "Bisher gefundene Dateien anzeigen ({n})"),
+    (
+        "The scan is still running. You can look at the files found so far; Recover becomes available when it has finished.",
+        "Der Scan läuft noch. Sie können die bisher gefundenen Dateien ansehen; Wiederherstellen ist möglich, sobald er abgeschlossen ist.",
+    ),
+    ("Open saved scan…", "Gespeicherten Scan öffnen…"),
+    ("Saved scans", "Gespeicherte Scans"),
+    ("Scan saved", "Scan gespeichert"),
+    ("Save scan…", "Scan speichern…"),
+    (
+        "Save these results to open them later without scanning again.",
+        "Diese Ergebnisse speichern, um sie später ohne erneuten Scan zu öffnen.",
+    ),
+    ("The saved scan could not be opened.", "Der gespeicherte Scan konnte nicht geöffnet werden."),
+    ("The scan could not be saved.", "Der Scan konnte nicht gespeichert werden."),
+    ("Opening saved scan", "Gespeicherter Scan wird geöffnet"),
 ];
 
 pub const ARABIC: &[(&str, &str)] = &[
@@ -637,6 +672,38 @@ pub const ARABIC: &[(&str, &str)] = &[
     ("On", "تشغيل"),
     ("Off", "إيقاف"),
     ("Reset to defaults", "استعادة الإعدادات الافتراضية"),
+    ("Erased by the drive", "مَحاه المحرك"),
+    (
+        "The drive has erased this file's data itself (SSD TRIM). Only zeros are left, so it cannot be recovered.",
+        "محا المحرك بيانات هذا الملف بنفسه (SSD TRIM). لم يتبقَّ سوى أصفار، لذا لا يمكن استعادته.",
+    ),
+    (
+        "This drive erases deleted files by itself (SSD TRIM), so most of them contain only zeros and cannot be recovered. Files found by their content are not affected.",
+        "يمحو هذا المحرك الملفات المحذوفة بنفسه (SSD TRIM)، لذا يحتوي معظمها على أصفار فقط ولا يمكن استعادتها. الملفات التي عُثر عليها من محتواها غير متأثرة.",
+    ),
+    ("Any date", "أي تاريخ"),
+    ("No date", "بلا تاريخ"),
+    (
+        "Found by its content in free space. Its name comes from information inside the file (date, camera, title).",
+        "عُثر عليه من محتواه في المساحة الحرة. اسمه مأخوذ من معلومات داخل الملف (التاريخ، الكاميرا، العنوان).",
+    ),
+    ("Duplicate of", "نسخة مكررة من"),
+    ("Hide duplicates ({n})", "إخفاء النسخ المكررة ({n})"),
+    ("Files identical to another one, byte for byte.", "ملفات مطابقة لملف آخر بايتًا ببايت."),
+    ("Checking for duplicates", "البحث عن النسخ المكررة"),
+    ("Show files found so far ({n})", "عرض الملفات التي عُثر عليها حتى الآن ({n})"),
+    (
+        "The scan is still running. You can look at the files found so far; Recover becomes available when it has finished.",
+        "لا يزال الفحص جاريًا. يمكنك الاطلاع على الملفات التي عُثر عليها حتى الآن؛ وستتاح الاستعادة عند انتهائه.",
+    ),
+    ("Open saved scan…", "فتح فحص محفوظ…"),
+    ("Saved scans", "الفحوص المحفوظة"),
+    ("Scan saved", "تم حفظ الفحص"),
+    ("Save scan…", "حفظ الفحص…"),
+    ("Save these results to open them later without scanning again.", "احفظ هذه النتائج لفتحها لاحقًا دون إعادة الفحص."),
+    ("The saved scan could not be opened.", "تعذّر فتح الفحص المحفوظ."),
+    ("The scan could not be saved.", "تعذّر حفظ الفحص."),
+    ("Opening saved scan", "جارٍ فتح الفحص المحفوظ"),
 ];
 
 pub const SPANISH: &[(&str, &str)] = &[
@@ -965,6 +1032,41 @@ pub const SPANISH: &[(&str, &str)] = &[
     ("On", "Activado"),
     ("Off", "Desactivado"),
     ("Reset to defaults", "Restablecer valores predeterminados"),
+    ("Erased by the drive", "Borrado por la unidad"),
+    (
+        "The drive has erased this file's data itself (SSD TRIM). Only zeros are left, so it cannot be recovered.",
+        "La propia unidad ha borrado los datos de este archivo (SSD TRIM). Solo quedan ceros, así que no se puede recuperar.",
+    ),
+    (
+        "This drive erases deleted files by itself (SSD TRIM), so most of them contain only zeros and cannot be recovered. Files found by their content are not affected.",
+        "Esta unidad borra por sí misma los archivos eliminados (SSD TRIM), por lo que la mayoría solo contiene ceros y no se puede recuperar. Los archivos encontrados por su contenido no se ven afectados.",
+    ),
+    ("Any date", "Cualquier fecha"),
+    ("No date", "Sin fecha"),
+    (
+        "Found by its content in free space. Its name comes from information inside the file (date, camera, title).",
+        "Encontrado por su contenido en el espacio libre. Su nombre procede de información del propio archivo (fecha, cámara, título).",
+    ),
+    ("Duplicate of", "Duplicado de"),
+    ("Hide duplicates ({n})", "Ocultar duplicados ({n})"),
+    ("Files identical to another one, byte for byte.", "Archivos idénticos a otro, byte a byte."),
+    ("Checking for duplicates", "Buscando duplicados"),
+    ("Show files found so far ({n})", "Ver los archivos encontrados hasta ahora ({n})"),
+    (
+        "The scan is still running. You can look at the files found so far; Recover becomes available when it has finished.",
+        "El análisis sigue en curso. Puedes ver los archivos encontrados hasta ahora; Recuperar estará disponible cuando termine.",
+    ),
+    ("Open saved scan…", "Abrir análisis guardado…"),
+    ("Saved scans", "Análisis guardados"),
+    ("Scan saved", "Análisis guardado"),
+    ("Save scan…", "Guardar análisis…"),
+    (
+        "Save these results to open them later without scanning again.",
+        "Guarda estos resultados para abrirlos más tarde sin volver a analizar.",
+    ),
+    ("The saved scan could not be opened.", "No se pudo abrir el análisis guardado."),
+    ("The scan could not be saved.", "No se pudo guardar el análisis."),
+    ("Opening saved scan", "Abriendo análisis guardado"),
 ];
 
 pub const FRENCH: &[(&str, &str)] = &[
@@ -1293,6 +1395,41 @@ pub const FRENCH: &[(&str, &str)] = &[
     ("On", "Activé"),
     ("Off", "Désactivé"),
     ("Reset to defaults", "Rétablir les valeurs par défaut"),
+    ("Erased by the drive", "Effacé par le disque"),
+    (
+        "The drive has erased this file's data itself (SSD TRIM). Only zeros are left, so it cannot be recovered.",
+        "Le disque a lui-même effacé les données de ce fichier (SSD TRIM). Il ne reste que des zéros, il ne peut donc pas être récupéré.",
+    ),
+    (
+        "This drive erases deleted files by itself (SSD TRIM), so most of them contain only zeros and cannot be recovered. Files found by their content are not affected.",
+        "Ce disque efface lui-même les fichiers supprimés (SSD TRIM) : la plupart ne contiennent que des zéros et ne peuvent pas être récupérés. Les fichiers trouvés par leur contenu ne sont pas concernés.",
+    ),
+    ("Any date", "Toutes les dates"),
+    ("No date", "Sans date"),
+    (
+        "Found by its content in free space. Its name comes from information inside the file (date, camera, title).",
+        "Trouvé d'après son contenu dans l'espace libre. Son nom provient d'informations contenues dans le fichier (date, appareil, titre).",
+    ),
+    ("Duplicate of", "Doublon de"),
+    ("Hide duplicates ({n})", "Masquer les doublons ({n})"),
+    ("Files identical to another one, byte for byte.", "Fichiers identiques à un autre, octet par octet."),
+    ("Checking for duplicates", "Recherche des doublons"),
+    ("Show files found so far ({n})", "Afficher les fichiers trouvés jusqu'ici ({n})"),
+    (
+        "The scan is still running. You can look at the files found so far; Recover becomes available when it has finished.",
+        "L'analyse est toujours en cours. Vous pouvez consulter les fichiers trouvés jusqu'ici ; Récupérer sera disponible à la fin de l'analyse.",
+    ),
+    ("Open saved scan…", "Ouvrir une analyse enregistrée…"),
+    ("Saved scans", "Analyses enregistrées"),
+    ("Scan saved", "Analyse enregistrée"),
+    ("Save scan…", "Enregistrer l'analyse…"),
+    (
+        "Save these results to open them later without scanning again.",
+        "Enregistrer ces résultats pour les rouvrir plus tard sans refaire l'analyse.",
+    ),
+    ("The saved scan could not be opened.", "L'analyse enregistrée n'a pas pu être ouverte."),
+    ("The scan could not be saved.", "L'analyse n'a pas pu être enregistrée."),
+    ("Opening saved scan", "Ouverture de l'analyse enregistrée"),
 ];
 
 pub const RUSSIAN: &[(&str, &str)] = &[
@@ -1615,6 +1752,41 @@ pub const RUSSIAN: &[(&str, &str)] = &[
     ("On", "Вкл."),
     ("Off", "Выкл."),
     ("Reset to defaults", "Сбросить настройки"),
+    ("Erased by the drive", "Стёрт диском"),
+    (
+        "The drive has erased this file's data itself (SSD TRIM). Only zeros are left, so it cannot be recovered.",
+        "Диск сам стёр данные этого файла (SSD TRIM). Остались только нули, поэтому его нельзя восстановить.",
+    ),
+    (
+        "This drive erases deleted files by itself (SSD TRIM), so most of them contain only zeros and cannot be recovered. Files found by their content are not affected.",
+        "Этот диск сам стирает удалённые файлы (SSD TRIM), поэтому большинство из них содержат только нули и не подлежат восстановлению. Файлы, найденные по содержимому, это не затрагивает.",
+    ),
+    ("Any date", "Любая дата"),
+    ("No date", "Без даты"),
+    (
+        "Found by its content in free space. Its name comes from information inside the file (date, camera, title).",
+        "Найден по содержимому в свободном месте. Имя взято из сведений внутри файла (дата, камера, название).",
+    ),
+    ("Duplicate of", "Дубликат файла"),
+    ("Hide duplicates ({n})", "Скрыть дубликаты ({n})"),
+    ("Files identical to another one, byte for byte.", "Файлы, побайтно совпадающие с другим файлом."),
+    ("Checking for duplicates", "Поиск дубликатов"),
+    ("Show files found so far ({n})", "Показать найденные файлы ({n})"),
+    (
+        "The scan is still running. You can look at the files found so far; Recover becomes available when it has finished.",
+        "Сканирование ещё идёт. Можно просматривать уже найденные файлы; восстановление станет доступно, когда оно завершится.",
+    ),
+    ("Open saved scan…", "Открыть сохранённое сканирование…"),
+    ("Saved scans", "Сохранённые сканирования"),
+    ("Scan saved", "Сканирование сохранено"),
+    ("Save scan…", "Сохранить сканирование…"),
+    (
+        "Save these results to open them later without scanning again.",
+        "Сохранить эти результаты, чтобы открыть их позже без повторного сканирования.",
+    ),
+    ("The saved scan could not be opened.", "Не удалось открыть сохранённое сканирование."),
+    ("The scan could not be saved.", "Не удалось сохранить сканирование."),
+    ("Opening saved scan", "Открытие сохранённого сканирования"),
 ];
 
 pub const CHINESE: &[(&str, &str)] = &[
@@ -1910,6 +2082,38 @@ pub const CHINESE: &[(&str, &str)] = &[
     ("On", "开"),
     ("Off", "关"),
     ("Reset to defaults", "恢复默认设置"),
+    ("Erased by the drive", "已被驱动器擦除"),
+    (
+        "The drive has erased this file's data itself (SSD TRIM). Only zeros are left, so it cannot be recovered.",
+        "驱动器已自行擦除此文件的数据（SSD TRIM）。只剩下零，因此无法恢复。",
+    ),
+    (
+        "This drive erases deleted files by itself (SSD TRIM), so most of them contain only zeros and cannot be recovered. Files found by their content are not affected.",
+        "此驱动器会自行擦除已删除的文件（SSD TRIM），因此大多数文件只包含零，无法恢复。按内容找到的文件不受影响。",
+    ),
+    ("Any date", "任意日期"),
+    ("No date", "无日期"),
+    (
+        "Found by its content in free space. Its name comes from information inside the file (date, camera, title).",
+        "根据内容在可用空间中找到。名称取自文件内的信息（日期、相机、标题）。",
+    ),
+    ("Duplicate of", "重复于"),
+    ("Hide duplicates ({n})", "隐藏重复文件（{n}）"),
+    ("Files identical to another one, byte for byte.", "与另一个文件逐字节完全相同的文件。"),
+    ("Checking for duplicates", "正在检查重复文件"),
+    ("Show files found so far ({n})", "显示目前已找到的文件（{n}）"),
+    (
+        "The scan is still running. You can look at the files found so far; Recover becomes available when it has finished.",
+        "扫描仍在进行中。您可以先查看目前已找到的文件；扫描完成后即可恢复。",
+    ),
+    ("Open saved scan…", "打开已保存的扫描…"),
+    ("Saved scans", "已保存的扫描"),
+    ("Scan saved", "扫描已保存"),
+    ("Save scan…", "保存扫描…"),
+    ("Save these results to open them later without scanning again.", "保存这些结果，以后无需重新扫描即可打开。"),
+    ("The saved scan could not be opened.", "无法打开已保存的扫描。"),
+    ("The scan could not be saved.", "无法保存扫描。"),
+    ("Opening saved scan", "正在打开已保存的扫描"),
 ];
 
 pub const TURKISH: &[(&str, &str)] = &[
@@ -2229,4 +2433,39 @@ pub const TURKISH: &[(&str, &str)] = &[
     ("On", "Açık"),
     ("Off", "Kapalı"),
     ("Reset to defaults", "Varsayılanlara sıfırla"),
+    ("Erased by the drive", "Sürücü tarafından silindi"),
+    (
+        "The drive has erased this file's data itself (SSD TRIM). Only zeros are left, so it cannot be recovered.",
+        "Sürücü bu dosyanın verilerini kendisi sildi (SSD TRIM). Yalnızca sıfırlar kaldı, bu yüzden kurtarılamaz.",
+    ),
+    (
+        "This drive erases deleted files by itself (SSD TRIM), so most of them contain only zeros and cannot be recovered. Files found by their content are not affected.",
+        "Bu sürücü silinen dosyaları kendisi temizler (SSD TRIM); bu yüzden çoğu yalnızca sıfır içerir ve kurtarılamaz. İçeriğine göre bulunan dosyalar etkilenmez.",
+    ),
+    ("Any date", "Tüm tarihler"),
+    ("No date", "Tarihsiz"),
+    (
+        "Found by its content in free space. Its name comes from information inside the file (date, camera, title).",
+        "Boş alanda içeriğine göre bulundu. Adı dosyanın içindeki bilgilerden (tarih, kamera, başlık) alındı.",
+    ),
+    ("Duplicate of", "Şunun kopyası"),
+    ("Hide duplicates ({n})", "Kopyaları gizle ({n})"),
+    ("Files identical to another one, byte for byte.", "Başka bir dosyayla bayt bayt aynı olan dosyalar."),
+    ("Checking for duplicates", "Kopyalar denetleniyor"),
+    ("Show files found so far ({n})", "Şimdiye kadar bulunan dosyaları göster ({n})"),
+    (
+        "The scan is still running. You can look at the files found so far; Recover becomes available when it has finished.",
+        "Tarama hâlâ sürüyor. Şimdiye kadar bulunan dosyalara bakabilirsiniz; kurtarma, tarama bitince kullanılabilir.",
+    ),
+    ("Open saved scan…", "Kayıtlı taramayı aç…"),
+    ("Saved scans", "Kayıtlı taramalar"),
+    ("Scan saved", "Tarama kaydedildi"),
+    ("Save scan…", "Taramayı kaydet…"),
+    (
+        "Save these results to open them later without scanning again.",
+        "Bu sonuçları, yeniden taramadan daha sonra açmak için kaydedin.",
+    ),
+    ("The saved scan could not be opened.", "Kayıtlı tarama açılamadı."),
+    ("The scan could not be saved.", "Tarama kaydedilemedi."),
+    ("Opening saved scan", "Kayıtlı tarama açılıyor"),
 ];

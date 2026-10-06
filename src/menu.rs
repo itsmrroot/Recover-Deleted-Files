@@ -329,6 +329,7 @@ fn recover_wizard(theme: &ColorfulTheme, preset: Option<(String, Option<usize>)>
             allow_same_volume: false,
         },
         include_overwritten: false,
+        keep_duplicates: false,
     };
     crate::cmd_recover(&source, &opts, false)?;
     println!("\n  {}", style(POWERED_BY).yellow());

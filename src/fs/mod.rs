@@ -7,6 +7,7 @@
 pub mod exfat;
 pub mod fat;
 pub mod ntfs;
+pub mod recycle;
 
 use std::fmt;
 use std::io::{self, Write};
@@ -71,6 +72,9 @@ pub enum Condition {
     /// Percentage of clusters still unallocated.
     Partial(u8),
     Overwritten,
+    /// The space is free but reads back as zeros: the drive itself erased
+    /// it (SSD TRIM), so nothing is left to recover.
+    Erased,
 }
 
 impl Condition {
@@ -85,7 +89,7 @@ impl Condition {
     }
 
     pub fn is_recoverable(&self) -> bool {
-        !matches!(self, Condition::Overwritten)
+        !matches!(self, Condition::Overwritten | Condition::Erased)
     }
 }
 
@@ -95,6 +99,7 @@ impl fmt::Display for Condition {
             Condition::Recoverable => f.write_str("recoverable"),
             Condition::Partial(p) => write!(f, "partial ({p}% intact)"),
             Condition::Overwritten => f.write_str("overwritten"),
+            Condition::Erased => f.write_str("erased by the drive"),
         }
     }
 }

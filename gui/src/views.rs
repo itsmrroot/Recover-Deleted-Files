@@ -34,6 +34,8 @@ fn task_label(task: &str) -> String {
     match task {
         "Deep search" => tr("Deep search").into(),
         "Recovering files" => tr("Recovering files").into(),
+        "Checking for duplicates" => tr("Checking for duplicates").into(),
+        "Opening saved scan" => tr("Opening saved scan").into(),
         "Starting..." => tr("Starting…").into(),
         other => other.into(),
     }

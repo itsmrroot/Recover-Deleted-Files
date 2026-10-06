@@ -56,6 +56,8 @@ pub enum Action {
     Scan,
     /// Restart the app with administrator rights (macOS, Linux).
     Elevate,
+    /// Open the results of an earlier scan.
+    OpenScan(std::path::PathBuf),
 }
 
 pub struct Home {
@@ -68,6 +70,7 @@ pub struct Home {
     /// A restart with administrator rights is waiting for the password.
     pub restarting: bool,
     elevate: bool,
+    open_scan: Option<std::path::PathBuf>,
 }
 
 impl Home {
@@ -81,6 +84,7 @@ impl Home {
             method: s.method,
             restarting: false,
             elevate: false,
+            open_scan: None,
         };
         h.refresh(ctx);
         h
@@ -146,6 +150,9 @@ impl Home {
         if std::mem::take(&mut self.elevate) {
             action = Action::Elevate;
         }
+        if let Some(path) = self.open_scan.take() {
+            action = Action::OpenScan(path);
+        }
         egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
             self.drives_card(ui, p, s);
             ui.add_space(14.0);
@@ -165,6 +172,12 @@ impl Home {
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui.button(icon_label(icon::ARROWS_CLOCKWISE, "Refresh")).clicked() {
                         self.refresh(ui.ctx());
+                    }
+                    if ui.button(icon_label(icon::CLOCK_COUNTER_CLOCKWISE, "Open saved scan…")).clicked()
+                        && let Some(f) =
+                            rfd::FileDialog::new().add_filter(trl("Saved scans"), &[wdfr::saved::EXTENSION]).pick_file()
+                    {
+                        self.open_scan = Some(f);
                     }
                     if ui.button(icon_label(icon::FILE_PLUS, "Open disk image…")).clicked()
                         && let Some(f) = rfd::FileDialog::new()

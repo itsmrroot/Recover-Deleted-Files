@@ -14,6 +14,7 @@
 
 pub mod bytes;
 pub mod carve;
+pub mod dedupe;
 pub mod devices;
 pub mod filter;
 pub mod fs;
@@ -22,5 +23,6 @@ pub mod partition;
 pub mod progress;
 pub mod ranges;
 pub mod recover;
+pub mod saved;
 pub mod source;
 pub mod units;

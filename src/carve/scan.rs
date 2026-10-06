@@ -3,6 +3,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
+use chrono::NaiveDateTime;
 
 use super::{Category, Format, HEAD_LEN, Reader};
 use crate::ranges::ByteRange;
@@ -29,6 +30,10 @@ pub struct Carved {
     pub ext: &'static str,
     pub category: Category,
     pub format: &'static str,
+    /// A name read from the file's own metadata (see [`super::meta`]).
+    pub title: Option<String>,
+    /// When the content was made, from its metadata.
+    pub date: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -88,12 +93,15 @@ pub fn carve(
                         if hit.len == 0 || hit.len > max {
                             continue;
                         }
+                        let meta = super::meta::read(f.name(), hit.ext, &mut Reader::new(src, abs, hit.len), hit.len);
                         let c = Carved {
                             offset: abs,
                             len: hit.len,
                             ext: hit.ext,
                             category: f.category_of(hit.ext),
                             format: f.name(),
+                            title: meta.title,
+                            date: meta.date,
                         };
                         on_hit(&c)?;
                         stats.found += 1;

@@ -71,7 +71,9 @@ is refused. Bad sectors are skipped, not fatal.
 
 ### 🩺 Honest results
 Every file is checked against the drive's allocation map and marked
-**recoverable**, **partial** or **overwritten** — no guessing.
+**recoverable**, **partial** or **overwritten** — no guessing. Files an SSD has
+already wiped (TRIM) are detected and marked **erased** instead of promising
+files full of zeros.
 
 </td>
 <td valign="top">
@@ -79,6 +81,25 @@ Every file is checked against the drive's allocation map and marked
 ### ⚡ Fast & portable
 Installers for Windows, macOS and Linux, or portable single executables with no
 runtime — nothing is written to the damaged drive. Scans at full disk speed.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🏷️ Real names, even without a file system
+Files from an emptied **Recycle Bin** get their original name and folder back.
+Files found by their content are named from what is inside them —
+`2024-08-21 18.45.03 iPhone 15 Pro.jpg`, `Artist - Title.mp3`, a PDF's title —
+and dated, so they can be filtered by year.
+
+</td>
+<td valign="top">
+
+### 🧹 No clutter, no waiting
+Identical copies are found (confirmed byte by byte) and hidden. Browse and preview
+files **while the scan is still running**, and save a scan to reopen it later
+without scanning again.
 
 </td>
 </tr>
@@ -342,6 +363,12 @@ wdfr recover \\.\PhysicalDrive1 -o D:\Recovered
 # Only one partition of it
 wdfr recover \\.\PhysicalDrive1 -p 2 -o D:\Recovered
 
+# Only files dated in 2024 (carved photos are dated from their EXIF data)
+wdfr recover E: -o D:\Recovered --after 2024-01-01 --before 2024-12-31
+
+# Also write identical copies (skipped by default)
+wdfr recover E: -o D:\Recovered --keep-duplicates
+
 # Machine-readable listing
 wdfr scan E: --json > deleted.json
 ```
@@ -435,7 +462,8 @@ the public [Digital Forensics Tool Testing](https://dftt.sourceforge.net/) image
 <summary><b>Can it recover files from an SSD?</b></summary>
 
 Often not. Windows tells the SSD which blocks were freed (TRIM), and the SSD may erase them within seconds or minutes.
-Nothing can recover data the drive itself has wiped. USB sticks, SD cards and hard drives usually recover well.
+Nothing can recover data the drive itself has wiped. The app detects this and marks such files **erased by the drive**
+instead of listing them as recoverable. USB sticks, SD cards and hard drives usually recover well.
 
 </details>
 

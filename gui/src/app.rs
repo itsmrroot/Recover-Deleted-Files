@@ -46,6 +46,10 @@ pub struct App {
     restart: Option<elevate::Restart>,
     /// Whether the window has been checked against the screen size.
     fitted: bool,
+    /// When the results of a running scan were last refreshed.
+    live_refreshed: Option<std::time::Instant>,
+    /// The "scan" job is reopening a saved scan.
+    opening_saved: bool,
     #[cfg(debug_assertions)]
     tour: Option<tour::Tour>,
 }
@@ -96,6 +100,8 @@ impl App {
             error: None,
             restart: None,
             fitted: false,
+            live_refreshed: None,
+            opening_saved: false,
             #[cfg(debug_assertions)]
             tour: tour::Tour::from_env(),
         }
@@ -153,11 +159,13 @@ impl App {
         let name = self.home.source_name();
         let job = Job::spawn(ctx, move |progress, cancel| {
             let session = Arc::new(Session::open(&source)?);
+            progress.set_session(session.clone());
             let found = recover::scan(&session, &opts, progress, cancel)?;
             Ok((session, found))
         });
         self.previewer.clear();
         self.results = None;
+        self.opening_saved = false;
         self.scan = Some((job, name));
         self.page = Page::Scanning;
     }
@@ -236,6 +244,78 @@ impl App {
         }
     }
 
+    /// Writes the current results to a file chosen by the user.
+    fn save_scan(&mut self) {
+        let Some(res) = &mut self.results else { return };
+        let stem: String =
+            res.source_name.chars().map(|c| if c.is_alphanumeric() || c == ' ' { c } else { '_' }).collect();
+        let name =
+            format!("{} {}.{}", stem.trim(), chrono::Local::now().format("%Y-%m-%d %H%M"), wdfr::saved::EXTENSION);
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter(trl("Saved scans"), &[wdfr::saved::EXTENSION])
+            .set_file_name(name)
+            .save_file()
+        else {
+            return;
+        };
+        let path = if path.extension().is_some_and(|e| e == wdfr::saved::EXTENSION) {
+            path
+        } else {
+            path.with_extension(wdfr::saved::EXTENSION)
+        };
+        match wdfr::saved::save(&path, &res.session, &res.found) {
+            Ok(()) => res.saved_to = Some(path),
+            Err(e) => self.error = Some(format!("{}\n\n{e:#}", trl("The scan could not be saved."))),
+        }
+    }
+
+    /// Reopens results saved earlier: the drive or image they belong to is
+    /// opened and checked, then the results are shown without scanning.
+    fn open_saved_scan(&mut self, ctx: &egui::Context, path: PathBuf) {
+        let name = path.file_stem().map_or_else(String::new, |s| s.to_string_lossy().into_owned());
+        let job = Job::spawn(ctx, move |progress, _cancel| {
+            wdfr::progress::Progress::begin(progress, "Opening saved scan", 0, wdfr::progress::Unit::Items);
+            let saved = wdfr::saved::load(&path)?;
+            let session = Arc::new(Session::open(&saved.source)?);
+            let found = saved.into_found(&session)?;
+            Ok((session, found))
+        });
+        self.previewer.clear();
+        self.results = None;
+        self.opening_saved = true;
+        self.scan = Some((job, name));
+        self.page = Page::Scanning;
+    }
+
+    /// Opens the results of the running scan (refreshed as it finds more).
+    fn show_live_results(&mut self) {
+        let Some((job, name)) = &self.scan else { return };
+        let Some((session, found)) = job.progress.live_snapshot() else { return };
+        if self.results.as_ref().is_none_or(|r| !r.scanning) {
+            let dest = self.suggest_destination(&session.path);
+            let mut res =
+                Results::new(session, found, name.clone(), self.settings.show_overwritten, dest.display().to_string());
+            res.scanning = true;
+            self.results = Some(res);
+        }
+        self.live_refreshed = Some(std::time::Instant::now());
+        self.page = Page::Results;
+    }
+
+    /// Adds what the running scan found since the last refresh.
+    fn refresh_live_results(&mut self) {
+        let (Some((job, _)), Some(res)) = (&self.scan, &mut self.results) else { return };
+        if !res.scanning || self.live_refreshed.is_some_and(|t| t.elapsed() < Duration::from_secs(2)) {
+            return;
+        }
+        self.live_refreshed = Some(std::time::Instant::now());
+        if job.progress.live_count() != res.rows.len()
+            && let Some((_, found)) = job.progress.live_snapshot()
+        {
+            res.refresh(found);
+        }
+    }
+
     fn poll_jobs(&mut self) {
         self.home.poll();
         if let Some((job, name)) = &self.scan
@@ -245,18 +325,40 @@ impl App {
             self.scan = None;
             match result {
                 Ok((session, found)) => {
-                    let dest = self.suggest_destination(&session.path);
-                    self.results = Some(Results::new(
-                        session,
-                        found,
-                        name,
-                        self.settings.show_overwritten,
-                        dest.display().to_string(),
-                    ));
+                    // Results shown while scanning become the final ones.
+                    match &mut self.results {
+                        Some(res) if res.scanning => {
+                            res.scanning = false;
+                            res.refresh(found);
+                        }
+                        _ => {
+                            // A reopened scan is named after its drive or image.
+                            let name = if self.opening_saved {
+                                Path::new(&session.path)
+                                    .file_name()
+                                    .map_or(session.path.clone(), |n| n.to_string_lossy().into_owned())
+                            } else {
+                                name
+                            };
+                            let dest = self.suggest_destination(&session.path);
+                            self.results = Some(Results::new(
+                                session,
+                                found,
+                                name,
+                                self.settings.show_overwritten,
+                                dest.display().to_string(),
+                            ));
+                        }
+                    }
                     self.page = Page::Results;
                 }
                 Err(e) => {
-                    self.error = Some(format!("{}\n\n{e:#}", trl("The scan could not be completed.")));
+                    let what = if self.opening_saved {
+                        trl("The saved scan could not be opened.")
+                    } else {
+                        trl("The scan could not be completed.")
+                    };
+                    self.error = Some(format!("{what}\n\n{e:#}"));
                     self.page = Page::Home;
                 }
             }
@@ -337,7 +439,7 @@ impl App {
         } else {
             Page::Home
         };
-        let results_badge = self.results.as_ref().map(|r| r.rows.len());
+        let results_badge = self.results.as_ref().map(Results::listed);
         let items: [(&str, &str, Page, bool, Option<String>); 4] = [
             (icon::MAGNIFYING_GLASS, tr("Recover"), flow_target, in_flow, self.busy().then(|| "●".to_string())),
             (
@@ -382,6 +484,7 @@ impl App {
             Page::Home => match self.home.page(ui, p, &self.settings) {
                 home::Action::Scan => self.start_scan(&ctx, None),
                 home::Action::Elevate => self.start_restart(),
+                home::Action::OpenScan(path) => self.open_saved_scan(&ctx, path),
                 home::Action::None => {}
             },
             Page::Scanning => {
@@ -393,6 +496,16 @@ impl App {
                     if stop {
                         job.stop();
                     }
+                    let n = job.progress.live_count();
+                    let mut show_live = false;
+                    if n > 0 {
+                        ui.add_space(12.0);
+                        let label = trf("Show files found so far ({n})", &[("n", &n)]);
+                        show_live = theme::secondary_button(ui, &format!("{}  {label}", icon::EYE)).clicked();
+                    }
+                    if show_live {
+                        self.show_live_results();
+                    }
                 } else {
                     self.page = Page::Home;
                 }
@@ -400,8 +513,16 @@ impl App {
             Page::Results => match &mut self.results {
                 Some(res) => match res.page(ui, p, &mut self.previewer, self.settings.allow_same_volume) {
                     results::Action::Recover => self.start_save(&ctx),
-                    results::Action::NewScan => self.page = Page::Home,
+                    results::Action::NewScan => {
+                        // Leaving results of a running scan stops it.
+                        if let Some((job, _)) = self.scan.take() {
+                            job.stop();
+                            self.results = None;
+                        }
+                        self.page = Page::Home;
+                    }
                     results::Action::DeepScan => self.start_scan(&ctx, Some(Method::Carve)),
+                    results::Action::SaveScan => self.save_scan(),
                     results::Action::None => {}
                 },
                 None => self.page = Page::Home,
@@ -484,6 +605,7 @@ impl eframe::App for App {
         self.fit_to_screen(&ctx);
         self.apply_settings(&ctx);
         self.poll_jobs();
+        self.refresh_live_results();
         self.poll_restart(&ctx);
         if self.previewer.poll(&ctx) {
             ctx.request_repaint();
@@ -689,6 +811,49 @@ impl App {
             t.waiting_for_shot = Some(name);
             ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
         };
+        // WDFR_TOUR_SAVED: save the results, reopen them, show them.
+        if std::env::var_os("WDFR_TOUR_SAVED").is_some() {
+            match step {
+                0 if frames == 1 => self.home.add_image(image),
+                0 if frames == 40 => self.start_scan(ctx, None),
+                0 if self.page == Page::Results && self.scan.is_none() => {
+                    let file = dir.join("tour.wdfrscan");
+                    if let Some(res) = &self.results {
+                        wdfr::saved::save(&file, &res.session, &res.found).expect("saving the scan");
+                    }
+                    self.open_saved_scan(ctx, file);
+                    let t = self.tour.as_mut().unwrap();
+                    (t.step, t.frames) = (1, 0);
+                }
+                1 if self.page == Page::Results && self.scan.is_none() && frames > 20 => {
+                    shoot("reopened", ctx, self.tour.as_mut().unwrap())
+                }
+                2 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                _ => {}
+            }
+            return;
+        }
+        // WDFR_TOUR_LIVE: only the results of a scan that is still running.
+        if std::env::var_os("WDFR_TOUR_LIVE").is_some() {
+            match step {
+                0 if frames == 1 => self.home.add_image(image),
+                0 if frames == 40 => {
+                    // Byte-level search is slow enough to look at results mid-scan.
+                    self.settings.byte_level = true;
+                    self.start_scan(ctx, Some(Method::Carve));
+                }
+                0 if self.scan.as_ref().is_some_and(|(j, _)| j.progress.live_count() > 0) => {
+                    self.show_live_results();
+                    self.tour.as_mut().unwrap().step = 1;
+                    self.tour.as_mut().unwrap().frames = 0;
+                }
+                1 if frames > 30 => shoot("live-results", ctx, self.tour.as_mut().unwrap()),
+                2 if self.scan.is_none() && frames > 5 => shoot("live-final", ctx, self.tour.as_mut().unwrap()),
+                3 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                _ => {}
+            }
+            return;
+        }
         match step {
             0 if frames == 1 => {
                 if let Some(l) = self.tour.as_ref().and_then(|t| t.language) {

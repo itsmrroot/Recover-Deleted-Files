@@ -4,7 +4,8 @@
 //! command line renders it as terminal progress bars, the desktop app as
 //! widgets. Every method has a no-op default.
 
-use crate::carve::Category;
+use crate::carve::{Carved, Category};
+use crate::recover::FsFound;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unit {
@@ -23,6 +24,12 @@ pub trait Progress: Sync {
     fn item(&self, _name: &str) {}
     /// A recoverable file was found.
     fn found(&self, _category: Option<Category>) {}
+    /// During a scan: a file found through file-system metadata, in the
+    /// order it is added to `Found::fs` (so results can be shown live).
+    fn file_found(&self, _file: &FsFound) {}
+    /// During a scan: a file found by its content, in the order it is added
+    /// to `Found::carved`.
+    fn carved_found(&self, _file: &Carved) {}
     /// The current task finished.
     fn end(&self) {}
     fn warn(&self, msg: &str) {

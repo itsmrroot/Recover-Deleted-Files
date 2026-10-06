@@ -4,7 +4,12 @@
 
 use std::sync::Arc;
 
+use std::sync::atomic::AtomicBool;
+
+use wdfr::filter::Filter;
 use wdfr::fs::{self, Condition, DeletedFile, FsKind, Volume};
+use wdfr::progress::Silent;
+use wdfr::recover;
 use wdfr::source::{MemSource, Source};
 
 const SECTOR: usize = 512;
@@ -206,7 +211,11 @@ impl Image {
         self.d[o..o + RECORD].copy_from_slice(&rec);
     }
 
-    fn build(mut self) -> Source {
+    fn build(self) -> Source {
+        Arc::new(MemSource(self.build_bytes()))
+    }
+
+    fn build_bytes(mut self) -> Vec<u8> {
         let mft_clusters = (MFT_RECORDS * RECORD / CLUSTER) as u64;
         let mft_runs = runlist(&[(Some(MFT_LCN as i64), mft_clusters)]);
         let rec0 = Rec::new(1, IN_USE, 0)
@@ -224,7 +233,7 @@ impl Image {
         self.put(6, rec6);
         let bitmap = self.bitmap.clone();
         self.write_clusters(BITMAP_LCN, &bitmap);
-        Arc::new(MemSource(self.d))
+        self.d
     }
 }
 
@@ -334,4 +343,64 @@ fn recovers_deleted_ntfs_files() {
     assert!(covers(200 * CLUSTER as u64));
     assert!(!covers(400 * CLUSTER as u64));
     assert!(!covers(MFT_LCN as u64 * CLUSTER as u64));
+}
+
+/// `$I` content in the Windows 10 format (version 2).
+fn recycle_info(path: &str, size: u64) -> Vec<u8> {
+    let units: Vec<u16> = path.encode_utf16().chain([0]).collect();
+    let mut v = Vec::new();
+    v.extend_from_slice(&2u64.to_le_bytes());
+    v.extend_from_slice(&size.to_le_bytes());
+    v.extend_from_slice(&133_536_816_000_000_000u64.to_le_bytes());
+    v.extend_from_slice(&(units.len() as u32).to_le_bytes());
+    for u in units {
+        v.extend_from_slice(&u.to_le_bytes());
+    }
+    v
+}
+
+#[test]
+fn files_from_an_emptied_recycle_bin_get_their_original_names() {
+    let mut img = Image::new();
+    // 40, 41: live `$Recycle.Bin/<SID>` folders.
+    img.put(40, Rec::new(1, IN_USE | DIR, 0).file_name(fref(5, 5), "$Recycle.Bin").finish());
+    img.put(41, Rec::new(1, IN_USE | DIR, 0).file_name(fref(40, 1), "S-1-5-21-1-2-3-1001").finish());
+    // 42: deleted `$I` (resident); 43: deleted `$R` with the photo.
+    let photo = pattern(1800, 7);
+    img.write_clusters(700, &photo);
+    let info = recycle_info(r"C:\Users\Ann\Pictures\beach.jpg", photo.len() as u64);
+    img.put(42, Rec::new(2, 0, 0).file_name(fref(41, 1), "$IK3T9QZ.jpg").resident(0x80, &info).finish());
+    let runs = runlist(&[(Some(700), 4)]);
+    img.put(
+        43,
+        Rec::new(2, 0, 0)
+            .file_name(fref(41, 1), "$RK3T9QZ.jpg")
+            .non_resident(0x80, 0, 0, 0, &runs, 4, photo.len() as u64)
+            .finish(),
+    );
+
+    let dir = std::env::temp_dir().join(format!("wdfr-recycle-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("ntfs.img");
+    std::fs::write(&path, img.build_bytes()).unwrap();
+
+    let session = recover::Session::open(path.to_str().unwrap()).unwrap();
+    let opts = recover::ScanOptions {
+        method: recover::Method::Fs,
+        partition: None,
+        filter: Filter::new(&[], &[], Some("beach.jpg"), 0, None).unwrap(),
+        carve_all_space: false,
+        step: 512,
+        max_carve_size: None,
+    };
+    let found = recover::scan(&session, &opts, &Silent, &AtomicBool::new(false)).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // The name filter sees the original name; the `$I` file is not listed.
+    assert_eq!(found.fs.len(), 1, "{:?}", found.fs.iter().map(|f| &f.file.path).collect::<Vec<_>>());
+    let f = &found.fs[0].file;
+    assert_eq!(f.path, "Users/Ann/Pictures/beach.jpg");
+    assert!(f.note.as_deref().unwrap().contains("Recycle Bin"));
+    let data = recover::read_item(&session, recover::Item::Fs(&found.fs[0]), 1 << 20).unwrap().unwrap();
+    assert_eq!(data, photo);
 }

@@ -11,6 +11,7 @@
 //! media written once by cameras and phones.
 
 pub mod formats;
+pub mod meta;
 mod reader;
 mod scan;
 

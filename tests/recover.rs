@@ -103,11 +103,51 @@ fn run_recovers_everything() {
     let (path, photo, orphan) = image(&tmp.0);
     let session = Session::open(path.to_str().unwrap()).unwrap();
     let out = tmp.0.join("out");
-    let opts = Options { scan: scan_opts(), save: save_opts(out.clone(), Layout::ByType), include_overwritten: false };
+    let opts = Options {
+        scan: scan_opts(),
+        save: save_opts(out.clone(), Layout::ByType),
+        include_overwritten: false,
+        keep_duplicates: false,
+    };
     let sum = recover::run(&session, &opts, &Silent, &AtomicBool::new(false)).unwrap();
     assert_eq!((sum.fs_files, sum.carved_files), (1, 1));
     let mut names: Vec<_> = std::fs::read_dir(out.join("images")).unwrap().map(|e| e.unwrap().path()).collect();
     names.sort();
     let contents: Vec<Vec<u8>> = names.iter().map(|p| std::fs::read(p).unwrap()).collect();
     assert!(contents.contains(&photo) && contents.contains(&orphan));
+}
+
+#[test]
+fn saved_scans_reopen_identically_and_only_on_the_same_source() {
+    let tmp = TempDir::new("saved");
+    let (path, photo, orphan) = image(&tmp.0);
+    let session = Session::open(path.to_str().unwrap()).unwrap();
+    let found = recover::scan(&session, &scan_opts(), &Silent, &AtomicBool::new(false)).unwrap();
+
+    let file = tmp.0.join("card.wdfrscan");
+    wdfr::saved::save(&file, &session, &found).unwrap();
+    let saved = wdfr::saved::load(&file).unwrap();
+    assert_eq!(saved.source, session.path);
+    let reopened = Session::open(&saved.source).unwrap();
+    let again = saved.into_found(&reopened).unwrap();
+
+    assert_eq!(again.fs.len(), found.fs.len());
+    assert_eq!(again.fs[0].file.path, found.fs[0].file.path);
+    assert_eq!(again.fs[0].file.condition, found.fs[0].file.condition);
+    assert_eq!(again.carved.len(), found.carved.len());
+    assert_eq!(recover::carved_name(&again.carved[0]), recover::carved_name(&found.carved[0]));
+    // The reopened results read exactly the same bytes.
+    assert_eq!(recover::read_item(&reopened, Item::Fs(&again.fs[0]), 1 << 20).unwrap().unwrap(), photo);
+    assert_eq!(recover::read_item(&reopened, Item::Carved(&again.carved[0]), 1 << 20).unwrap().unwrap(), orphan);
+
+    // A different source is refused rather than read at the wrong places.
+    let other = tmp.0.join("other.img");
+    std::fs::write(&other, vec![0u8; 1 << 20]).unwrap();
+    let other = Session::open(other.to_str().unwrap()).unwrap();
+    let err = wdfr::saved::load(&file).unwrap().into_found(&other).unwrap_err();
+    assert!(err.to_string().contains("another drive"), "{err}");
+
+    // Not a saved scan at all.
+    std::fs::write(tmp.0.join("junk.wdfrscan"), b"hello").unwrap();
+    assert!(wdfr::saved::load(&tmp.0.join("junk.wdfrscan")).is_err());
 }

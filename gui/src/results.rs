@@ -3,12 +3,14 @@
 
 use std::sync::Arc;
 
+use chrono::Datelike;
+
 use eframe::egui::{self, Align, Color32, Layout, RichText, Sense, Ui, Vec2};
 use egui_extras::{Column, TableBuilder};
 use egui_phosphor::regular as icon;
 use wdfr::carve::Category;
 use wdfr::fs::Condition;
-use wdfr::recover::{self, Found, Item, Session};
+use wdfr::recover::{self, Found, Session};
 use wdfr::units::format_size;
 
 use crate::i18n::{icon_label, tr, trf, trl, trn, visual};
@@ -17,28 +19,25 @@ use crate::preview::{Preview, Previewer};
 use crate::theme::{self, Palette};
 
 /// Identifies a found file: an index into `Found::fs` or `Found::carved`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RowRef {
-    Fs(usize),
-    Carved(usize),
-}
-
-impl RowRef {
-    pub fn item(self, found: &Found) -> Item<'_> {
-        match self {
-            RowRef::Fs(i) => Item::Fs(&found.fs[i]),
-            RowRef::Carved(i) => Item::Carved(&found.carved[i]),
-        }
-    }
-}
+pub type RowRef = recover::ItemRef;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Status {
     Good,
     Partial(u8),
     Overwritten,
+    /// The drive erased the data itself (SSD TRIM).
+    Erased,
     /// Found by the deep search (content-based).
     Found,
+}
+
+impl Status {
+    /// Files that will not open: listed and selected only on request
+    /// ("Show overwritten files").
+    pub fn hidden_by_default(self) -> bool {
+        matches!(self, Status::Overwritten | Status::Erased)
+    }
 }
 
 pub struct Row {
@@ -53,6 +52,10 @@ pub struct Row {
     pub status: Status,
     pub note: Option<String>,
     pub offset: Option<u64>,
+    /// A carved file named from its own metadata (date, camera, title).
+    pub named_from_metadata: bool,
+    /// The file this one is identical to ("folder/name"), if any.
+    pub duplicate_of: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +63,14 @@ enum Origin {
     All,
     Named,
     Deep,
+}
+
+/// The date filter of the results.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum YearFilter {
+    Any,
+    Year(i32),
+    Undated,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,9 +106,16 @@ pub enum Action {
     Recover,
     NewScan,
     DeepScan,
+    /// Save these results to a file (see `wdfr::saved`).
+    SaveScan,
 }
 
 pub struct Results {
+    /// Showing what a still-running scan has found so far: recovering waits
+    /// for the scan to finish.
+    pub scanning: bool,
+    /// Where these results were last saved ("Save scan…").
+    pub saved_to: Option<std::path::PathBuf>,
     pub session: Arc<Session>,
     pub found: Arc<Found>,
     pub source_name: String,
@@ -112,7 +130,15 @@ pub struct Results {
     /// Category slot (see `category_slot`), or None for all.
     cat: Option<usize>,
     origin: Origin,
+    year: YearFilter,
+    /// Years present in the results, newest first, and whether any file
+    /// has no date: the choices of the date filter.
+    years: Vec<i32>,
+    has_undated: bool,
     show_overwritten: bool,
+    /// Duplicates are hidden, and not recovered, unless this is off.
+    hide_duplicates: bool,
+    duplicates: usize,
     sort: (SortCol, bool),
     focus: Option<usize>,
     counts: [usize; 7],
@@ -148,6 +174,7 @@ fn status_of(c: Condition) -> Status {
         Condition::Recoverable => Status::Good,
         Condition::Partial(p) => Status::Partial(p),
         Condition::Overwritten => Status::Overwritten,
+        Condition::Erased => Status::Erased,
     }
 }
 
@@ -156,6 +183,7 @@ fn status_pill(ui: &mut Ui, p: &Palette, s: Status) {
         Status::Good => theme::pill(ui, p, tr("Recoverable"), p.success),
         Status::Partial(n) => theme::pill(ui, p, &trf("Partial · {n}%", &[("n", &n)]), p.warning),
         Status::Overwritten => theme::pill(ui, p, tr("Overwritten"), p.danger),
+        Status::Erased => theme::pill(ui, p, tr("Erased by the drive"), p.danger),
         Status::Found => theme::pill(ui, p, tr("Found by content"), p.deep),
     };
 }
@@ -166,6 +194,7 @@ fn status_rank(s: Status) -> u8 {
         Status::Found => 1,
         Status::Partial(_) => 2,
         Status::Overwritten => 3,
+        Status::Erased => 4,
     }
 }
 
@@ -190,6 +219,8 @@ impl Results {
                 status: status_of(file.condition),
                 note: file.note.clone(),
                 offset: file.data_ranges().first().map(|r| p.start + r.start),
+                named_from_metadata: false,
+                duplicate_of: None,
             });
         }
         for (i, c) in found.carved.iter().enumerate() {
@@ -202,13 +233,25 @@ impl Results {
                 ext: c.ext.to_string(),
                 category: Some(c.category),
                 size: c.len,
-                modified: None,
+                modified: c.date,
                 status: Status::Found,
                 note: Some(trf("{format} structure", &[("format", &c.format.to_uppercase())])),
                 offset: Some(c.offset),
+                named_from_metadata: c.title.is_some(),
+                duplicate_of: None,
             });
         }
-        let selected = rows.iter().map(|r| r.status != Status::Overwritten).collect();
+        // Name each duplicate's original.
+        let index: std::collections::HashMap<RowRef, usize> = rows.iter().enumerate().map(|(i, r)| (r.r, i)).collect();
+        for i in 0..rows.len() {
+            if let Some(orig) = found.duplicates.get(&rows[i].r).and_then(|o| index.get(o)) {
+                let o = &rows[*orig];
+                rows[i].duplicate_of =
+                    Some(if o.folder.is_empty() { o.name.clone() } else { format!("{}/{}", o.folder, o.name) });
+            }
+        }
+        let duplicates = rows.iter().filter(|r| r.duplicate_of.is_some()).count();
+        let selected = rows.iter().map(|r| Self::included_with(r, false, true)).collect();
         let mut res = Self {
             session,
             found,
@@ -218,18 +261,60 @@ impl Results {
             dest,
             dest_error: None,
             dest_checked: None,
+            scanning: false,
+            saved_to: None,
             view: Vec::new(),
             dirty: true,
             query: String::new(),
             cat: None,
             origin: Origin::All,
+            year: YearFilter::Any,
+            years: Vec::new(),
+            has_undated: false,
             show_overwritten,
+            hide_duplicates: true,
+            duplicates,
             sort: (SortCol::Status, true),
             focus: None,
             counts: [0; 7],
         };
+        let mut years: Vec<i32> = res.rows.iter().filter_map(|r| r.modified.map(|m| m.year())).collect();
+        years.sort_unstable_by(|a, b| b.cmp(a));
+        years.dedup();
+        res.years = years;
+        res.has_undated = res.rows.iter().any(|r| r.modified.is_none());
         res.recompute();
         res
+    }
+
+    /// Replaces the results with newer ones of the same scan (files found
+    /// since, or the final results), keeping what the user chose: selection,
+    /// search, filters, sorting, the file being previewed and the folder.
+    pub fn refresh(&mut self, found: Found) {
+        let mut new = Results::new(
+            self.session.clone(),
+            found,
+            self.source_name.clone(),
+            self.show_overwritten,
+            self.dest.clone(),
+        );
+        let chosen: std::collections::HashMap<RowRef, bool> =
+            self.rows.iter().zip(&self.selected).map(|(r, s)| (r.r, *s)).collect();
+        for (r, s) in new.rows.iter().zip(new.selected.iter_mut()) {
+            if let Some(&c) = chosen.get(&r.r) {
+                *s = c;
+            }
+        }
+        new.scanning = self.scanning;
+        new.query = std::mem::take(&mut self.query);
+        new.cat = self.cat;
+        new.origin = self.origin;
+        new.year = self.year;
+        new.hide_duplicates = self.hide_duplicates;
+        new.sort = self.sort;
+        new.focus = self.focus;
+        new.dirty = true;
+        *self = new;
     }
 
     pub fn set_show_overwritten(&mut self, show: bool) {
@@ -242,12 +327,7 @@ impl Results {
     /// Selected rows that are currently eligible (overwritten ones are only
     /// recovered when they are shown).
     pub fn selected_refs(&self) -> Vec<RowRef> {
-        self.rows
-            .iter()
-            .zip(&self.selected)
-            .filter(|(r, s)| **s && (self.show_overwritten || r.status != Status::Overwritten))
-            .map(|(r, _)| r.r)
-            .collect()
+        self.rows.iter().zip(&self.selected).filter(|(r, s)| **s && self.included(r)).map(|(r, _)| r.r).collect()
     }
 
     #[cfg(debug_assertions)]
@@ -265,12 +345,28 @@ impl Results {
         self.rows
             .iter()
             .zip(&self.selected)
-            .filter(|(r, s)| **s && (self.show_overwritten || r.status != Status::Overwritten))
+            .filter(|(r, s)| **s && self.included(r))
             .fold((0, 0), |(n, b), (r, _)| (n + 1, b + r.size))
     }
 
+    /// Whether a row is listed and, when selected, recovered: files that
+    /// will not open and duplicates only on request.
+    fn included_with(r: &Row, show_overwritten: bool, hide_duplicates: bool) -> bool {
+        (show_overwritten || !r.status.hidden_by_default()) && !(hide_duplicates && r.duplicate_of.is_some())
+    }
+
+    fn included(&self, r: &Row) -> bool {
+        Self::included_with(r, self.show_overwritten, self.hide_duplicates)
+    }
+
+    /// Files listed (before search and filters), as counted in the header
+    /// and the sidebar.
+    pub fn listed(&self) -> usize {
+        self.rows.iter().filter(|r| self.included(r)).count()
+    }
+
     fn eligible(&self, r: &Row) -> bool {
-        (self.show_overwritten || r.status != Status::Overwritten)
+        self.included(r)
             && match self.origin {
                 Origin::All => true,
                 Origin::Named => matches!(r.r, RowRef::Fs(_)),
@@ -283,7 +379,14 @@ impl Results {
         let mut counts = [0usize; 7];
         let mut view = Vec::new();
         for (i, r) in self.rows.iter().enumerate() {
-            if !self.eligible(r) || !(q.is_empty() || r.name_lower.contains(&q) || r.folder.to_lowercase().contains(&q))
+            let year_ok = match self.year {
+                YearFilter::Any => true,
+                YearFilter::Year(y) => r.modified.is_some_and(|m| m.year() == y),
+                YearFilter::Undated => r.modified.is_none(),
+            };
+            if !self.eligible(r)
+                || !year_ok
+                || !(q.is_empty() || r.name_lower.contains(&q) || r.folder.to_lowercase().contains(&q))
             {
                 continue;
             }
@@ -337,8 +440,7 @@ impl Results {
         // Header
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
-                let total =
-                    self.rows.iter().filter(|r| self.show_overwritten || r.status != Status::Overwritten).count();
+                let total = self.listed();
                 ui.label(theme::semibold(trn(total as u64, "1 file found", "{n} files found"), 26.0).color(p.text));
                 let name: &dyn std::fmt::Display = &self.source_name;
                 let sub = if self.found.cancelled {
@@ -347,14 +449,51 @@ impl Results {
                     trf("on {name}", &[("name", name)])
                 };
                 ui.label(RichText::new(sub).color(p.weak).size(15.0));
+                if let Some(saved) = &self.saved_to {
+                    ui.label(RichText::new(icon_label(icon::CHECK_CIRCLE, "Scan saved")).color(p.success).size(13.0))
+                        .on_hover_text(saved.display().to_string());
+                }
             });
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if theme::secondary_button(ui, &icon_label(icon::ARROW_COUNTER_CLOCKWISE, "New scan")).clicked() {
                     action = Action::NewScan;
                 }
+                // Saving a scan that is still running would save half of it.
+                if !self.scanning
+                    && theme::secondary_button(ui, &icon_label(icon::FLOPPY_DISK, "Save scan…"))
+                        .on_hover_text(tr("Save these results to open them later without scanning again."))
+                        .clicked()
+                {
+                    action = Action::SaveScan;
+                }
             });
         });
         ui.add_space(10.0);
+
+        if self.scanning {
+            theme::notice(
+                ui,
+                p,
+                p.accent,
+                icon::HOURGLASS_MEDIUM,
+                trl(
+                    "The scan is still running. You can look at the files found so far; Recover becomes available when it has finished.",
+                ),
+            );
+            ui.add_space(8.0);
+        }
+        if self.found.erased_by_drive {
+            theme::notice(
+                ui,
+                p,
+                p.warning,
+                icon::WARNING,
+                trl(
+                    "This drive erases deleted files by itself (SSD TRIM), so most of them contain only zeros and cannot be recovered. Files found by their content are not affected.",
+                ),
+            );
+            ui.add_space(8.0);
+        }
 
         if self.rows.is_empty() {
             self.empty_state(ui, p, &mut action);
@@ -449,6 +588,37 @@ impl Results {
                 });
             if self.origin != before {
                 self.dirty = true;
+            }
+            if self.duplicates > 0 {
+                let label = trf("Hide duplicates ({n})", &[("n", &self.duplicates)]);
+                if ui
+                    .checkbox(&mut self.hide_duplicates, label)
+                    .on_hover_text(tr("Files identical to another one, byte for byte."))
+                    .changed()
+                {
+                    self.dirty = true;
+                }
+            }
+            // Date filter: only offered when the results have dates.
+            if !self.years.is_empty() {
+                let before = self.year;
+                let label = |y: YearFilter| match y {
+                    YearFilter::Any => tr("Any date").to_string(),
+                    YearFilter::Year(y) => y.to_string(),
+                    YearFilter::Undated => tr("No date").to_string(),
+                };
+                egui::ComboBox::from_id_salt("year").selected_text(label(self.year)).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.year, YearFilter::Any, label(YearFilter::Any));
+                    for y in self.years.clone() {
+                        ui.selectable_value(&mut self.year, YearFilter::Year(y), label(YearFilter::Year(y)));
+                    }
+                    if self.has_undated {
+                        ui.selectable_value(&mut self.year, YearFilter::Undated, label(YearFilter::Undated));
+                    }
+                });
+                if self.year != before {
+                    self.dirty = true;
+                }
             }
             ui.add_space(6.0);
             let _ = p;
@@ -642,6 +812,12 @@ impl Results {
                 Status::Overwritten => {
                     trl("Other files have been written over this one. It will most likely not open.")
                 }
+                Status::Erased => trl(
+                    "The drive has erased this file's data itself (SSD TRIM). Only zeros are left, so it cannot be recovered.",
+                ),
+                Status::Found if row.named_from_metadata => trl(
+                    "Found by its content in free space. Its name comes from information inside the file (date, camera, title).",
+                ),
                 Status::Found => trl("Found by its content in free space. The original name is not known."),
             };
             theme::paragraph(ui, explain, 12.5, p.weak);
@@ -668,6 +844,9 @@ impl Results {
                 }
                 if let Some(n) = &row.note {
                     kv(tr("Notes"), n.clone());
+                }
+                if let Some(d) = &row.duplicate_of {
+                    kv(tr("Duplicate of"), d.clone());
                 }
             });
             ui.add_space(8.0);
@@ -701,7 +880,7 @@ impl Results {
                 ui.add_space(6.0);
                 if ui.small_button(tr("Select all")).clicked() {
                     for (r, s) in self.rows.iter().zip(self.selected.iter_mut()) {
-                        *s = r.status != Status::Overwritten || self.show_overwritten;
+                        *s = Self::included_with(r, self.show_overwritten, self.hide_duplicates);
                     }
                 }
                 if ui.small_button(tr("Select none")).clicked() {
@@ -735,7 +914,7 @@ impl Results {
 
     /// Returns true when clicked (see `recover_button_width`).
     fn recover_button(&self, ui: &mut Ui, p: &Palette, n: usize) -> bool {
-        let ok = n > 0 && self.dest_error.is_none();
+        let ok = n > 0 && self.dest_error.is_none() && !self.scanning;
         let text = format!("{}  {}", icon::DOWNLOAD_SIMPLE, trn(n as u64, "Recover 1 file", "Recover {n} files"));
         theme::primary_button(ui, p, &text, ok).clicked()
     }
