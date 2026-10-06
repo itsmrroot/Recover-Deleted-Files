@@ -64,7 +64,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             language: Language::System,
-            theme: ThemeChoice::System,
+            theme: ThemeChoice::Midnight,
             accent: Accent::Blue,
             ui_scale: 1.0,
             method: Method::All,

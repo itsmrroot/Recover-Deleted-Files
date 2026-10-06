@@ -52,6 +52,118 @@ pub const GERMAN: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "Mit Administratorrechten neu starten"),
     (
+        "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
+        "Wählen Sie „Formatiertes Laufwerk“. Damit werden Dateien anhand ihres Inhalts gefunden, auch ohne Dateisystem.",
+    ),
+    (
+        "Choose how deep to search. Recommended works in most cases.",
+        "Wählen Sie, wie gründlich gesucht werden soll. „Empfohlen“ passt in den meisten Fällen.",
+    ),
+    (
+        "Choose the drive the files were deleted from, or open a disk image.",
+        "Wählen Sie das Laufwerk, von dem die Dateien gelöscht wurden, oder öffnen Sie ein Disk-Image.",
+    ),
+    (
+        "Choose what you are looking for, for example Images, or Everything.",
+        "Wählen Sie, wonach Sie suchen, zum Beispiel „Bilder“ oder „Alles“.",
+    ),
+    (
+        "Click \"Start scan\". The files found so far can be viewed while it runs.",
+        "Klicken Sie auf „Scan starten“. Die bisher gefundenen Dateien können Sie schon während des Scans ansehen.",
+    ),
+    (
+        "Click a file to preview it before recovering it.",
+        "Klicken Sie auf eine Datei, um sie vor der Wiederherstellung anzusehen.",
+    ),
+    (
+        "Connect it to the computer. If it does not appear, click Refresh.",
+        "Schließen Sie sie an den Computer an. Wenn sie nicht erscheint, klicken Sie auf „Aktualisieren“.",
+    ),
+    (
+        "Drives are only ever read. Nothing is written to the drive you recover from.",
+        "Laufwerke werden nur gelesen. Auf das Laufwerk, von dem Sie wiederherstellen, wird nichts geschrieben.",
+    ),
+    (
+        "Exact duplicates are hidden, so every file is recovered only once.",
+        "Exakte Duplikate werden ausgeblendet, damit jede Datei nur einmal wiederhergestellt wird.",
+    ),
+    (
+        "Files that new data has been written over cannot come back.",
+        "Dateien, die mit neuen Daten überschrieben wurden, lassen sich nicht zurückholen.",
+    ),
+    ("Finding your files in the results", "Ihre Dateien in den Ergebnissen finden"),
+    ("Formatted or damaged drives", "Formatierte oder beschädigte Laufwerke"),
+    ("Getting started", "Erste Schritte"),
+    ("Giving the app access to drives", "Der App Zugriff auf Laufwerke geben"),
+    ("Help", "Hilfe"),
+    (
+        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
+        "Wenn das Laufwerk sehr langsam ist oder Geräusche macht, kopieren Sie es zuerst in ein Disk-Image (zum Beispiel mit ddrescue) und scannen Sie das Image.",
+    ),
+    (
+        "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
+        "Klicken Sie später auf dem Startbildschirm auf „Gespeicherten Scan öffnen…“, um ohne erneuten Scan weiterzumachen. Dasselbe Laufwerk muss angeschlossen sein.",
+    ),
+    (
+        "Linux: click \"Restart with administrator rights\" on the start screen and enter your password.",
+        "Linux: Klicken Sie auf dem Startbildschirm auf „Mit Administratorrechten neu starten“ und geben Sie Ihr Passwort ein.",
+    ),
+    ("Long scans", "Lange Scans"),
+    ("Memory cards and USB sticks", "Speicherkarten und USB-Sticks"),
+    (
+        "On the results page, click \"Save scan…\" to keep the results of a long scan.",
+        "Klicken Sie auf der Ergebnisseite auf „Scan speichern…“, um die Ergebnisse eines langen Scans aufzubewahren.",
+    ),
+    (
+        "SSDs and phones erase deleted files automatically (TRIM), so they are often gone for good.",
+        "SSDs und Handys löschen gelöschte Dateien automatisch (TRIM), daher sind sie oft endgültig verloren.",
+    ),
+    (
+        "Search deeper: Recommended first, then \"Formatted drive\", then turn on \"Byte-level deep search\" in Settings.",
+        "Suchen Sie gründlicher: zuerst „Empfohlen“, dann „Formatiertes Laufwerk“, dann in den Einstellungen „Tiefensuche auf Byte-Ebene“ einschalten.",
+    ),
+    (
+        "Step-by-step guides for the most common situations.",
+        "Schritt-für-Schritt-Anleitungen für die häufigsten Situationen.",
+    ),
+    (
+        "Stop using the card or stick right away, and do not format it.",
+        "Benutzen Sie die Karte oder den Stick ab sofort nicht mehr und formatieren Sie sie nicht.",
+    ),
+    (
+        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "Solche Dateien haben keinen ursprünglichen Namen: Sie werden nach Typ benannt oder anhand ihrer eigenen Daten, etwa dem Aufnahmedatum eines Fotos.",
+    ),
+    (
+        "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
+        "Der Status zeigt, wie wahrscheinlich sich eine Datei öffnen lässt. Als „Überschrieben“ oder „Vom Laufwerk gelöscht“ markierte Dateien lassen sich meist nicht wiederherstellen.",
+    ),
+    (
+        "Tick the files you want, choose a folder on another drive and click \"Recover\".",
+        "Haken Sie die gewünschten Dateien an, wählen Sie einen Ordner auf einem anderen Laufwerk und klicken Sie auf „Wiederherstellen“.",
+    ),
+    (
+        "Use Recommended. If the card was formatted, use \"Formatted drive\".",
+        "Verwenden Sie „Empfohlen“. Wenn die Karte formatiert wurde, verwenden Sie „Formatiertes Laufwerk“.",
+    ),
+    (
+        "Use the search box and the type and date filters to narrow the list.",
+        "Grenzen Sie die Liste mit dem Suchfeld und den Filtern für Typ und Datum ein.",
+    ),
+    ("Why are my files not found?", "Warum werden meine Dateien nicht gefunden?"),
+    (
+        "Windows asks for administrator rights when the app starts: click Yes. Without them only disk images can be read.",
+        "Windows fragt beim Start der App nach Administratorrechten: Klicken Sie auf „Ja“. Ohne sie lassen sich nur Disk-Images lesen.",
+    ),
+    (
+        "macOS also needs Full Disk Access: click \"Open Full Disk Access settings\", turn on Deleted Files Recovery and click Refresh. After an update, turn it on again.",
+        "macOS benötigt außerdem den Festplattenvollzugriff: Klicken Sie auf „Einstellungen für Festplattenvollzugriff öffnen“, aktivieren Sie Deleted Files Recovery und klicken Sie auf „Aktualisieren“. Nach einem Update aktivieren Sie ihn erneut.",
+    ),
+    (
+        "macOS: click \"Allow access to drives\" on the start screen and enter your password.",
+        "macOS: Klicken Sie auf dem Startbildschirm auf „Zugriff auf Laufwerke erlauben“ und geben Sie Ihr Passwort ein.",
+    ),
+    (
         "Asks GitHub for the latest version when the app starts. Nothing about you or your files is sent.",
         "Fragt beim Start der App bei GitHub nach der neuesten Version. Es wird nichts über Sie oder Ihre Dateien gesendet.",
     ),
@@ -464,6 +576,109 @@ pub const ARABIC: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "إعادة التشغيل بصلاحيات المسؤول"),
     (
+        "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
+        "اختر «محرك مُهيّأ». يجد الملفات من محتواها، حتى بدون نظام ملفات.",
+    ),
+    ("Choose how deep to search. Recommended works in most cases.", "اختر مدى عمق البحث. «موصى به» يناسب معظم الحالات."),
+    (
+        "Choose the drive the files were deleted from, or open a disk image.",
+        "اختر المحرك الذي حُذفت منه الملفات، أو افتح صورة قرص.",
+    ),
+    (
+        "Choose what you are looking for, for example Images, or Everything.",
+        "اختر ما تبحث عنه، مثل «الصور» أو «كل شيء».",
+    ),
+    (
+        "Click \"Start scan\". The files found so far can be viewed while it runs.",
+        "انقر على «بدء الفحص». يمكنك مشاهدة الملفات التي وُجدت حتى الآن أثناء الفحص.",
+    ),
+    ("Click a file to preview it before recovering it.", "انقر على ملف لمعاينته قبل استعادته."),
+    (
+        "Connect it to the computer. If it does not appear, click Refresh.",
+        "صِلها بالكمبيوتر. إذا لم تظهر، انقر على «تحديث».",
+    ),
+    (
+        "Drives are only ever read. Nothing is written to the drive you recover from.",
+        "تُقرأ المحركات فقط. لا يُكتب أي شيء على المحرك الذي تستعيد منه.",
+    ),
+    (
+        "Exact duplicates are hidden, so every file is recovered only once.",
+        "تُخفى النسخ المكررة تمامًا، لذا تُستعاد كل ملف مرة واحدة فقط.",
+    ),
+    (
+        "Files that new data has been written over cannot come back.",
+        "الملفات التي كُتبت فوقها بيانات جديدة لا يمكن استرجاعها.",
+    ),
+    ("Finding your files in the results", "العثور على ملفاتك في النتائج"),
+    ("Formatted or damaged drives", "المحركات المُهيّأة أو التالفة"),
+    ("Getting started", "البدء"),
+    ("Giving the app access to drives", "منح التطبيق الوصول إلى الأقراص"),
+    ("Help", "المساعدة"),
+    (
+        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
+        "إذا كان المحرك بطيئًا جدًا أو يصدر أصواتًا، انسخه أولًا إلى صورة قرص (مثلًا باستخدام ddrescue) وافحص الصورة.",
+    ),
+    (
+        "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
+        "لاحقًا، انقر على «فتح فحص محفوظ…» في شاشة البداية للمتابعة دون فحص جديد. يجب أن يكون المحرك نفسه متصلًا.",
+    ),
+    (
+        "Linux: click \"Restart with administrator rights\" on the start screen and enter your password.",
+        "Linux: انقر على «إعادة التشغيل بصلاحيات المسؤول» في شاشة البداية وأدخل كلمة المرور.",
+    ),
+    ("Long scans", "الفحوصات الطويلة"),
+    ("Memory cards and USB sticks", "بطاقات الذاكرة وذواكر USB"),
+    (
+        "On the results page, click \"Save scan…\" to keep the results of a long scan.",
+        "في صفحة النتائج، انقر على «حفظ الفحص…» للاحتفاظ بنتائج فحص طويل.",
+    ),
+    (
+        "SSDs and phones erase deleted files automatically (TRIM), so they are often gone for good.",
+        "تمحو أقراص SSD والهواتف الملفات المحذوفة تلقائيًا (TRIM)، لذا غالبًا ما تضيع نهائيًا.",
+    ),
+    (
+        "Search deeper: Recommended first, then \"Formatted drive\", then turn on \"Byte-level deep search\" in Settings.",
+        "ابحث بعمق أكبر: أولًا «موصى به»، ثم «محرك مُهيّأ»، ثم فعّل «بحث عميق على مستوى البايت» في الإعدادات.",
+    ),
+    ("Step-by-step guides for the most common situations.", "أدلة خطوة بخطوة لأكثر الحالات شيوعًا."),
+    (
+        "Stop using the card or stick right away, and do not format it.",
+        "توقف عن استخدام البطاقة أو الذاكرة فورًا، ولا تُهيّئها.",
+    ),
+    (
+        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "ليس لهذه الملفات اسمها الأصلي: تُسمّى حسب نوعها، أو من بياناتها الخاصة مثل تاريخ التقاط الصورة.",
+    ),
+    (
+        "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
+        "تُظهر الحالة مدى احتمال فتح الملف. الملفات المعلَّمة «مُستبدَل» أو «مَحاه المحرك» لا يمكن استعادتها عادةً.",
+    ),
+    (
+        "Tick the files you want, choose a folder on another drive and click \"Recover\".",
+        "حدّد الملفات التي تريدها، واختر مجلدًا على محرك آخر وانقر على «استعادة».",
+    ),
+    (
+        "Use Recommended. If the card was formatted, use \"Formatted drive\".",
+        "استخدم «موصى به». إذا كانت البطاقة قد هُيّئت، فاستخدم «محرك مُهيّأ».",
+    ),
+    (
+        "Use the search box and the type and date filters to narrow the list.",
+        "استخدم مربع البحث ومرشحات النوع والتاريخ لتضييق القائمة.",
+    ),
+    ("Why are my files not found?", "لماذا لا يُعثر على ملفاتي؟"),
+    (
+        "Windows asks for administrator rights when the app starts: click Yes. Without them only disk images can be read.",
+        "يطلب Windows صلاحيات المسؤول عند بدء التطبيق: انقر على «نعم». بدونها لا يمكن قراءة سوى صور الأقراص.",
+    ),
+    (
+        "macOS also needs Full Disk Access: click \"Open Full Disk Access settings\", turn on Deleted Files Recovery and click Refresh. After an update, turn it on again.",
+        "يحتاج macOS أيضًا إلى «الوصول الكامل إلى القرص»: انقر على «فتح إعدادات الوصول الكامل إلى القرص»، وفعّل Deleted Files Recovery ثم انقر على «تحديث». بعد كل تحديث، فعّله مرة أخرى.",
+    ),
+    (
+        "macOS: click \"Allow access to drives\" on the start screen and enter your password.",
+        "macOS: انقر على «السماح بالوصول إلى الأقراص» في شاشة البداية وأدخل كلمة المرور.",
+    ),
+    (
         "Asks GitHub for the latest version when the app starts. Nothing about you or your files is sent.",
         "يسأل GitHub عن أحدث إصدار عند بدء التطبيق. لا يُرسل أي شيء عنك أو عن ملفاتك.",
     ),
@@ -848,6 +1063,112 @@ pub const SPANISH: &[(&str, &str)] = &[
         "Leer unidades requiere permisos de administrador. Las imágenes de disco funcionan sin ellos.",
     ),
     ("Restart with administrator rights", "Reiniciar con permisos de administrador"),
+    (
+        "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
+        "Elija «Unidad formateada». Encuentra los archivos por su contenido, incluso sin sistema de archivos.",
+    ),
+    (
+        "Choose how deep to search. Recommended works in most cases.",
+        "Elija la profundidad de la búsqueda. «Recomendado» sirve en la mayoría de los casos.",
+    ),
+    (
+        "Choose the drive the files were deleted from, or open a disk image.",
+        "Elija la unidad de la que se borraron los archivos, o abra una imagen de disco.",
+    ),
+    (
+        "Choose what you are looking for, for example Images, or Everything.",
+        "Elija lo que busca, por ejemplo «Imágenes» o «Todo».",
+    ),
+    (
+        "Click \"Start scan\". The files found so far can be viewed while it runs.",
+        "Haga clic en «Iniciar análisis». Puede ver los archivos encontrados mientras se ejecuta.",
+    ),
+    ("Click a file to preview it before recovering it.", "Haga clic en un archivo para verlo antes de recuperarlo."),
+    (
+        "Connect it to the computer. If it does not appear, click Refresh.",
+        "Conéctela al ordenador. Si no aparece, haga clic en «Actualizar».",
+    ),
+    (
+        "Drives are only ever read. Nothing is written to the drive you recover from.",
+        "Las unidades solo se leen. No se escribe nada en la unidad de la que recupera.",
+    ),
+    (
+        "Exact duplicates are hidden, so every file is recovered only once.",
+        "Los duplicados exactos se ocultan, así que cada archivo se recupera una sola vez.",
+    ),
+    (
+        "Files that new data has been written over cannot come back.",
+        "Los archivos sobre los que se han escrito datos nuevos no se pueden recuperar.",
+    ),
+    ("Finding your files in the results", "Encontrar sus archivos en los resultados"),
+    ("Formatted or damaged drives", "Unidades formateadas o dañadas"),
+    ("Getting started", "Primeros pasos"),
+    ("Giving the app access to drives", "Dar a la aplicación acceso a las unidades"),
+    ("Help", "Ayuda"),
+    (
+        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
+        "Si la unidad es muy lenta o hace ruidos, cópiela primero a una imagen de disco (por ejemplo con ddrescue) y analice la imagen.",
+    ),
+    (
+        "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
+        "Más tarde, haga clic en «Abrir análisis guardado…» en la pantalla de inicio para continuar sin volver a analizar. La misma unidad debe estar conectada.",
+    ),
+    (
+        "Linux: click \"Restart with administrator rights\" on the start screen and enter your password.",
+        "Linux: haga clic en «Reiniciar con permisos de administrador» en la pantalla de inicio e introduzca su contraseña.",
+    ),
+    ("Long scans", "Análisis largos"),
+    ("Memory cards and USB sticks", "Tarjetas de memoria y memorias USB"),
+    (
+        "On the results page, click \"Save scan…\" to keep the results of a long scan.",
+        "En la página de resultados, haga clic en «Guardar análisis…» para conservar los resultados de un análisis largo.",
+    ),
+    (
+        "SSDs and phones erase deleted files automatically (TRIM), so they are often gone for good.",
+        "Los SSD y los teléfonos borran automáticamente los archivos eliminados (TRIM), por lo que a menudo se pierden para siempre.",
+    ),
+    (
+        "Search deeper: Recommended first, then \"Formatted drive\", then turn on \"Byte-level deep search\" in Settings.",
+        "Busque más a fondo: primero «Recomendado», luego «Unidad formateada» y después active «Búsqueda profunda a nivel de byte» en Ajustes.",
+    ),
+    ("Step-by-step guides for the most common situations.", "Guías paso a paso para las situaciones más comunes."),
+    (
+        "Stop using the card or stick right away, and do not format it.",
+        "Deje de usar la tarjeta o memoria de inmediato y no la formatee.",
+    ),
+    (
+        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "Estos archivos no tienen su nombre original: se nombran por tipo o a partir de sus propios datos, como la fecha en que se tomó una foto.",
+    ),
+    (
+        "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
+        "El estado indica la probabilidad de que un archivo se abra. Los marcados como «Sobrescrito» o «Borrado por la unidad» normalmente no se pueden recuperar.",
+    ),
+    (
+        "Tick the files you want, choose a folder on another drive and click \"Recover\".",
+        "Marque los archivos que quiera, elija una carpeta en otra unidad y haga clic en «Recuperar».",
+    ),
+    (
+        "Use Recommended. If the card was formatted, use \"Formatted drive\".",
+        "Use «Recomendado». Si la tarjeta se formateó, use «Unidad formateada».",
+    ),
+    (
+        "Use the search box and the type and date filters to narrow the list.",
+        "Use el cuadro de búsqueda y los filtros de tipo y fecha para acotar la lista.",
+    ),
+    ("Why are my files not found?", "¿Por qué no se encuentran mis archivos?"),
+    (
+        "Windows asks for administrator rights when the app starts: click Yes. Without them only disk images can be read.",
+        "Windows pide permisos de administrador al iniciar la aplicación: haga clic en «Sí». Sin ellos solo se pueden leer imágenes de disco.",
+    ),
+    (
+        "macOS also needs Full Disk Access: click \"Open Full Disk Access settings\", turn on Deleted Files Recovery and click Refresh. After an update, turn it on again.",
+        "macOS también necesita acceso total al disco: haga clic en «Abrir los ajustes de acceso total al disco», active Deleted Files Recovery y haga clic en «Actualizar». Tras cada actualización, vuelva a activarlo.",
+    ),
+    (
+        "macOS: click \"Allow access to drives\" on the start screen and enter your password.",
+        "macOS: haga clic en «Permitir el acceso a las unidades» en la pantalla de inicio e introduzca su contraseña.",
+    ),
     (
         "Asks GitHub for the latest version when the app starts. Nothing about you or your files is sent.",
         "Consulta en GitHub la última versión al iniciar la aplicación. No se envía nada sobre usted ni sus archivos.",
@@ -1260,6 +1581,118 @@ pub const FRENCH: &[(&str, &str)] = &[
         "La lecture des disques nécessite des droits d'administrateur. Les images disque fonctionnent sans eux.",
     ),
     ("Restart with administrator rights", "Redémarrer avec les droits d'administrateur"),
+    (
+        "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
+        "Choisissez « Disque formaté ». Les fichiers sont retrouvés d'après leur contenu, même sans système de fichiers.",
+    ),
+    (
+        "Choose how deep to search. Recommended works in most cases.",
+        "Choisissez la profondeur de la recherche. « Recommandé » convient dans la plupart des cas.",
+    ),
+    (
+        "Choose the drive the files were deleted from, or open a disk image.",
+        "Choisissez le disque d'où les fichiers ont été supprimés, ou ouvrez une image disque.",
+    ),
+    (
+        "Choose what you are looking for, for example Images, or Everything.",
+        "Choisissez ce que vous cherchez, par exemple « Images » ou « Tout ».",
+    ),
+    (
+        "Click \"Start scan\". The files found so far can be viewed while it runs.",
+        "Cliquez sur « Lancer l'analyse ». Les fichiers déjà trouvés peuvent être consultés pendant l'analyse.",
+    ),
+    (
+        "Click a file to preview it before recovering it.",
+        "Cliquez sur un fichier pour l'afficher avant de le récupérer.",
+    ),
+    (
+        "Connect it to the computer. If it does not appear, click Refresh.",
+        "Branchez-la sur l'ordinateur. Si elle n'apparaît pas, cliquez sur « Actualiser ».",
+    ),
+    (
+        "Drives are only ever read. Nothing is written to the drive you recover from.",
+        "Les disques sont uniquement lus. Rien n'est écrit sur le disque à partir duquel vous récupérez.",
+    ),
+    (
+        "Exact duplicates are hidden, so every file is recovered only once.",
+        "Les doublons exacts sont masqués : chaque fichier n'est récupéré qu'une fois.",
+    ),
+    (
+        "Files that new data has been written over cannot come back.",
+        "Les fichiers recouverts par de nouvelles données ne peuvent pas être récupérés.",
+    ),
+    ("Finding your files in the results", "Retrouver vos fichiers dans les résultats"),
+    ("Formatted or damaged drives", "Disques formatés ou endommagés"),
+    ("Getting started", "Premiers pas"),
+    ("Giving the app access to drives", "Donner à l'application l'accès aux disques"),
+    ("Help", "Aide"),
+    (
+        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
+        "Si le disque est très lent ou fait du bruit, copiez-le d'abord dans une image disque (par exemple avec ddrescue) et analysez l'image.",
+    ),
+    (
+        "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
+        "Plus tard, cliquez sur « Ouvrir une analyse enregistrée… » sur l'écran d'accueil pour continuer sans relancer l'analyse. Le même disque doit être branché.",
+    ),
+    (
+        "Linux: click \"Restart with administrator rights\" on the start screen and enter your password.",
+        "Linux : cliquez sur « Redémarrer avec les droits d'administrateur » sur l'écran d'accueil et saisissez votre mot de passe.",
+    ),
+    ("Long scans", "Analyses longues"),
+    ("Memory cards and USB sticks", "Cartes mémoire et clés USB"),
+    (
+        "On the results page, click \"Save scan…\" to keep the results of a long scan.",
+        "Sur la page des résultats, cliquez sur « Enregistrer l'analyse… » pour conserver les résultats d'une longue analyse.",
+    ),
+    (
+        "SSDs and phones erase deleted files automatically (TRIM), so they are often gone for good.",
+        "Les SSD et les téléphones effacent automatiquement les fichiers supprimés (TRIM) : ils sont donc souvent perdus pour de bon.",
+    ),
+    (
+        "Search deeper: Recommended first, then \"Formatted drive\", then turn on \"Byte-level deep search\" in Settings.",
+        "Cherchez plus en profondeur : d'abord « Recommandé », puis « Disque formaté », puis activez « Recherche approfondie octet par octet » dans les Paramètres.",
+    ),
+    (
+        "Step-by-step guides for the most common situations.",
+        "Des guides pas à pas pour les situations les plus courantes.",
+    ),
+    (
+        "Stop using the card or stick right away, and do not format it.",
+        "Cessez immédiatement d'utiliser la carte ou la clé, et ne la formatez pas.",
+    ),
+    (
+        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "Ces fichiers n'ont pas leur nom d'origine : ils sont nommés d'après leur type ou leurs propres données, comme la date de prise d'une photo.",
+    ),
+    (
+        "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
+        "L'état indique les chances qu'un fichier s'ouvre. Les fichiers marqués « Écrasé » ou « Effacé par le disque » ne sont généralement pas récupérables.",
+    ),
+    (
+        "Tick the files you want, choose a folder on another drive and click \"Recover\".",
+        "Cochez les fichiers voulus, choisissez un dossier sur un autre disque et cliquez sur « Récupérer ».",
+    ),
+    (
+        "Use Recommended. If the card was formatted, use \"Formatted drive\".",
+        "Utilisez « Recommandé ». Si la carte a été formatée, utilisez « Disque formaté ».",
+    ),
+    (
+        "Use the search box and the type and date filters to narrow the list.",
+        "Utilisez le champ de recherche et les filtres de type et de date pour affiner la liste.",
+    ),
+    ("Why are my files not found?", "Pourquoi mes fichiers sont-ils introuvables ?"),
+    (
+        "Windows asks for administrator rights when the app starts: click Yes. Without them only disk images can be read.",
+        "Windows demande les droits d'administrateur au démarrage de l'application : cliquez sur « Oui ». Sans eux, seules les images disque peuvent être lues.",
+    ),
+    (
+        "macOS also needs Full Disk Access: click \"Open Full Disk Access settings\", turn on Deleted Files Recovery and click Refresh. After an update, turn it on again.",
+        "macOS exige aussi l'accès complet au disque : cliquez sur « Ouvrir les réglages d'accès complet au disque », activez Deleted Files Recovery et cliquez sur « Actualiser ». Après une mise à jour, réactivez-le.",
+    ),
+    (
+        "macOS: click \"Allow access to drives\" on the start screen and enter your password.",
+        "macOS : cliquez sur « Autoriser l'accès aux disques » sur l'écran d'accueil et saisissez votre mot de passe.",
+    ),
     (
         "Asks GitHub for the latest version when the app starts. Nothing about you or your files is sent.",
         "Demande à GitHub la dernière version au démarrage de l'application. Rien ne vous concernant, ni vos fichiers, n'est envoyé.",
@@ -1676,6 +2109,115 @@ pub const RUSSIAN: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "Перезапустить с правами администратора"),
     (
+        "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
+        "Выберите «Отформатированный диск». Файлы находятся по содержимому, даже без файловой системы.",
+    ),
+    (
+        "Choose how deep to search. Recommended works in most cases.",
+        "Выберите глубину поиска. «Рекомендуемый» подходит в большинстве случаев.",
+    ),
+    (
+        "Choose the drive the files were deleted from, or open a disk image.",
+        "Выберите диск, с которого были удалены файлы, или откройте образ диска.",
+    ),
+    (
+        "Choose what you are looking for, for example Images, or Everything.",
+        "Выберите, что вы ищете, например «Изображения» или «Всё».",
+    ),
+    (
+        "Click \"Start scan\". The files found so far can be viewed while it runs.",
+        "Нажмите «Начать сканирование». Уже найденные файлы можно смотреть во время сканирования.",
+    ),
+    (
+        "Click a file to preview it before recovering it.",
+        "Нажмите на файл, чтобы просмотреть его перед восстановлением.",
+    ),
+    (
+        "Connect it to the computer. If it does not appear, click Refresh.",
+        "Подключите её к компьютеру. Если она не появилась, нажмите «Обновить».",
+    ),
+    (
+        "Drives are only ever read. Nothing is written to the drive you recover from.",
+        "Диски только читаются. На диск, с которого идёт восстановление, ничего не записывается.",
+    ),
+    (
+        "Exact duplicates are hidden, so every file is recovered only once.",
+        "Точные дубликаты скрыты, поэтому каждый файл восстанавливается только один раз.",
+    ),
+    (
+        "Files that new data has been written over cannot come back.",
+        "Файлы, поверх которых записаны новые данные, вернуть нельзя.",
+    ),
+    ("Finding your files in the results", "Поиск файлов в результатах"),
+    ("Formatted or damaged drives", "Отформатированные или повреждённые диски"),
+    ("Getting started", "Начало работы"),
+    ("Giving the app access to drives", "Доступ приложения к дискам"),
+    ("Help", "Справка"),
+    (
+        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
+        "Если диск работает очень медленно или издаёт звуки, сначала скопируйте его в образ (например, с помощью ddrescue) и сканируйте образ.",
+    ),
+    (
+        "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
+        "Позже нажмите «Открыть сохранённое сканирование…» на начальном экране, чтобы продолжить без повторного сканирования. Тот же диск должен быть подключён.",
+    ),
+    (
+        "Linux: click \"Restart with administrator rights\" on the start screen and enter your password.",
+        "Linux: нажмите «Перезапустить с правами администратора» на начальном экране и введите пароль.",
+    ),
+    ("Long scans", "Долгие сканирования"),
+    ("Memory cards and USB sticks", "Карты памяти и USB-флешки"),
+    (
+        "On the results page, click \"Save scan…\" to keep the results of a long scan.",
+        "На странице результатов нажмите «Сохранить сканирование…», чтобы сохранить результаты долгого сканирования.",
+    ),
+    (
+        "SSDs and phones erase deleted files automatically (TRIM), so they are often gone for good.",
+        "SSD и телефоны автоматически стирают удалённые файлы (TRIM), поэтому их часто уже не вернуть.",
+    ),
+    (
+        "Search deeper: Recommended first, then \"Formatted drive\", then turn on \"Byte-level deep search\" in Settings.",
+        "Ищите глубже: сначала «Рекомендуемый», затем «Отформатированный диск», затем включите «Глубокий поиск по байтам» в настройках.",
+    ),
+    ("Step-by-step guides for the most common situations.", "Пошаговые инструкции для самых частых случаев."),
+    (
+        "Stop using the card or stick right away, and do not format it.",
+        "Сразу перестаньте пользоваться картой или флешкой и не форматируйте её.",
+    ),
+    (
+        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "У таких файлов нет исходного имени: они названы по типу или по своим данным, например по дате съёмки фото.",
+    ),
+    (
+        "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
+        "Статус показывает, насколько вероятно, что файл откроется. Файлы с пометкой «Перезаписан» или «Стёрт диском» обычно восстановить нельзя.",
+    ),
+    (
+        "Tick the files you want, choose a folder on another drive and click \"Recover\".",
+        "Отметьте нужные файлы, выберите папку на другом диске и нажмите «Восстановить».",
+    ),
+    (
+        "Use Recommended. If the card was formatted, use \"Formatted drive\".",
+        "Используйте «Рекомендуемый». Если карта была отформатирована, используйте «Отформатированный диск».",
+    ),
+    (
+        "Use the search box and the type and date filters to narrow the list.",
+        "Сузьте список с помощью поля поиска и фильтров по типу и дате.",
+    ),
+    ("Why are my files not found?", "Почему мои файлы не находятся?"),
+    (
+        "Windows asks for administrator rights when the app starts: click Yes. Without them only disk images can be read.",
+        "Windows запрашивает права администратора при запуске приложения: нажмите «Да». Без них можно читать только образы дисков.",
+    ),
+    (
+        "macOS also needs Full Disk Access: click \"Open Full Disk Access settings\", turn on Deleted Files Recovery and click Refresh. After an update, turn it on again.",
+        "macOS также нужен полный доступ к диску: нажмите «Открыть настройки полного доступа к диску», включите Deleted Files Recovery и нажмите «Обновить». После обновления включите его снова.",
+    ),
+    (
+        "macOS: click \"Allow access to drives\" on the start screen and enter your password.",
+        "macOS: нажмите «Разрешить доступ к дискам» на начальном экране и введите пароль.",
+    ),
+    (
         "Asks GitHub for the latest version when the app starts. Nothing about you or your files is sent.",
         "При запуске приложение узнаёт у GitHub последнюю версию. Никакие данные о вас или ваших файлах не отправляются.",
     ),
@@ -2082,6 +2624,100 @@ pub const CHINESE: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "以管理员权限重新启动"),
     (
+        "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
+        "选择“已格式化的驱动器”。它按内容查找文件，即使没有文件系统也可以。",
+    ),
+    ("Choose how deep to search. Recommended works in most cases.", "选择搜索深度。大多数情况下用“推荐”即可。"),
+    (
+        "Choose the drive the files were deleted from, or open a disk image.",
+        "选择删除文件所在的驱动器，或打开一个磁盘映像。",
+    ),
+    ("Choose what you are looking for, for example Images, or Everything.", "选择要查找的内容，例如“图片”或“全部”。"),
+    (
+        "Click \"Start scan\". The files found so far can be viewed while it runs.",
+        "点击“开始扫描”。扫描进行时即可查看已找到的文件。",
+    ),
+    ("Click a file to preview it before recovering it.", "点击文件可在恢复前预览。"),
+    (
+        "Connect it to the computer. If it does not appear, click Refresh.",
+        "将其连接到电脑。如果没有出现，请点击“刷新”。",
+    ),
+    (
+        "Drives are only ever read. Nothing is written to the drive you recover from.",
+        "驱动器只会被读取。不会向你正在恢复的驱动器写入任何内容。",
+    ),
+    (
+        "Exact duplicates are hidden, so every file is recovered only once.",
+        "完全相同的重复文件会被隐藏，因此每个文件只恢复一次。",
+    ),
+    ("Files that new data has been written over cannot come back.", "已被新数据覆盖的文件无法恢复。"),
+    ("Finding your files in the results", "在结果中找到你的文件"),
+    ("Formatted or damaged drives", "已格式化或损坏的驱动器"),
+    ("Getting started", "入门"),
+    ("Giving the app access to drives", "授予应用访问驱动器的权限"),
+    ("Help", "帮助"),
+    (
+        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
+        "如果驱动器非常慢或发出异响，请先将其复制为磁盘映像（例如使用 ddrescue），再扫描该映像。",
+    ),
+    (
+        "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
+        "之后在开始屏幕上点击“打开已保存的扫描…”，即可无需重新扫描继续操作。必须连接同一个驱动器。",
+    ),
+    (
+        "Linux: click \"Restart with administrator rights\" on the start screen and enter your password.",
+        "Linux：在开始屏幕上点击“以管理员权限重新启动”，然后输入密码。",
+    ),
+    ("Long scans", "长时间扫描"),
+    ("Memory cards and USB sticks", "存储卡和 U 盘"),
+    (
+        "On the results page, click \"Save scan…\" to keep the results of a long scan.",
+        "在结果页面点击“保存扫描…”，即可保留长时间扫描的结果。",
+    ),
+    (
+        "SSDs and phones erase deleted files automatically (TRIM), so they are often gone for good.",
+        "SSD 和手机会自动擦除已删除的文件（TRIM），因此它们往往无法找回。",
+    ),
+    (
+        "Search deeper: Recommended first, then \"Formatted drive\", then turn on \"Byte-level deep search\" in Settings.",
+        "更深入地搜索：先用“推荐”，再用“已格式化的驱动器”，然后在设置中打开“字节级深度搜索”。",
+    ),
+    ("Step-by-step guides for the most common situations.", "针对最常见情况的分步指南。"),
+    ("Stop using the card or stick right away, and do not format it.", "立即停止使用该存储卡或 U 盘，也不要格式化它。"),
+    (
+        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "这类文件没有原始名称：会按类型命名，或根据其自身数据命名，例如照片的拍摄日期。",
+    ),
+    (
+        "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
+        "状态显示文件能够打开的可能性。标记为“已覆盖”或“已被驱动器擦除”的文件通常无法恢复。",
+    ),
+    (
+        "Tick the files you want, choose a folder on another drive and click \"Recover\".",
+        "勾选需要的文件，选择另一个驱动器上的文件夹，然后点击“恢复”。",
+    ),
+    (
+        "Use Recommended. If the card was formatted, use \"Formatted drive\".",
+        "使用“推荐”。如果存储卡已被格式化，请使用“已格式化的驱动器”。",
+    ),
+    (
+        "Use the search box and the type and date filters to narrow the list.",
+        "使用搜索框以及类型和日期筛选来缩小列表。",
+    ),
+    ("Why are my files not found?", "为什么找不到我的文件？"),
+    (
+        "Windows asks for administrator rights when the app starts: click Yes. Without them only disk images can be read.",
+        "Windows 会在应用启动时请求管理员权限：请点击“是”。没有该权限只能读取磁盘映像。",
+    ),
+    (
+        "macOS also needs Full Disk Access: click \"Open Full Disk Access settings\", turn on Deleted Files Recovery and click Refresh. After an update, turn it on again.",
+        "macOS 还需要“完全磁盘访问权限”：点击“打开完全磁盘访问权限设置”，打开 Deleted Files Recovery，然后点击“刷新”。每次更新后需重新打开。",
+    ),
+    (
+        "macOS: click \"Allow access to drives\" on the start screen and enter your password.",
+        "macOS：在开始屏幕上点击“允许访问驱动器”，然后输入密码。",
+    ),
+    (
         "Asks GitHub for the latest version when the app starts. Nothing about you or your files is sent.",
         "应用启动时向 GitHub 查询最新版本。不会发送任何关于你或你的文件的信息。",
     ),
@@ -2451,6 +3087,112 @@ pub const TURKISH: &[(&str, &str)] = &[
         "Sürücüleri okumak yönetici hakları gerektirir. Disk görüntüleri bu haklar olmadan da çalışır.",
     ),
     ("Restart with administrator rights", "Yönetici haklarıyla yeniden başlat"),
+    (
+        "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
+        "\"Biçimlendirilmiş sürücü\"yü seçin. Dosyaları, dosya sistemi olmasa bile içeriklerinden bulur.",
+    ),
+    (
+        "Choose how deep to search. Recommended works in most cases.",
+        "Ne kadar derin aranacağını seçin. Çoğu durumda \"Önerilen\" yeterlidir.",
+    ),
+    (
+        "Choose the drive the files were deleted from, or open a disk image.",
+        "Dosyaların silindiği sürücüyü seçin veya bir disk görüntüsü açın.",
+    ),
+    (
+        "Choose what you are looking for, for example Images, or Everything.",
+        "Ne aradığınızı seçin, örneğin \"Resimler\" veya \"Her şey\".",
+    ),
+    (
+        "Click \"Start scan\". The files found so far can be viewed while it runs.",
+        "\"Taramayı başlat\"a tıklayın. Şimdiye kadar bulunan dosyalara tarama sürerken bakabilirsiniz.",
+    ),
+    ("Click a file to preview it before recovering it.", "Kurtarmadan önce önizlemek için bir dosyaya tıklayın."),
+    (
+        "Connect it to the computer. If it does not appear, click Refresh.",
+        "Bilgisayara takın. Görünmezse \"Yenile\"ye tıklayın.",
+    ),
+    (
+        "Drives are only ever read. Nothing is written to the drive you recover from.",
+        "Sürücüler yalnızca okunur. Kurtarma yaptığınız sürücüye hiçbir şey yazılmaz.",
+    ),
+    (
+        "Exact duplicates are hidden, so every file is recovered only once.",
+        "Tamamen aynı kopyalar gizlenir, böylece her dosya yalnızca bir kez kurtarılır.",
+    ),
+    (
+        "Files that new data has been written over cannot come back.",
+        "Üzerine yeni veri yazılmış dosyalar geri getirilemez.",
+    ),
+    ("Finding your files in the results", "Dosyalarınızı sonuçlarda bulma"),
+    ("Formatted or damaged drives", "Biçimlendirilmiş veya hasarlı sürücüler"),
+    ("Getting started", "Başlarken"),
+    ("Giving the app access to drives", "Uygulamaya sürücülere erişim verme"),
+    ("Help", "Yardım"),
+    (
+        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
+        "Sürücü çok yavaşsa veya ses çıkarıyorsa, önce bir disk görüntüsüne kopyalayın (örneğin ddrescue ile) ve görüntüyü tarayın.",
+    ),
+    (
+        "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
+        "Daha sonra, yeniden taramadan devam etmek için başlangıç ekranında \"Kayıtlı taramayı aç…\"a tıklayın. Aynı sürücü takılı olmalıdır.",
+    ),
+    (
+        "Linux: click \"Restart with administrator rights\" on the start screen and enter your password.",
+        "Linux: Başlangıç ekranında \"Yönetici haklarıyla yeniden başlat\"a tıklayın ve parolanızı girin.",
+    ),
+    ("Long scans", "Uzun taramalar"),
+    ("Memory cards and USB sticks", "Hafıza kartları ve USB bellekler"),
+    (
+        "On the results page, click \"Save scan…\" to keep the results of a long scan.",
+        "Uzun bir taramanın sonuçlarını saklamak için sonuçlar sayfasında \"Taramayı kaydet…\"e tıklayın.",
+    ),
+    (
+        "SSDs and phones erase deleted files automatically (TRIM), so they are often gone for good.",
+        "SSD'ler ve telefonlar silinen dosyaları otomatik olarak siler (TRIM), bu yüzden çoğu zaman tamamen kaybolurlar.",
+    ),
+    (
+        "Search deeper: Recommended first, then \"Formatted drive\", then turn on \"Byte-level deep search\" in Settings.",
+        "Daha derin arayın: önce \"Önerilen\", sonra \"Biçimlendirilmiş sürücü\", ardından Ayarlar'da \"Bayt düzeyinde derin arama\"yı açın.",
+    ),
+    ("Step-by-step guides for the most common situations.", "En sık karşılaşılan durumlar için adım adım kılavuzlar."),
+    (
+        "Stop using the card or stick right away, and do not format it.",
+        "Kartı veya belleği hemen kullanmayı bırakın ve biçimlendirmeyin.",
+    ),
+    (
+        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "Bu dosyaların özgün adı yoktur: türlerine göre ya da kendi verilerinden, örneğin bir fotoğrafın çekildiği tarihten adlandırılırlar.",
+    ),
+    (
+        "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
+        "Durum, bir dosyanın açılma olasılığını gösterir. \"Üzerine yazılmış\" veya \"Sürücü tarafından silindi\" olarak işaretli dosyalar genellikle kurtarılamaz.",
+    ),
+    (
+        "Tick the files you want, choose a folder on another drive and click \"Recover\".",
+        "İstediğiniz dosyaları işaretleyin, başka bir sürücüde bir klasör seçin ve \"Kurtar\"a tıklayın.",
+    ),
+    (
+        "Use Recommended. If the card was formatted, use \"Formatted drive\".",
+        "\"Önerilen\"i kullanın. Kart biçimlendirildiyse \"Biçimlendirilmiş sürücü\"yü kullanın.",
+    ),
+    (
+        "Use the search box and the type and date filters to narrow the list.",
+        "Listeyi daraltmak için arama kutusunu ve tür ile tarih filtrelerini kullanın.",
+    ),
+    ("Why are my files not found?", "Dosyalarım neden bulunamıyor?"),
+    (
+        "Windows asks for administrator rights when the app starts: click Yes. Without them only disk images can be read.",
+        "Windows, uygulama başlarken yönetici hakları ister: \"Evet\"e tıklayın. Bu haklar olmadan yalnızca disk görüntüleri okunabilir.",
+    ),
+    (
+        "macOS also needs Full Disk Access: click \"Open Full Disk Access settings\", turn on Deleted Files Recovery and click Refresh. After an update, turn it on again.",
+        "macOS ayrıca Tam Disk Erişimi ister: \"Tam Disk Erişimi ayarlarını aç\"a tıklayın, Deleted Files Recovery'yi açın ve \"Yenile\"ye tıklayın. Her güncellemeden sonra yeniden açın.",
+    ),
+    (
+        "macOS: click \"Allow access to drives\" on the start screen and enter your password.",
+        "macOS: Başlangıç ekranında \"Sürücülere erişime izin ver\"e tıklayın ve parolanızı girin.",
+    ),
     (
         "Asks GitHub for the latest version when the app starts. Nothing about you or your files is sent.",
         "Uygulama başlarken GitHub'a en son sürümü sorar. Sizinle veya dosyalarınızla ilgili hiçbir şey gönderilmez.",

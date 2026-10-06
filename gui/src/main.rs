@@ -5,6 +5,7 @@
 
 mod app;
 mod elevate;
+mod help;
 mod home;
 mod i18n;
 mod jobs;

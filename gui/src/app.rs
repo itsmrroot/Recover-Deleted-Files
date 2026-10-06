@@ -10,6 +10,7 @@ use wdfr::filter::Filter;
 use wdfr::recover::{self, Found, Method, SaveOptions, ScanOptions, Session, Summary};
 
 use crate::elevate;
+use crate::help;
 use crate::home::{self, Home};
 use crate::i18n::{self, tr, trf, trl};
 use crate::jobs::Job;
@@ -28,6 +29,7 @@ enum Page {
     Saving,
     Done,
     Settings,
+    Help,
     About,
 }
 
@@ -483,7 +485,7 @@ impl App {
             Page::Home
         };
         let results_badge = self.results.as_ref().map(Results::listed);
-        let items: [(&str, &str, Page, bool, Option<String>); 4] = [
+        let items: [(&str, &str, Page, bool, Option<String>); 5] = [
             (icon::MAGNIFYING_GLASS, tr("Recover"), flow_target, in_flow, self.busy().then(|| "●".to_string())),
             (
                 icon::LIST_CHECKS,
@@ -493,6 +495,7 @@ impl App {
                 results_badge.map(|n| n.to_string()),
             ),
             (icon::GEAR_SIX, tr("Settings"), Page::Settings, self.page == Page::Settings, None),
+            (icon::QUESTION, tr("Help"), Page::Help, self.page == Page::Help, None),
             (icon::INFO, tr("About"), Page::About, self.page == Page::About, None),
         ];
         for (glyph, label, target, active, badge) in items {
@@ -616,6 +619,7 @@ impl App {
             Page::Settings => {
                 settings::page(ui, p, &mut self.settings);
             }
+            Page::Help => help::page(ui, p),
             Page::About => views::about(ui, p, &self.logo, &mut self.updater),
         }
     }
@@ -897,6 +901,21 @@ impl App {
                     shoot("reopened", ctx, self.tour.as_mut().unwrap())
                 }
                 2 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                _ => {}
+            }
+            return;
+        }
+        // WDFR_TOUR_HELP: the Help page, in WDFR_TOUR_LANG if set.
+        if std::env::var_os("WDFR_TOUR_HELP").is_some() {
+            match step {
+                0 if frames == 1 => {
+                    if let Some(l) = self.tour.as_ref().and_then(|t| t.language) {
+                        self.settings.language = l;
+                    }
+                    self.page = Page::Help;
+                }
+                0 if frames > 20 => shoot("help", ctx, self.tour.as_mut().unwrap()),
+                1 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
                 _ => {}
             }
             return;

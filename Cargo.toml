@@ -1,6 +1,6 @@
 [package]
 name = "wdfr"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2024"
 rust-version = "1.88"
 description = "Recover deleted photos, videos, documents and other files from NTFS, FAT and exFAT volumes, raw disks and disk images"

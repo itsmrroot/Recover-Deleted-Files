@@ -39,7 +39,8 @@
 ### 🖥️ Modern desktop app
 Pick a drive, scan, preview photos, tick the files you want and click
 **Recover**. In English, German, Spanish, French, Turkish, Russian, Arabic and
-Chinese, with light, dark and Midnight themes, accent colours and saved settings.
+Chinese, with Midnight (the default), dark and light themes, accent colours and saved settings.
+A built-in Help page walks through common situations step by step.
 The app tells you when a new version is out and installs it in one click.
 
 </td>
@@ -147,7 +148,7 @@ without scanning again.
 
 **Settings** (saved automatically): language (system / English / Deutsch / Español / Français / Türkçe /
 Русский / العربية / 简体中文), theme
-(system / light / dark / Midnight), accent colour, checking for updates at start, interface size, default
+(Midnight / dark / light / system), accent colour, checking for updates at start, interface size, default
 search mode, minimum file size, whole-drive and byte-level deep search, largest file size, showing whole
 disks, default destination, folder layout (*original folders* or *sorted by type*), restoring original
 dates, the CSV report, opening the folder when done, showing overwritten files — and, clearly marked as
