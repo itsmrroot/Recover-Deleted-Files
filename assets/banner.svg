@@ -32,6 +32,6 @@
     <text x="350" y="184" fill="#cbd5e1" font-size="24">Bring back deleted photos, videos, music and documents.</text>
     <rect x="350" y="214" width="268" height="40" rx="20" fill="url(#accent)"/>
     <text x="484" y="240" fill="#0b1220" font-size="18" font-weight="700" text-anchor="middle">Powered by Bashar Salmo</text>
-    <text x="640" y="240" fill="#94a3b8" font-size="18">NTFS · FAT32 · exFAT · 50 file types</text>
+    <text x="640" y="240" fill="#94a3b8" font-size="18">NTFS · FAT32 · exFAT · 60 file types</text>
   </g>
 </svg>

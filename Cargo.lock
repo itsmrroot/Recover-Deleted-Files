@@ -4271,7 +4271,7 @@ dependencies = [
 
 [[package]]
 name = "wdfr"
-version = "0.3.6"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4293,7 +4293,7 @@ dependencies = [
 
 [[package]]
 name = "wdfr-gui"
-version = "0.3.6"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "chrono",

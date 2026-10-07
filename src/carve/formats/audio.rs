@@ -1,4 +1,5 @@
-//! Audio: MP3 (MPEG audio frames, optional ID3 tags) and Ogg (Vorbis, Opus).
+//! Audio: MP3 (MPEG audio frames, optional ID3 tags), Ogg (Vorbis, Opus)
+//! and FLAC.
 
 use crate::carve::{Category, Format, Hit, Reader};
 
@@ -152,6 +153,144 @@ impl Format for Ogg {
             }
         }
         (pages >= 2).then_some(Hit { len: pos, ext })
+    }
+}
+
+pub struct Flac;
+
+/// CRC-8 (polynomial 0x07) of a FLAC frame header.
+fn crc8(data: &[u8]) -> u8 {
+    data.iter().fold(0u8, |mut c, &b| {
+        c ^= b;
+        for _ in 0..8 {
+            c = if c & 0x80 != 0 { (c << 1) ^ 0x07 } else { c << 1 };
+        }
+        c
+    })
+}
+
+/// One step of the CRC-16 (polynomial 0x8005) that ends every FLAC frame.
+fn crc16_step(c: u16, b: u8) -> u16 {
+    let mut c = c ^ (u16::from(b) << 8);
+    for _ in 0..8 {
+        c = if c & 0x8000 != 0 { (c << 1) ^ 0x8005 } else { c << 1 };
+    }
+    c
+}
+
+/// Parses the frame header at `pos`: its length and the samples per
+/// channel in the frame, or `None` if there is no valid header there.
+fn flac_frame_header(r: &mut Reader, pos: u64) -> Option<(u64, u64)> {
+    let h = r.bytes(pos, 16.min(r.limit().checked_sub(pos)? as usize))?.to_vec();
+    if h.len() < 6 || h[0] != 0xFF || h[1] & 0xFE != 0xF8 {
+        return None;
+    }
+    let (bs_code, sr_code) = (h[2] >> 4, h[2] & 0x0F);
+    let (channels, sample_size) = (h[3] >> 4, (h[3] >> 1) & 7);
+    if bs_code == 0 || sr_code == 15 || channels > 10 || sample_size == 3 || h[3] & 1 != 0 {
+        return None;
+    }
+    // UTF-8 style coded frame or sample number: 1 to 7 bytes.
+    let lead = h[4];
+    let extra = match lead.leading_ones() {
+        0 => 0,
+        n @ 2..=7 => n as usize - 1,
+        _ => return None,
+    };
+    let mut i = 5 + extra;
+    if h.len() < i + 4 || h[5..i].iter().any(|&b| b & 0xC0 != 0x80) {
+        return None;
+    }
+    let block = match bs_code {
+        1 => 192,
+        2..=5 => 576 << (bs_code - 2),
+        6 => {
+            i += 1;
+            u64::from(h[i - 1]) + 1
+        }
+        7 => {
+            i += 2;
+            u64::from(u16::from_be_bytes([h[i - 2], h[i - 1]])) + 1
+        }
+        _ => 256 << (bs_code - 8),
+    };
+    i += match sr_code {
+        12 => 1,
+        13 | 14 => 2,
+        _ => 0,
+    };
+    if h.len() <= i || crc8(&h[..i]) != h[i] {
+        return None;
+    }
+    Some((i as u64 + 1, block))
+}
+
+impl Format for Flac {
+    fn name(&self) -> &'static str {
+        "flac"
+    }
+    fn kinds(&self) -> &'static [(&'static str, Category)] {
+        &[("flac", Category::Audio)]
+    }
+    fn first_bytes(&self) -> &'static [u8] {
+        b"f"
+    }
+    fn max_size(&self) -> u64 {
+        2048 * MIB
+    }
+    fn probe(&self, h: &[u8]) -> bool {
+        // The first metadata block is always the 34-byte STREAMINFO.
+        h.starts_with(b"fLaC") && h.get(4).is_some_and(|b| b & 0x7F == 0) && h.get(5..8) == Some(&[0, 0, 34])
+    }
+
+    /// Skips the metadata blocks, then follows the audio frames: each ends
+    /// where its CRC-16 matches and the next frame header begins, until the
+    /// number of samples given in STREAMINFO is reached.
+    fn measure(&self, r: &mut Reader) -> Option<Hit> {
+        // STREAMINFO (from offset 8): block sizes (2 + 2), frame sizes
+        // (3 + 3), then rate, channels, depth and total samples (64 bits).
+        let max_frame = match u64::from(r.be32(15)? >> 8) {
+            0 => MIB,
+            n => n + 16,
+        };
+        let total = r.be64(18)? & 0xF_FFFF_FFFF;
+        let mut pos = 4u64;
+        for _ in 0..1024 {
+            let header = r.u8(pos)?;
+            pos += 4 + u64::from(r.be32(pos)? & 0xFF_FFFF);
+            if header & 0x80 != 0 {
+                break;
+            }
+        }
+        let mut samples = 0u64;
+        loop {
+            let (_, block) = flac_frame_header(r, pos)?;
+            let last = total > 0 && samples + block >= total;
+            let mut crc = 0u16;
+            let mut end = None;
+            let mut p = pos;
+            while p + 2 <= r.limit() && p - pos <= max_frame {
+                if p - pos >= 8 && r.be16(p)? == crc && (last || flac_frame_header(r, p + 2).is_some()) {
+                    end = Some(p + 2);
+                    break;
+                }
+                crc = crc16_step(crc, r.u8(p)?);
+                p += 1;
+            }
+            match end {
+                Some(e) => {
+                    samples += block;
+                    pos = e;
+                    if last {
+                        return Some(Hit { len: pos, ext: "flac" });
+                    }
+                }
+                // Without a stated length, the stream ends with the last
+                // frame whose end could be confirmed.
+                None if total == 0 && samples > 0 => return Some(Hit { len: pos, ext: "flac" }),
+                None => return None,
+            }
+        }
     }
 }
 

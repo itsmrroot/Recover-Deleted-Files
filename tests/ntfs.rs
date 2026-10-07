@@ -12,6 +12,8 @@ use wdfr::progress::Silent;
 use wdfr::recover;
 use wdfr::source::{MemSource, Source};
 
+mod common;
+
 const SECTOR: usize = 512;
 const CLUSTER: usize = 512;
 const RECORD: usize = 1024;
@@ -173,6 +175,8 @@ impl Rec {
 struct Image {
     d: Vec<u8>,
     bitmap: Vec<u8>,
+    /// Records in the $MFT (a quick format writes a small new one).
+    mft_records: usize,
 }
 
 impl Image {
@@ -189,7 +193,7 @@ impl Image {
         bs[0x40] = 0xF6; // 2^10 = 1024-byte records
         bs[510] = 0x55;
         bs[511] = 0xAA;
-        let mut img = Image { d, bitmap: vec![0u8; TOTAL_CLUSTERS / 8] };
+        let mut img = Image { d, bitmap: vec![0u8; TOTAL_CLUSTERS / 8], mft_records: MFT_RECORDS };
         // Metadata region (boot, MFT, bitmap) is allocated.
         img.allocate(0, BITMAP_LCN + 1);
         img
@@ -206,7 +210,9 @@ impl Image {
         self.d[o..o + data.len()].copy_from_slice(data);
     }
 
-    fn put(&mut self, no: usize, rec: Vec<u8>) {
+    fn put(&mut self, no: usize, mut rec: Vec<u8>) {
+        // Every record carries its own number, as since Windows XP.
+        rec[0x2C..0x30].copy_from_slice(&(no as u32).to_le_bytes());
         let o = MFT_LCN * CLUSTER + no * RECORD;
         self.d[o..o + RECORD].copy_from_slice(&rec);
     }
@@ -216,11 +222,11 @@ impl Image {
     }
 
     fn build_bytes(mut self) -> Vec<u8> {
-        let mft_clusters = (MFT_RECORDS * RECORD / CLUSTER) as u64;
+        let mft_clusters = (self.mft_records * RECORD / CLUSTER) as u64;
         let mft_runs = runlist(&[(Some(MFT_LCN as i64), mft_clusters)]);
         let rec0 = Rec::new(1, IN_USE, 0)
             .file_name(fref(5, 5), "$MFT")
-            .non_resident(0x80, 0, 0, 0, &mft_runs, mft_clusters, (MFT_RECORDS * RECORD) as u64)
+            .non_resident(0x80, 0, 0, 0, &mft_runs, mft_clusters, (self.mft_records * RECORD) as u64)
             .finish();
         self.put(0, rec0);
         let root = Rec::new(5, IN_USE | DIR, 0).file_name(fref(5, 5), ".").finish();
@@ -402,5 +408,171 @@ fn files_from_an_emptied_recycle_bin_get_their_original_names() {
     assert_eq!(f.path, "Users/Ann/Pictures/beach.jpg");
     assert!(f.note.as_deref().unwrap().contains("Recycle Bin"));
     let data = recover::read_item(&session, recover::Item::Fs(&found.fs[0]), 1 << 20).unwrap().unwrap();
+    assert_eq!(data, photo);
+}
+
+/// An NTFS volume with a folder of photos and a note, all still existing.
+fn photo_volume() -> (Image, Vec<u8>, Vec<u8>) {
+    let mut img = Image::new();
+    img.put(30, Rec::new(1, IN_USE | DIR, 0).file_name(fref(5, 5), "Photos").finish());
+    img.put(31, Rec::new(1, IN_USE | DIR, 0).file_name(fref(30, 1), "Holiday").finish());
+    // A JPEG with 2000 more bytes of scan data (no 0xFF), so it spans clusters.
+    let mut photo = common::jpeg();
+    let eoi = photo.split_off(photo.len() - 2);
+    photo.extend(pattern(2000, 5).iter().map(|b| b & 0x7F));
+    photo.extend(eoi);
+    img.write_clusters(200, &photo);
+    let clusters = photo.len().div_ceil(CLUSTER) as u64;
+    img.allocate(200, clusters as usize);
+    let runs = runlist(&[(Some(200), clusters)]);
+    img.put(
+        32,
+        Rec::new(1, IN_USE, 0)
+            .file_name(fref(31, 1), "beach.jpg")
+            .non_resident(0x80, 0, 0, 0, &runs, clusters, photo.len() as u64)
+            .finish(),
+    );
+    let doc = pattern(1500, 11);
+    img.write_clusters(300, &doc);
+    img.allocate(300, 3);
+    let runs = runlist(&[(Some(300), 3)]);
+    img.put(
+        33,
+        Rec::new(1, IN_USE, 0)
+            .file_name(fref(30, 1), "list.dat")
+            .non_resident(0x80, 0, 0, 0, &runs, 3, doc.len() as u64)
+            .finish(),
+    );
+    (img, photo, doc)
+}
+
+fn scan_image(name: &str, bytes: Vec<u8>) -> (recover::Session, recover::Found) {
+    let dir = std::env::temp_dir().join(format!("wdfr-rescue-{}-{name}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("disk.img");
+    std::fs::write(&path, bytes).unwrap();
+    let session = recover::Session::open(path.to_str().unwrap()).unwrap();
+    let opts = recover::ScanOptions {
+        method: recover::Method::All,
+        partition: None,
+        filter: Filter::new(&[], &[], None, 0, None).unwrap(),
+        carve_all_space: false,
+        step: 512,
+        max_carve_size: None,
+    };
+    let found = recover::scan(&session, &opts, &Silent, &AtomicBool::new(false)).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    (session, found)
+}
+
+fn found_file<'a>(found: &'a recover::Found, path: &str) -> (usize, &'a recover::FsFound) {
+    found.fs.iter().enumerate().find(|(_, f)| f.file.path == path).unwrap_or_else(|| {
+        panic!("{path} not found in {:?}", found.fs.iter().map(|f| &f.file.path).collect::<Vec<_>>())
+    })
+}
+
+#[test]
+fn files_come_back_with_their_names_after_a_quick_format() {
+    let (img, photo, doc) = photo_volume();
+    // Quick format: same geometry, a new $MFT of 16 records over the start
+    // of the old one, and a new $Bitmap that only covers the metadata.
+    let old = img.build_bytes();
+    let mut new = Image { d: old, bitmap: vec![0u8; TOTAL_CLUSTERS / 8], mft_records: 16 };
+    new.d[MFT_LCN * CLUSTER..MFT_LCN * CLUSTER + 16 * RECORD].fill(0);
+    new.allocate(0, MFT_LCN + 16 * RECORD / CLUSTER);
+    new.allocate(BITMAP_LCN, 1);
+    let (session, found) = scan_image("quickformat", new.build_bytes());
+
+    let (i, f) = found_file(&found, "Photos/Holiday/beach.jpg");
+    let p = session.partition(f.partition).unwrap();
+    assert_eq!(p.scheme, wdfr::partition::Scheme::Found);
+    assert_eq!(p.start, 0);
+    assert_eq!(f.file.condition, Condition::Recoverable);
+    let data = recover::read_item(&session, recover::Item::Fs(f), 1 << 20).unwrap().unwrap();
+    assert_eq!(data, photo);
+    // The same photo found by its content is a duplicate of this one.
+    assert!(found.duplicates.values().any(|orig| *orig == recover::ItemRef::Fs(i)));
+
+    let (_, f) = found_file(&found, "Photos/list.dat");
+    let data = recover::read_item(&session, recover::Item::Fs(f), 1 << 20).unwrap().unwrap();
+    assert_eq!(data, doc);
+}
+
+/// A disk whose partition table is empty, with `volume` at 1 MiB and its
+/// backup boot sector after it.
+fn disk_with_lost_partition(volume: Vec<u8>, wipe_boot_sector: bool) -> Vec<u8> {
+    const START: usize = 1 << 20;
+    let mut disk = vec![0u8; START];
+    disk[510] = 0x55;
+    disk[511] = 0xAA; // an MBR with no partitions
+    let boot = volume[..SECTOR].to_vec();
+    disk.extend(volume);
+    disk.extend(&boot); // NTFS keeps a copy after the volume's last sector
+    disk.resize(disk.len() + 64 * SECTOR, 0);
+    if wipe_boot_sector {
+        disk[START..START + SECTOR].fill(0);
+    }
+    disk
+}
+
+#[test]
+fn a_deleted_partition_is_found_with_all_its_files() {
+    let (img, photo, _) = photo_volume();
+    let (session, found) = scan_image("lost", disk_with_lost_partition(img.build_bytes(), false));
+    let (_, f) = found_file(&found, "Photos/Holiday/beach.jpg");
+    let p = session.partition(f.partition).unwrap();
+    assert_eq!((p.scheme, p.start, p.fs), (wdfr::partition::Scheme::Found, 1 << 20, Some(FsKind::Ntfs)));
+    assert_eq!(f.file.condition, Condition::Recoverable);
+    let data = recover::read_item(&session, recover::Item::Fs(f), 1 << 20).unwrap().unwrap();
+    assert_eq!(data, photo);
+    // Listed once, not again from its records.
+    assert_eq!(found.fs.iter().filter(|f| f.file.path.ends_with("beach.jpg")).count(), 1);
+}
+
+#[test]
+fn a_lost_partition_without_its_boot_sector_is_found_through_the_backup() {
+    let (img, photo, _) = photo_volume();
+    let (session, found) = scan_image("backup", disk_with_lost_partition(img.build_bytes(), true));
+    let (_, f) = found_file(&found, "Photos/Holiday/beach.jpg");
+    assert_eq!(session.partition(f.partition).unwrap().start, 1 << 20);
+    let data = recover::read_item(&session, recover::Item::Fs(f), 1 << 20).unwrap().unwrap();
+    assert_eq!(data, photo);
+}
+
+#[test]
+fn a_healthy_drive_has_nothing_lost() {
+    let (img, _, _) = photo_volume();
+    let (session, found) = scan_image("healthy", img.build_bytes());
+    assert!(session.found_partitions().is_empty(), "{:?}", session.found_partitions());
+    // Its existing files are not reported as recovered ones.
+    assert!(found.fs.iter().all(|f| !f.file.path.ends_with("beach.jpg")));
+}
+
+#[test]
+fn a_saved_scan_keeps_the_partitions_it_found() {
+    let (img, photo, _) = photo_volume();
+    let dir = std::env::temp_dir().join(format!("wdfr-rescue-saved-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("disk.img");
+    std::fs::write(&path, disk_with_lost_partition(img.build_bytes(), false)).unwrap();
+    let session = recover::Session::open(path.to_str().unwrap()).unwrap();
+    let opts = recover::ScanOptions {
+        method: recover::Method::All,
+        partition: None,
+        filter: Filter::new(&[], &[], None, 0, None).unwrap(),
+        carve_all_space: false,
+        step: 512,
+        max_carve_size: None,
+    };
+    let found = recover::scan(&session, &opts, &Silent, &AtomicBool::new(false)).unwrap();
+    let saved = dir.join("scan.wdfrscan");
+    wdfr::saved::save(&saved, &session, &found).unwrap();
+
+    let reopened = recover::Session::open(path.to_str().unwrap()).unwrap();
+    let again = wdfr::saved::load(&saved).unwrap().into_found(&reopened).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let (_, f) = found_file(&again, "Photos/Holiday/beach.jpg");
+    assert_eq!(reopened.partition(f.partition).unwrap().start, 1 << 20);
+    let data = recover::read_item(&reopened, recover::Item::Fs(f), 1 << 20).unwrap().unwrap();
     assert_eq!(data, photo);
 }

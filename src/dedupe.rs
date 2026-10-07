@@ -65,7 +65,7 @@ impl Content {
                 if !matches!(f.file.condition, Condition::Recoverable | Condition::Partial(_)) {
                     return None;
                 }
-                let start = session.partitions.get(f.partition)?.start;
+                let start = session.partition(f.partition)?.start;
                 let mut left = f.file.size;
                 let mut pieces = Vec::new();
                 match &f.file.data {
@@ -272,10 +272,10 @@ mod tests {
 
     fn session(disk: Vec<u8>) -> Session {
         let len = disk.len() as u64 - PART;
-        Session {
-            disk: Arc::new(MemSource(disk)),
-            path: "test".into(),
-            partitions: vec![Partition {
+        Session::new(
+            Arc::new(MemSource(disk)),
+            "test".into(),
+            vec![Partition {
                 index: 1,
                 start: PART,
                 len,
@@ -284,7 +284,7 @@ mod tests {
                 name: String::new(),
                 fs: None,
             }],
-        }
+        )
     }
 
     fn fs_file(path: &str, offset: u64, size: u64, condition: Condition) -> FsFound {

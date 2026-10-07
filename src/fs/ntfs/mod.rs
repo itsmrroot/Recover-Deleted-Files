@@ -22,7 +22,7 @@ use crate::source::{Source, read_tolerant};
 const ROOT_RECORD: u64 = 5;
 const BITMAP_RECORD: u64 = 6;
 /// Records below this are reserved for metadata files.
-const FIRST_USER_RECORD: u64 = 24;
+pub(crate) const FIRST_USER_RECORD: u64 = 24;
 
 pub struct Ntfs {
     src: Source,
@@ -35,11 +35,11 @@ pub struct Ntfs {
 }
 
 /// What we remember about every record, to rebuild paths.
-struct Node {
-    seq: u16,
-    in_use: bool,
-    parent: u64,
-    name: Box<str>,
+pub(crate) struct Node {
+    pub seq: u16,
+    pub in_use: bool,
+    pub parent: u64,
+    pub name: Box<str>,
 }
 
 impl Ntfs {
@@ -194,37 +194,8 @@ impl Ntfs {
         self.data_from_fragments(frags, fname_size)
     }
 
-    /// Turns the run-list fragments of one stream into extraction data.
     fn data_from_fragments(&self, frags: Vec<NonResident>, fallback_size: u64) -> (FileData, u64, Option<String>) {
-        let fname_size = fallback_size;
-        if frags.is_empty() {
-            return if fname_size == 0 {
-                (FileData::Resident(Vec::new()), 0, None)
-            } else {
-                (FileData::Lost, fname_size, Some("data run list lost".into()))
-            };
-        }
-        let first = frags.iter().find(|f| f.start_vcn == 0).cloned();
-        let size = first.as_ref().map_or(fname_size, |f| f.real_size);
-        let (runs, complete) = merge_fragments(frags);
-        let mut notes = Vec::new();
-        if !complete {
-            notes.push("some data runs missing (zero-filled)");
-        }
-        let (compressed, encrypted, cu) =
-            first.as_ref().map_or((false, false, 4), |f| (f.compressed, f.encrypted, f.compression_unit));
-        if encrypted {
-            notes.push("EFS-encrypted: recovered content is ciphertext");
-        }
-        let extents = runs_to_extents(&runs, self.cluster);
-        let data = if compressed {
-            let cu = if cu == 0 { 4 } else { cu };
-            FileData::Compressed { extents, unit: self.cluster << cu }
-        } else {
-            FileData::Extents(extents)
-        };
-        let note = (!notes.is_empty()).then(|| notes.join("; "));
-        (data, size, note)
+        data_from_fragments(self.cluster, frags, fallback_size)
     }
 
     fn condition(&self, data: &FileData, size: u64, bitmap: Option<&[u8]>) -> Condition {
@@ -271,7 +242,7 @@ impl Volume for Ntfs {
         &self.src
     }
 
-    fn scan_deleted(&self, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
+    fn scan_files(&self, live: bool, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
         let count = self.record_count();
         let rs = self.record_size as usize;
         let per_batch = ((4 << 20) / rs).max(1) as u64;
@@ -302,7 +273,7 @@ impl Volume for Ntfs {
                             parent: f.parent,
                             name: f.name.clone().into_boxed_str(),
                         });
-                        if !rec.in_use() && !rec.is_dir() && no >= FIRST_USER_RECORD {
+                        if (live || !rec.in_use()) && !rec.is_dir() && no >= FIRST_USER_RECORD {
                             candidates.push((no, rec));
                         }
                     }
@@ -326,7 +297,13 @@ impl Volume for Ntfs {
         for (no, rec) in candidates {
             let Some(fname) = rec.file_name.as_ref() else { continue };
             let (data, size, mut note) = self.assemble(&rec, extensions.get(&no));
-            let condition = self.condition(&data, size, bitmap.as_deref());
+            // A file that still exists owns its clusters.
+            let live_file = rec.in_use();
+            let condition = if live_file && !matches!(data, FileData::Lost) {
+                Condition::Recoverable
+            } else {
+                self.condition(&data, size, bitmap.as_deref())
+            };
             if rec.torn {
                 note = Some(match note {
                     Some(n) => format!("{n}; torn MFT record"),
@@ -344,13 +321,15 @@ impl Volume for Ntfs {
                     Data::Resident(v) => (FileData::Resident(v.clone()), v.len() as u64, None),
                     Data::NonResident(nr) => self.data_from_fragments(vec![nr.clone()], 0),
                 };
+                let condition =
+                    if live_file { Condition::Recoverable } else { self.condition(&data, size, bitmap.as_deref()) };
                 out.push(DeletedFile {
                     id: no,
                     path: format!("{path}:{stream}"),
                     size,
                     created,
                     modified,
-                    condition: self.condition(&data, size, bitmap.as_deref()),
+                    condition,
                     note,
                     data,
                 });
@@ -369,8 +348,55 @@ impl Volume for Ntfs {
     }
 }
 
+/// Turns the run-list fragments of one stream into extraction data, for a
+/// volume with `cluster`-byte clusters.
+pub(crate) fn data_from_fragments(
+    cluster: u64,
+    frags: Vec<NonResident>,
+    fallback_size: u64,
+) -> (FileData, u64, Option<String>) {
+    let fname_size = fallback_size;
+    if frags.is_empty() {
+        return if fname_size == 0 {
+            (FileData::Resident(Vec::new()), 0, None)
+        } else {
+            (FileData::Lost, fname_size, Some("data run list lost".into()))
+        };
+    }
+    let first = frags.iter().find(|f| f.start_vcn == 0).cloned();
+    let size = first.as_ref().map_or(fname_size, |f| f.real_size);
+    let (runs, complete) = merge_fragments(frags);
+    let mut notes = Vec::new();
+    if !complete {
+        notes.push("some data runs missing (zero-filled)");
+    }
+    let (compressed, encrypted, cu) =
+        first.as_ref().map_or((false, false, 4), |f| (f.compressed, f.encrypted, f.compression_unit));
+    if encrypted {
+        notes.push("EFS-encrypted: recovered content is ciphertext");
+    }
+    let extents = runs_to_extents(&runs, cluster);
+    let data = if compressed {
+        let cu = if cu == 0 { 4 } else { cu };
+        FileData::Compressed { extents, unit: cluster << cu }
+    } else {
+        FileData::Extents(extents)
+    };
+    let note = (!notes.is_empty()).then(|| notes.join("; "));
+    (data, size, note)
+}
+
 /// Builds the directory path for `parent_ref`, memoised per directory.
 fn dir_path(nodes: &[Option<Node>], parent_ref: u64, cache: &mut HashMap<u64, String>) -> String {
+    dir_path_with(&|no| nodes.get(no as usize).and_then(Option::as_ref), parent_ref, cache)
+}
+
+/// [`dir_path`] with the records looked up by `node`.
+pub(crate) fn dir_path_with<'a>(
+    node: &dyn Fn(u64) -> Option<&'a Node>,
+    parent_ref: u64,
+    cache: &mut HashMap<u64, String>,
+) -> String {
     let mut chain: Vec<(u64, &str)> = Vec::new();
     let mut cur = parent_ref;
     let mut prefix: Option<String> = None;
@@ -385,7 +411,7 @@ fn dir_path(nodes: &[Option<Node>], parent_ref: u64, cache: &mut HashMap<u64, St
             break;
         }
         let seq = ref_seq(cur);
-        match nodes.get(no as usize).and_then(Option::as_ref) {
+        match node(no) {
             Some(n) if seq == 0 || n.seq == seq || (!n.in_use && n.seq == seq.wrapping_add(1)) => {
                 chain.push((cur, &n.name));
                 cur = n.parent;
@@ -408,7 +434,7 @@ fn dir_path(nodes: &[Option<Node>], parent_ref: u64, cache: &mut HashMap<u64, St
 
 /// Orders fragments by VCN and concatenates their runs. Gaps are filled
 /// with sparse runs; the flag reports whether the list was gap-free.
-fn merge_fragments(mut frags: Vec<NonResident>) -> (Vec<Run>, bool) {
+pub(crate) fn merge_fragments(mut frags: Vec<NonResident>) -> (Vec<Run>, bool) {
     frags.sort_by_key(|f| f.start_vcn);
     frags.dedup_by_key(|f| f.start_vcn);
     let mut runs = Vec::new();

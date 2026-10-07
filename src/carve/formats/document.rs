@@ -1,4 +1,5 @@
-//! Documents: PDF and OLE2 compound files (legacy .doc/.xls/.ppt/.msg).
+//! Documents: PDF, OLE2 compound files (legacy .doc/.xls/.ppt/.msg), RTF
+//! and Outlook mailboxes (.pst/.ost).
 //! Office Open XML (.docx etc.) is ZIP-based and handled in `archive`.
 
 use crate::carve::{Category, Format, Hit, Reader};
@@ -195,5 +196,93 @@ impl Format for Ole {
             return None;
         }
         Some(Hit { len, ext: Self::classify(r, ss, &fat) })
+    }
+}
+
+pub struct Rtf;
+
+impl Format for Rtf {
+    fn name(&self) -> &'static str {
+        "rtf"
+    }
+    fn kinds(&self) -> &'static [(&'static str, Category)] {
+        &[("rtf", Category::Document)]
+    }
+    fn first_bytes(&self) -> &'static [u8] {
+        b"{"
+    }
+    fn max_size(&self) -> u64 {
+        256 * MIB
+    }
+    fn probe(&self, h: &[u8]) -> bool {
+        h.starts_with(b"{\\rtf")
+    }
+
+    /// The document is one group: it ends at the brace that closes the
+    /// first one. Escaped braces (`\{`, `\}`) are text.
+    fn measure(&self, r: &mut Reader) -> Option<Hit> {
+        const CHUNK: u64 = 64 << 10;
+        let (mut depth, mut escaped, mut pos) = (0u64, false, 0u64);
+        while pos < r.limit() {
+            let n = (r.limit() - pos).min(CHUNK) as usize;
+            let chunk = r.bytes(pos, n)?;
+            for (i, &b) in chunk.iter().enumerate() {
+                if escaped {
+                    escaped = false;
+                    continue;
+                }
+                match b {
+                    b'\\' => escaped = true,
+                    b'{' => depth += 1,
+                    b'}' => {
+                        depth = depth.checked_sub(1)?;
+                        if depth == 0 {
+                            return Some(Hit { len: pos + i as u64 + 1, ext: "rtf" });
+                        }
+                    }
+                    // RTF is 7-bit text: a zero byte means the file has ended
+                    // without its closing brace.
+                    0 => return None,
+                    _ => {}
+                }
+            }
+            pos += n as u64;
+        }
+        None
+    }
+}
+
+pub struct Pst;
+
+impl Format for Pst {
+    fn name(&self) -> &'static str {
+        "pst"
+    }
+    fn kinds(&self) -> &'static [(&'static str, Category)] {
+        &[("pst", Category::Document), ("ost", Category::Document)]
+    }
+    fn first_bytes(&self) -> &'static [u8] {
+        b"!"
+    }
+    fn max_size(&self) -> u64 {
+        64 * 1024 * MIB
+    }
+    fn probe(&self, h: &[u8]) -> bool {
+        h.starts_with(b"!BDN") && matches!(h.get(8..10), Some(b"SM" | b"SO"))
+    }
+
+    /// The header states the file size: 32-bit in the old ANSI format,
+    /// 64-bit in the Unicode format (Outlook 2003 and later).
+    fn measure(&self, r: &mut Reader) -> Option<Hit> {
+        let version = r.le16(10)?;
+        let len = match version {
+            14 | 15 => u64::from(r.le32(0xA8)?),
+            23.. => r.le64(0xB8)?,
+            _ => return None,
+        };
+        if len < 512 || len > r.limit() {
+            return None;
+        }
+        Some(Hit { len, ext: if r.starts_with(8, b"SO") { "ost" } else { "pst" } })
     }
 }

@@ -28,6 +28,9 @@ enum Page {
     Results,
     Saving,
     Done,
+    /// Copying a drive into an image file.
+    Imaging,
+    Imaged,
     Settings,
     Help,
     About,
@@ -42,6 +45,9 @@ pub struct App {
     scan: Option<(ScanJob, String)>,
     results: Option<Results>,
     save: Option<(Job<Summary>, PathBuf)>,
+    /// Copying a drive: the job, the image file and the drive's name.
+    imaging: Option<(Job<wdfr::imaging::Stats>, PathBuf, String)>,
+    imaged: Option<(wdfr::imaging::Stats, PathBuf)>,
     done: Option<(Summary, PathBuf)>,
     previewer: Previewer,
     logo: egui::TextureHandle,
@@ -110,6 +116,8 @@ impl App {
             scan: None,
             results: None,
             save: None,
+            imaging: None,
+            imaged: None,
             done: None,
             previewer: Previewer::default(),
             logo,
@@ -161,7 +169,27 @@ impl App {
     }
 
     fn busy(&self) -> bool {
-        self.scan.is_some() || self.save.is_some()
+        self.scan.is_some() || self.save.is_some() || self.imaging.is_some()
+    }
+
+    /// Copies the selected drive into the image file `out` (or continues an
+    /// earlier copy into it).
+    fn start_imaging(&mut self, ctx: &egui::Context, out: PathBuf) {
+        let Some(path) = self.home.selected.clone() else { return };
+        if !self.settings.allow_same_volume
+            && let Err(e) = wdfr::output::ensure_not_on_source(&path, &out)
+        {
+            self.error = Some(format!("{}\n\n{e:#}", trl("The drive could not be copied.")));
+            return;
+        }
+        let name = self.home.source_name();
+        let target = out.clone();
+        let job = Job::spawn(ctx, move |progress, cancel| {
+            let src = wdfr::source::DiskSource::open(&path)?;
+            wdfr::imaging::copy(&src, &target, progress, cancel)
+        });
+        self.imaging = Some((job, out, name));
+        self.page = Page::Imaging;
     }
 
     // ------------------------------------------------------------------
@@ -286,10 +314,12 @@ impl App {
     /// Writes the current results to a file chosen by the user.
     fn save_scan(&mut self) {
         let Some(res) = &mut self.results else { return };
-        let stem: String =
-            res.source_name.chars().map(|c| if c.is_alphanumeric() || c == ' ' { c } else { '_' }).collect();
-        let name =
-            format!("{} {}.{}", stem.trim(), chrono::Local::now().format("%Y-%m-%d %H%M"), wdfr::saved::EXTENSION);
+        let name = format!(
+            "{} {}.{}",
+            file_safe(&res.source_name),
+            chrono::Local::now().format("%Y-%m-%d %H%M"),
+            wdfr::saved::EXTENSION
+        );
         let Some(path) = rfd::FileDialog::new()
             .add_filter(trl("Saved scans"), &[wdfr::saved::EXTENSION])
             .set_file_name(name)
@@ -402,6 +432,25 @@ impl App {
                 }
             }
         }
+        if let Some((job, out, _)) = &self.imaging
+            && let Some(result) = job.poll()
+        {
+            let out = out.clone();
+            self.imaging = None;
+            match result {
+                Ok(st) => {
+                    // When running as root, the copy belongs to the real user.
+                    elevate::give_back(&out);
+                    elevate::give_back(&wdfr::imaging::map_path(&out));
+                    self.imaged = Some((st, out));
+                    self.page = Page::Imaged;
+                }
+                Err(e) => {
+                    self.error = Some(format!("{}\n\n{e:#}", trl("The drive could not be copied.")));
+                    self.page = Page::Home;
+                }
+            }
+        }
         if let Some((job, out)) = &self.save
             && let Some(result) = job.poll()
         {
@@ -488,9 +537,12 @@ impl App {
         }
         ui.add_space(22.0);
 
-        let in_flow = matches!(self.page, Page::Home | Page::Scanning | Page::Saving | Page::Done);
+        let in_flow =
+            matches!(self.page, Page::Home | Page::Scanning | Page::Saving | Page::Done | Page::Imaging | Page::Imaged);
         let flow_target = if self.scan.is_some() {
             Page::Scanning
+        } else if self.imaging.is_some() {
+            Page::Imaging
         } else if self.save.is_some() {
             Page::Saving
         } else if self.done.is_some() && self.page == Page::Done {
@@ -552,6 +604,7 @@ impl App {
                 home::Action::Scan => self.start_scan(&ctx, None),
                 home::Action::Elevate => self.start_restart(),
                 home::Action::OpenScan(path) => self.open_saved_scan(&ctx, path),
+                home::Action::CopyToImage(out) => self.start_imaging(&ctx, out),
                 home::Action::None => {}
             },
             Page::Scanning => {
@@ -625,6 +678,39 @@ impl App {
                             self.page = Page::Home;
                         }
                         DoneAction::None => {}
+                    }
+                } else {
+                    self.page = Page::Home;
+                }
+            }
+            Page::Imaging => {
+                if let Some((job, out, name)) = &self.imaging {
+                    let st = job.progress.snapshot();
+                    let subtitle = trf("Copying {name} to {file}", &[("name", name), ("file", &out.display())]);
+                    let info =
+                        views::ProgressInfo {
+                            title: tr("Copying the drive…"), subtitle: &subtitle, show_found: false
+                        };
+                    if views::progress(ui, p, &info, &st, job.started.elapsed(), job.stopping()) {
+                        job.stop();
+                    }
+                } else {
+                    self.page = Page::Home;
+                }
+            }
+            Page::Imaged => {
+                if let Some((st, out)) = &self.imaged {
+                    match views::image_done(ui, p, st, out) {
+                        views::ImageAction::ScanCopy => {
+                            self.home.add_image(out.display().to_string());
+                            self.imaged = None;
+                            self.page = Page::Home;
+                        }
+                        views::ImageAction::Back => {
+                            self.imaged = None;
+                            self.page = Page::Home;
+                        }
+                        views::ImageAction::None => {}
                     }
                 } else {
                     self.page = Page::Home;
@@ -1007,6 +1093,38 @@ impl App {
             }
             return;
         }
+        // WDFR_TOUR_PHASE2: a Recommended scan with checked results, then a
+        // copy of the source into an image.
+        if std::env::var_os("WDFR_TOUR_PHASE2").is_some() {
+            match step {
+                0 if frames == 1 => {
+                    self.home.method = Method::All;
+                    self.home.categories.clear();
+                    self.home.add_image(image.clone());
+                }
+                0 if frames == 30 => self.start_scan(ctx, None),
+                0 if self.page == Page::Results && self.results.as_ref().is_some_and(Results::verified_all) => {
+                    if let Some(r) = &mut self.results {
+                        r.focus_first_image();
+                    }
+                    self.tour.as_mut().unwrap().step = 1;
+                    self.tour.as_mut().unwrap().frames = 0;
+                }
+                1 if frames > 30 && !self.previewer.loading() => {
+                    shoot("phase2-results", ctx, self.tour.as_mut().unwrap())
+                }
+                2 if frames == 1 => {
+                    self.home.selected = Some(image);
+                    self.start_imaging(ctx, dir.join("copy.img"));
+                }
+                2 if self.page == Page::Imaged && frames > 10 => {
+                    shoot("phase2-imaged", ctx, self.tour.as_mut().unwrap())
+                }
+                3 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                _ => {}
+            }
+            return;
+        }
         // WDFR_TOUR_HELP: the Help page, in WDFR_TOUR_LANG if set.
         if std::env::var_os("WDFR_TOUR_HELP").is_some() {
             match step {
@@ -1130,4 +1248,10 @@ impl App {
             _ => {}
         }
     }
+}
+
+/// `name` made safe as a file name ("Kingston USB (E:)" -> "Kingston USB _E__").
+pub fn file_safe(name: &str) -> String {
+    let s: String = name.chars().map(|c| if c.is_alphanumeric() || c == ' ' { c } else { '_' }).collect();
+    s.trim().to_string()
 }

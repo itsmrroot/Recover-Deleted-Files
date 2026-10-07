@@ -49,8 +49,23 @@ pub fn carve(
     ranges: &[ByteRange],
     opts: &CarveOptions,
     cancel: &AtomicBool,
+    on_hit: impl FnMut(&Carved) -> Result<()>,
+    progress: impl FnMut(u64),
+) -> Result<CarveStats> {
+    carve_with_blocks(src, ranges, opts, cancel, on_hit, progress, |_, _| {})
+}
+
+/// [`carve`], also handing every block read to `on_block(offset, bytes)`,
+/// so that other searches can look at the same data without reading the
+/// disk again. Blocks can overlap.
+pub fn carve_with_blocks(
+    src: &dyn ReadAt,
+    ranges: &[ByteRange],
+    opts: &CarveOptions,
+    cancel: &AtomicBool,
     mut on_hit: impl FnMut(&Carved) -> Result<()>,
     mut progress: impl FnMut(u64),
+    mut on_block: impl FnMut(u64, &[u8]),
 ) -> Result<CarveStats> {
     let step = opts.step.max(1);
     let mut stats = CarveStats::default();
@@ -77,6 +92,7 @@ pub fn carve(
             let len = ((range.end - pos) as usize).min(BLOCK);
             let with_head = ((range.end - pos) as usize).min(BLOCK + HEAD_LEN);
             read_tolerant(src, pos, &mut block[..with_head]);
+            on_block(pos, &block[..with_head]);
             let mut off = 0usize;
             while off < len {
                 let cands = &by_first[block[off] as usize];

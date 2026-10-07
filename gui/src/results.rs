@@ -12,11 +12,13 @@ use wdfr::carve::Category;
 use wdfr::fs::Condition;
 use wdfr::recover::{self, Found, Session};
 use wdfr::units::format_size;
+use wdfr::verify::Verdict;
 
 use crate::i18n::{icon_label, tr, trf, trl, trn, visual};
 use crate::jobs::category_slot;
 use crate::preview::{Preview, Previewer};
 use crate::theme::{self, Palette};
+use crate::verifier::Verifier;
 
 /// Identifies a found file: an index into `Found::fs` or `Found::carved`.
 pub type RowRef = recover::ItemRef;
@@ -56,6 +58,8 @@ pub struct Row {
     pub named_from_metadata: bool,
     /// The file this one is identical to ("folder/name"), if any.
     pub duplicate_of: Option<String>,
+    /// Whether the file was checked to open (see `Verifier`).
+    pub verdict: Option<Verdict>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,6 +146,14 @@ pub struct Results {
     sort: (SortCol, bool),
     focus: Option<usize>,
     counts: [usize; 7],
+    /// Checks the files in the background once the scan has finished.
+    verifier: Option<Verifier>,
+    verified: usize,
+    damaged: usize,
+    /// Only files that were checked and open.
+    verified_only: bool,
+    /// Row of each found file.
+    index: std::collections::HashMap<RowRef, usize>,
 }
 
 /// The name of a category slot, in logical order (compose, then `visual`).
@@ -178,7 +190,21 @@ fn status_of(c: Condition) -> Status {
     }
 }
 
-fn status_pill(ui: &mut Ui, p: &Palette, s: Status) {
+fn status_pill(ui: &mut Ui, p: &Palette, s: Status, verdict: Option<Verdict>) {
+    // A file that will not open is not checked: its status says it all.
+    if !s.hidden_by_default() {
+        match verdict {
+            Some(Verdict::Verified) => {
+                theme::pill(ui, p, &icon_label(icon::SEAL_CHECK, "Verified"), p.success);
+                return;
+            }
+            Some(Verdict::Damaged) => {
+                theme::pill(ui, p, tr("May be damaged"), p.warning);
+                return;
+            }
+            _ => {}
+        }
+    }
     match s {
         Status::Good => theme::pill(ui, p, tr("Recoverable"), p.success),
         Status::Partial(n) => theme::pill(ui, p, &trf("Partial · {n}%", &[("n", &n)]), p.warning),
@@ -188,13 +214,15 @@ fn status_pill(ui: &mut Ui, p: &Palette, s: Status) {
     };
 }
 
-fn status_rank(s: Status) -> u8 {
-    match s {
-        Status::Good => 0,
-        Status::Found => 1,
-        Status::Partial(_) => 2,
-        Status::Overwritten => 3,
-        Status::Erased => 4,
+fn status_rank(s: Status, verdict: Option<Verdict>) -> u8 {
+    match (s, verdict) {
+        (Status::Overwritten, _) => 5,
+        (Status::Erased, _) => 6,
+        (_, Some(Verdict::Verified)) => 0,
+        (_, Some(Verdict::Damaged)) => 4,
+        (Status::Good, _) => 1,
+        (Status::Found, _) => 2,
+        (Status::Partial(_), _) => 3,
     }
 }
 
@@ -206,7 +234,7 @@ impl Results {
             let file = &f.file;
             let name = file.name().to_string();
             let folder = file.path.rsplit_once('/').map_or(String::new(), |(d, _)| d.to_string());
-            let p = &session.partitions[f.partition];
+            let start = session.partition(f.partition).map_or(0, |p| p.start);
             rows.push(Row {
                 r: RowRef::Fs(i),
                 name_lower: name.to_lowercase(),
@@ -218,9 +246,10 @@ impl Results {
                 modified: file.modified,
                 status: status_of(file.condition),
                 note: file.note.clone(),
-                offset: file.data_ranges().first().map(|r| p.start + r.start),
+                offset: file.data_ranges().first().map(|r| start + r.start),
                 named_from_metadata: false,
                 duplicate_of: None,
+                verdict: None,
             });
         }
         for (i, c) in found.carved.iter().enumerate() {
@@ -239,6 +268,7 @@ impl Results {
                 offset: Some(c.offset),
                 named_from_metadata: c.title.is_some(),
                 duplicate_of: None,
+                verdict: None,
             });
         }
         // Name each duplicate's original.
@@ -277,7 +307,13 @@ impl Results {
             sort: (SortCol::Status, true),
             focus: None,
             counts: [0; 7],
+            verifier: None,
+            verified: 0,
+            damaged: 0,
+            verified_only: false,
+            index: std::collections::HashMap::new(),
         };
+        res.index = res.rows.iter().enumerate().map(|(i, r)| (r.r, i)).collect();
         let mut years: Vec<i32> = res.rows.iter().filter_map(|r| r.modified.map(|m| m.year())).collect();
         years.sort_unstable_by(|a, b| b.cmp(a));
         years.dedup();
@@ -313,6 +349,7 @@ impl Results {
         new.hide_duplicates = self.hide_duplicates;
         new.sort = self.sort;
         new.focus = self.focus;
+        new.verified_only = self.verified_only;
         new.dirty = true;
         *self = new;
     }
@@ -367,6 +404,7 @@ impl Results {
 
     fn eligible(&self, r: &Row) -> bool {
         self.included(r)
+            && (!self.verified_only || r.verdict == Some(Verdict::Verified))
             && match self.origin {
                 Origin::All => true,
                 Origin::Named => matches!(r.r, RowRef::Fs(_)),
@@ -375,6 +413,7 @@ impl Results {
     }
 
     fn recompute(&mut self) {
+        self.count_verdicts();
         let q = self.query.trim().to_lowercase();
         let mut counts = [0usize; 7];
         let mut view = Vec::new();
@@ -404,7 +443,9 @@ impl Results {
                 SortCol::Name => x.name_lower.cmp(&y.name_lower),
                 SortCol::Size => x.size.cmp(&y.size),
                 SortCol::Modified => x.modified.cmp(&y.modified),
-                SortCol::Status => status_rank(x.status).cmp(&status_rank(y.status)).then(y.size.cmp(&x.size)),
+                SortCol::Status => {
+                    status_rank(x.status, x.verdict).cmp(&status_rank(y.status, y.verdict)).then(y.size.cmp(&x.size))
+                }
                 SortCol::Folder => x.folder.cmp(&y.folder).then(x.name_lower.cmp(&y.name_lower)),
             };
             if asc { o } else { o.reverse() }
@@ -430,7 +471,52 @@ impl Results {
         };
     }
 
+    /// Starts checking the files once the scan has finished, and takes in
+    /// the verdicts reached so far. The order of the list is left alone, so
+    /// that it does not move under the mouse.
+    fn poll_verifier(&mut self, ctx: &egui::Context) {
+        if self.verifier.is_none() && !self.scanning {
+            // Files that will not open need no check.
+            let refs = self.rows.iter().filter(|r| !r.status.hidden_by_default()).map(|r| r.r).collect();
+            self.verifier = Some(Verifier::start(ctx, self.session.clone(), self.found.clone(), refs));
+        }
+        let Some(v) = &self.verifier else { return };
+        let new = v.take_new();
+        if new.is_empty() {
+            return;
+        }
+        for (r, verdict) in new {
+            if let Some(&i) = self.index.get(&r) {
+                self.rows[i].verdict = Some(verdict);
+            }
+        }
+        self.count_verdicts();
+        if self.verified_only {
+            self.dirty = true;
+        }
+    }
+
+    /// Counts the verdicts of the files listed (not of hidden duplicates).
+    fn count_verdicts(&mut self) {
+        let (mut ok, mut bad) = (0, 0);
+        for r in self.rows.iter().filter(|r| self.included(r)) {
+            match r.verdict {
+                Some(Verdict::Verified) => ok += 1,
+                Some(Verdict::Damaged) => bad += 1,
+                _ => {}
+            }
+        }
+        (self.verified, self.damaged) = (ok, bad);
+    }
+
+    /// For the screenshot tour: every file has been checked.
+    #[cfg(debug_assertions)]
+    pub fn verified_all(&self) -> bool {
+        self.verifier.as_ref().is_some_and(Verifier::finished)
+    }
+
     pub fn page(&mut self, ui: &mut Ui, p: &Palette, previewer: &mut Previewer, allow_same_volume: bool) -> Action {
+        self.poll_verifier(ui.ctx());
         if self.dirty {
             self.recompute();
         }
@@ -449,6 +535,26 @@ impl Results {
                     trf("on {name}", &[("name", name)])
                 };
                 ui.label(RichText::new(sub).color(p.weak).size(15.0));
+                if let Some(v) = &self.verifier {
+                    let (done, total) = v.progress();
+                    if !v.finished() {
+                        ui.horizontal(|ui| {
+                            ui.spinner();
+                            let text = trf(
+                                "Checking that files open… {done} of {total}",
+                                &[("done", &done), ("total", &total)],
+                            );
+                            ui.label(RichText::new(text).color(p.weak).size(13.0));
+                        });
+                    } else if self.verified + self.damaged > 0 {
+                        let text = trf(
+                            "{verified} verified · {damaged} may be damaged",
+                            &[("verified", &self.verified), ("damaged", &self.damaged)],
+                        );
+                        let color = if self.verified > 0 { p.success } else { p.warning };
+                        ui.label(RichText::new(format!("{}  {text}", icon::SEAL_CHECK)).color(color).size(13.0));
+                    }
+                }
                 if let Some(saved) = &self.saved_to {
                     ui.label(RichText::new(icon_label(icon::CHECK_CIRCLE, "Scan saved")).color(p.success).size(13.0))
                         .on_hover_text(saved.display().to_string());
@@ -599,6 +705,16 @@ impl Results {
                     self.dirty = true;
                 }
             }
+            if self.verified > 0 {
+                let label = trf("Only verified files ({n})", &[("n", &self.verified)]);
+                if ui
+                    .checkbox(&mut self.verified_only, label)
+                    .on_hover_text(tr("Files that were checked and are complete."))
+                    .changed()
+                {
+                    self.dirty = true;
+                }
+            }
             // Date filter: only offered when the results have dates.
             if !self.years.is_empty() {
                 let before = self.year;
@@ -727,7 +843,7 @@ impl Results {
                             ui.label(RichText::new(t).color(p.weak));
                         });
                     }
-                    row.col(|ui| status_pill(ui, p, r.status));
+                    row.col(|ui| status_pill(ui, p, r.status, r.verdict));
                     if show_location {
                         row.col(|ui| {
                             let t = if matches!(r.r, RowRef::Carved(_)) {
@@ -804,7 +920,7 @@ impl Results {
             let row = &self.rows[i];
             ui.add(egui::Label::new(theme::semibold(&row.name, 15.5).color(p.text)).wrap());
             ui.add_space(4.0);
-            status_pill(ui, p, row.status);
+            status_pill(ui, p, row.status, row.verdict);
             ui.add_space(6.0);
             let explain = match row.status {
                 Status::Good => trl("The space this file used has not been reused. It should open normally."),
@@ -821,6 +937,18 @@ impl Results {
                 Status::Found => trl("Found by its content in free space. The original name is not known."),
             };
             theme::paragraph(ui, explain, 12.5, p.weak);
+            let checked = match row.verdict {
+                _ if row.status.hidden_by_default() => None,
+                Some(Verdict::Verified) => Some(trl("Checked: the file is complete, so it should open.")),
+                Some(Verdict::Damaged) => {
+                    Some(trl("Checked: the file is incomplete or broken. It may not open, or only in part."))
+                }
+                _ => None,
+            };
+            if let Some(text) = checked {
+                ui.add_space(4.0);
+                theme::paragraph(ui, text, 12.5, p.weak);
+            }
             ui.add_space(8.0);
             egui::Grid::new("details").striped(false).num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
                 let mut kv = |k: &str, v: String| {

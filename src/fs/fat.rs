@@ -339,6 +339,27 @@ impl Fat {
         out
     }
 
+    /// A file that still exists: its clusters are those of its FAT chain.
+    fn existing_file(&self, id: u64, path: String, e: &RawEntry) -> DeletedFile {
+        let size = u64::from(e.size);
+        let data = if size == 0 {
+            FileData::Resident(Vec::new())
+        } else {
+            let max = size.div_ceil(self.cluster) as usize;
+            FileData::Extents(self.cluster_extents(&self.chain(e.first_cluster, max)))
+        };
+        DeletedFile {
+            id,
+            path,
+            size,
+            created: e.created,
+            modified: e.modified,
+            condition: Condition::Recoverable,
+            note: None,
+            data,
+        }
+    }
+
     fn cluster_extents(&self, clusters: &[u32]) -> Vec<Extent> {
         let mut ex: Vec<Extent> = Vec::new();
         for &c in clusters {
@@ -391,7 +412,8 @@ impl Volume for Fat {
         &self.src
     }
 
-    fn scan_deleted(&self, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
+    fn scan_files(&self, live: bool, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
+        let mut existing = Vec::new();
         let root = if self.g.kind == FsKind::Fat32 { DirLoc::Chain(self.g.root_cluster) } else { DirLoc::FixedRoot };
         let mut stack = vec![DirTask { loc: root, path: String::new(), deleted: false, parent: 0, own: 0 }];
         let mut visited = HashSet::new();
@@ -430,12 +452,16 @@ impl Volume for Fat {
                 } else if deleted {
                     let start = self.locate_start(&e);
                     pending.push(Pending { id, path, entry: e, start, in_deleted_dir: task.deleted });
+                } else if live {
+                    existing.push(self.existing_file(id, path, &e));
                 }
             }
             dirs_done += 1;
             progress(dirs_done, dirs_done + stack.len() as u64);
         }
-        Ok(self.assign_clusters(pending, &dir_starts))
+        let mut out = self.assign_clusters(pending, &dir_starts);
+        out.extend(existing);
+        Ok(out)
     }
 
     fn free_ranges(&self) -> Result<Vec<ByteRange>> {

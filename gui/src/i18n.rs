@@ -394,6 +394,7 @@ mod tests {
         include_str!("settings.rs"),
         include_str!("theme.rs"),
         include_str!("update.rs"),
+        include_str!("verifier.rs"),
         include_str!("views.rs"),
     ];
 

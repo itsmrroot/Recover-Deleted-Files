@@ -222,7 +222,7 @@ impl Volume for ExFat {
         &self.src
     }
 
-    fn scan_deleted(&self, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
+    fn scan_files(&self, live: bool, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
         let mut stack: Vec<(Option<Alloc>, String, bool)> = vec![(None, String::new(), false)];
         let mut visited = HashSet::new();
         let mut out = Vec::new();
@@ -246,7 +246,7 @@ impl Volume for ExFat {
                     }
                     continue;
                 }
-                if !deleted {
+                if !deleted && !live {
                     continue;
                 }
                 let size = set.alloc.len;
@@ -261,7 +261,8 @@ impl Volume for ExFat {
                     if !exact {
                         note = Some("assumed contiguous".into());
                     }
-                    let c = self.condition(&ex, size);
+                    // A file that still exists owns its clusters.
+                    let c = if deleted { self.condition(&ex, size) } else { Condition::Recoverable };
                     (FileData::Extents(ex), c)
                 };
                 out.push(DeletedFile {

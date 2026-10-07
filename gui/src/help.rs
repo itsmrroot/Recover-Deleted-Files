@@ -59,10 +59,13 @@ fn guides() -> Vec<Guide> {
             steps: vec![
                 trl("Choose \"Formatted drive\". It finds files by their content, even without a file system."),
                 trl(
-                    "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+                    "It also finds deleted partitions, and the old file table of a quick-formatted NTFS drive: those files come back with their names and folders.",
                 ),
                 trl(
-                    "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
+                    "Other files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+                ),
+                trl(
+                    "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
                 ),
             ],
         },
@@ -72,6 +75,9 @@ fn guides() -> Vec<Guide> {
             steps: vec![
                 trl("Use the search box and the type and date filters to narrow the list."),
                 trl("Click a file to preview it before recovering it."),
+                trl(
+                    "Files marked \"Verified\" were checked and are complete, so they should open. \"May be damaged\" means a part is missing or broken.",
+                ),
                 trl(
                     "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
                 ),

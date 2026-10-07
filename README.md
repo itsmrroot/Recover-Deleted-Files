@@ -56,7 +56,7 @@ names, folders and dates.
 <td valign="top">
 
 ### 🔍 Deep search
-Formatted card? Corrupted drive? Files are found by their content in **~50 file
+Formatted card? Corrupted drive? Files are found by their content in **~60 file
 types**, and each is cut at its **exact** length — no broken or bloated files.
 
 </td>
@@ -64,7 +64,9 @@ types**, and each is cut at its **exact** length — no broken or bloated files.
 
 ### 🛡️ Safe by design
 The drive is opened **read-only**, and saving onto the drive you are recovering
-is refused. Bad sectors are skipped, not fatal.
+is refused. Bad sectors are skipped, not fatal. A failing drive can be **copied
+to an image** first — read once, damaged areas last, resumable — and the copy
+scanned instead.
 
 </td>
 </tr>
@@ -102,6 +104,24 @@ and dated, so they can be filtered by year.
 Identical copies are found (confirmed byte by byte) and hidden. Browse and preview
 files **while the scan is still running**, and save a scan to reopen it later
 without scanning again.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🧭 Lost partitions & formatted drives
+The deep search also finds **deleted partitions** and the old file table of a
+**quick-formatted NTFS drive** — those files come back with their **names and
+folders**, not just their content.
+
+</td>
+<td valign="top">
+
+### ✅ Verified before you save
+Every file found is checked in the background: complete files are marked
+**Verified**, files with missing or broken parts **May be damaged** — photos are
+fully decoded. Show only verified files with one click.
 
 </td>
 </tr>
@@ -381,6 +401,11 @@ wdfr recover E: -o D:\Recovered --keep-duplicates
 
 # Machine-readable listing
 wdfr scan E: --json > deleted.json
+
+# A failing drive: copy it once (damaged areas last), then work on the copy.
+# Run the same command again to continue an interrupted copy.
+wdfr image \\.\PhysicalDrive1 D:\drive.img
+wdfr recover D:\drive.img -o D:\Recovered
 ```
 
 On macOS and Linux use the device path with `sudo`, e.g. `sudo wdfr recover /dev/rdisk4 -o ~/Recovered`
@@ -400,6 +425,8 @@ D:\Recovered\
 ├── partition1_NTFS\           files recovered with their names,
 │   ├── Users\bob\Pictures\…   in their original folders
 │   └── $Orphan\…              files whose parent folder no longer exists
+├── found1_NTFS\               a lost partition or the old file table of a formatted
+│   └── Photos\…               drive, found by the deep search: with names and folders
 ├── carved\                    files found by deep search, sorted by type
 │   ├── images\f00001a2b3000.jpg
 │   ├── videos\…
@@ -425,6 +452,15 @@ signatures. Rather than cutting at a fixed size, each format parser walks the fi
 MP4 boxes, ZIP central directory, PDF trailers, … — to find exactly where it ends. Space already restored in stage 1 is
 skipped, so nothing is recovered twice and existing files are left out.
 
+**Also in stage 2 — lost partitions and old file tables.** The same pass looks for boot sectors and NTFS file records
+in the space it reads. A boot sector (or its backup copy) that no current partition starts with is opened as a **lost
+partition**, and all its files are listed with their names. The MFT records a quick format left behind are rebuilt into
+folders; the old volume's start and cluster size are worked out by checking candidate layouts against the files' own
+content (a `.jpg` record must point at JPEG data).
+
+**Then — checked.** Each file found is followed through its own structure from start to end, with the same parsers; photos
+are also decoded. Complete files are marked **Verified**, broken or cut-short ones **May be damaged**.
+
 <details>
 <summary><b>Technical details per file system</b></summary>
 
@@ -444,10 +480,10 @@ with offset consistency checks, OLE2 sector allocation tables, and 7z/RAR header
 
 | | Formats |
 |---|---|
-| 🖼️ **Images** | JPEG · PNG · GIF · BMP · TIFF · HEIC/HEIF · AVIF · WebP · camera RAW (CR2 · CR3 · NEF · ARW · DNG · PEF · SRW) |
+| 🖼️ **Images** | JPEG · PNG · GIF · BMP · TIFF · HEIC/HEIF · AVIF · WebP · Photoshop PSD/PSB · camera RAW (CR2 · CR3 · NEF · ARW · DNG · PEF · SRW · ORF · RW2 · RAF) |
 | 🎬 **Video** | MP4 · MOV · M4V · 3GP · MKV · WebM · AVI · WMV · MTS/M2TS (AVCHD) · TS |
-| 🎵 **Audio** | MP3 · WAV · M4A · WMA · OGG · Opus |
-| 📄 **Documents** | PDF · DOCX · XLSX · PPTX · DOC · XLS · PPT · MSG · ODT · ODS · ODP · EPUB |
+| 🎵 **Audio** | MP3 · WAV · FLAC · M4A · WMA · OGG · Opus |
+| 📄 **Documents** | PDF · DOCX · XLSX · PPTX · DOC · XLS · PPT · RTF · MSG · Outlook PST/OST · ODT · ODS · ODP · EPUB |
 | 🗜️ **Archives** | ZIP · 7z · RAR (v4 & v5) · JAR · APK |
 | 🗄️ **Databases** | SQLite |
 
@@ -455,7 +491,7 @@ Files recovered through the file system (stage 1) can be **any** type — the li
 
 ## ✅ Tested on real data
 
-Besides 40+ unit and integration tests (including the full scan-and-save pipeline) running on Windows, macOS and Linux for every change, `wdfr` was checked against
+Besides 80+ unit and integration tests (including the full scan-and-save pipeline) running on Windows, macOS and Linux for every change, `wdfr` was checked against
 the public [Digital Forensics Tool Testing](https://dftt.sourceforge.net/) images and real volumes:
 
 | Test | Result |
@@ -497,8 +533,19 @@ search have no name left at all; they are named after their position on the disk
 <details>
 <summary><b>The drive makes noises or is very slow.</b></summary>
 
-Copy it to an image file first with [GNU ddrescue](https://www.gnu.org/software/ddrescue/) and run `wdfr` on the image.
-`wdfr` tolerates bad sectors, but every extra read stresses a dying drive.
+Copy it to an image file first, then scan the image: every extra read stresses a dying drive. In the app, select the
+drive and click **Copy to an image…**; on the command line, `wdfr image <drive> <file.img>`. Like
+[GNU ddrescue](https://www.gnu.org/software/ddrescue/) (whose map files it reads and writes), it copies what reads
+easily first, retries damaged areas last, and continues an interrupted copy.
+
+</details>
+
+<details>
+<summary><b>The drive was formatted, or a partition was deleted.</b></summary>
+
+Use **Recommended** or **Formatted drive**. Besides finding files by their content, the deep search finds deleted
+partitions and the old file table of a quick-formatted NTFS drive, so those files come back with their names and
+folders. A full format (which overwrites the drive) or a drive that was used a lot since leaves less behind.
 
 </details>
 

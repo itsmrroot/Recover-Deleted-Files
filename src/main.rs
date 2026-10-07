@@ -118,6 +118,22 @@ enum Command {
         #[arg(short, long)]
         quiet: bool,
     },
+    /// Copy a whole drive into an image file, then scan the image. For
+    /// failing drives: the drive is read once, damaged areas last. Run the
+    /// same command again to continue an interrupted copy.
+    Image {
+        /// Device (E:, \\.\PhysicalDrive1, /dev/disk4, /dev/sdb).
+        source: String,
+        /// Image file to write (a `.map` file next to it records progress).
+        /// Must be on a different drive than the source.
+        output: PathBuf,
+        /// Allow writing to the drive being copied (dangerous).
+        #[arg(long)]
+        allow_same_volume: bool,
+        /// No progress bars.
+        #[arg(short, long)]
+        quiet: bool,
+    },
     /// List the file formats the carver understands.
     Formats,
 }
@@ -192,6 +208,9 @@ fn run(cmd: Command) -> Result<ExitCode> {
     match cmd {
         Command::Devices => cmd_devices(),
         Command::Formats => cmd_formats(),
+        Command::Image { source, output, allow_same_volume, quiet } => {
+            cmd_image(&source, &output, allow_same_volume, quiet)
+        }
         Command::Info { source } => cmd_info(&source),
         Command::Scan { source, partition, filter, recoverable_only, json } => {
             cmd_scan(&source, partition, &filter.build()?, recoverable_only, json)
@@ -347,6 +366,37 @@ fn cmd_scan(
         let ok = files.iter().filter(|f| f.condition.is_recoverable()).count();
         println!("{ok} of {} look recoverable.", files.len());
     }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn cmd_image(source: &str, output: &std::path::Path, allow_same_volume: bool, quiet: bool) -> Result<ExitCode> {
+    let src = wdfr::source::DiskSource::open(source)?;
+    if !allow_same_volume {
+        wdfr::output::ensure_not_on_source(src.path(), output)?;
+    }
+    if !quiet {
+        eprintln!("wdfr {} - {}", env!("CARGO_PKG_VERSION"), menu::POWERED_BY);
+        eprintln!("Copying {} ({}) to {}", src.path(), format_size(wdfr::source::ReadAt::size(&src)), output.display());
+    }
+    CANCEL.store(false, Ordering::SeqCst);
+    BUSY.store(true, Ordering::SeqCst);
+    let st = wdfr::imaging::copy(&src, output, &CliProgress::new(quiet), &CANCEL);
+    BUSY.store(false, Ordering::SeqCst);
+    let st = st?;
+    println!();
+    if st.resumed {
+        println!("Continued an earlier copy.");
+    }
+    println!("Copied:      {} of {}", format_size(st.copied), format_size(st.size));
+    if st.unreadable > 0 {
+        println!("Unreadable:  {} (zeros in the image)", format_size(st.unreadable));
+    }
+    println!("Map:         {}", wdfr::imaging::map_path(output).display());
+    if st.cancelled {
+        println!("Interrupted: run the same command again to continue.");
+        return Ok(ExitCode::from(130));
+    }
+    println!("Now recover from the image: wdfr recover \"{}\" -o <folder>", output.display());
     Ok(ExitCode::SUCCESS)
 }
 

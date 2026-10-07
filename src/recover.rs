@@ -11,8 +11,8 @@
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result};
@@ -24,6 +24,7 @@ use crate::output::{self, Report, ReportRow};
 use crate::partition::{self, Partition};
 use crate::progress::{Progress, Unit};
 use crate::ranges::{self, ByteRange};
+use crate::rescue;
 use crate::source::{DiskSource, ReadAt, Source, read_tolerant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, serde::Serialize, serde::Deserialize)]
@@ -94,7 +95,11 @@ pub struct Summary {
 pub struct Session {
     pub disk: Source,
     pub path: String,
+    /// The partitions in the partition table (or the volume itself).
     pub partitions: Vec<Partition>,
+    /// Partitions and old file tables found by a deep search (see
+    /// [`crate::rescue`]). They are numbered after `partitions`.
+    found: RwLock<Vec<Partition>>,
 }
 
 impl Session {
@@ -103,7 +108,31 @@ impl Session {
         let path = d.path().to_string();
         let disk: Source = Arc::new(d);
         let partitions = partition::discover(&disk);
-        Ok(Self { disk, path, partitions })
+        Ok(Self::new(disk, path, partitions))
+    }
+
+    pub fn new(disk: Source, path: String, partitions: Vec<Partition>) -> Self {
+        Self { disk, path, partitions, found: RwLock::new(Vec::new()) }
+    }
+
+    /// Partition number `i`, from the table or found by a deep search.
+    pub fn partition(&self, i: usize) -> Option<Partition> {
+        match self.partitions.get(i) {
+            Some(p) => Some(p.clone()),
+            None => self.found.read().ok()?.get(i - self.partitions.len()).cloned(),
+        }
+    }
+
+    /// Partitions found by a deep search so far.
+    pub fn found_partitions(&self) -> Vec<Partition> {
+        self.found.read().map(|f| f.clone()).unwrap_or_default()
+    }
+
+    /// Adds a partition found by a deep search and returns its number.
+    pub fn add_found(&self, p: Partition) -> usize {
+        let mut found = self.found.write().unwrap_or_else(|e| e.into_inner());
+        found.push(p);
+        self.partitions.len() + found.len() - 1
     }
 
     pub fn selected(&self, only: Option<usize>) -> Result<Vec<&Partition>> {
@@ -361,8 +390,24 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
         if opts.partition.is_none() {
             free.extend(partition::unpartitioned(session.disk.size(), &session.partitions));
         }
-        let todo = ranges::subtract(&ranges::normalize(free), &ranges::normalize(claimed));
-        found.carved = carve_ranges(session, &todo, opts, progress, cancel)?;
+        let free = ranges::normalize(free);
+        let todo = ranges::subtract(&free, &ranges::normalize(claimed));
+        // Lost partitions and old file tables live in the same space.
+        let mut finder = rescue::Finder::new();
+        found.carved = carve_ranges(session, &todo, opts, progress, cancel, Some(&mut finder))?;
+        if !cancel.load(Ordering::Relaxed) {
+            progress.begin("Rebuilding lost partitions", 0, Unit::Items);
+            for r in finder.finish(session, &free) {
+                let pos = session.add_found(r.partition);
+                for file in r.files.into_iter().filter(|f| opts.filter.matches_file(f)) {
+                    progress.found(file_category(&file));
+                    let f = FsFound { partition: pos, file };
+                    progress.file_found(&f);
+                    found.fs.push(f);
+                }
+            }
+            progress.end();
+        }
     }
     if !cancel.load(Ordering::Relaxed) {
         found.duplicates = crate::dedupe::find(session, &found, progress, cancel);
@@ -377,16 +422,18 @@ fn carve_ranges(
     opts: &ScanOptions,
     progress: &dyn Progress,
     cancel: &AtomicBool,
+    mut finder: Option<&mut rescue::Finder>,
 ) -> Result<Vec<Carved>> {
     let formats: Vec<_> = carve::all_formats().into_iter().filter(|f| opts.filter.wants_format(*f)).collect();
     let mut out = Vec::new();
-    if formats.is_empty() || todo.is_empty() {
+    if (formats.is_empty() && finder.is_none()) || todo.is_empty() {
         return Ok(out);
     }
     progress.begin("Deep search", ranges::total(todo), Unit::Bytes);
     let carve_opts = CarveOptions { formats, step: opts.step, max_size: opts.max_carve_size };
-    let stats = carve::carve(
-        session.disk.as_ref(),
+    let disk = session.disk.as_ref();
+    let stats = carve::carve_with_blocks(
+        disk,
         todo,
         &carve_opts,
         cancel,
@@ -402,6 +449,11 @@ fn carve_ranges(
             Ok(())
         },
         |n| progress.inc(n),
+        |pos, block| {
+            if let Some(f) = finder.as_deref_mut() {
+                f.look(disk, pos, block);
+            }
+        },
     );
     progress.end();
     let stats = stats?;
@@ -423,7 +475,7 @@ pub fn save(
     std::fs::create_dir_all(&opts.out).with_context(|| format!("creating {}", opts.out.display()))?;
     let mut report = if opts.write_report { Some(Report::create(&opts.out)?) } else { None };
     let mut sum = Summary::default();
-    let mut sources: Vec<Option<Source>> = vec![None; session.partitions.len()];
+    let mut sources: HashMap<usize, (Partition, Source)> = HashMap::new();
 
     progress.begin("Recovering files", items.iter().map(Item::size).sum(), Unit::Bytes);
     for item in items {
@@ -433,9 +485,16 @@ pub fn save(
         progress.item(&item.name());
         let result = match item {
             Item::Fs(f) => {
-                let p = &session.partitions[f.partition];
-                let src = sources[f.partition].get_or_insert_with(|| p.source(&session.disk)).clone();
-                save_fs(&src, p, f, opts).map(|(path, st)| {
+                let Some((p, src)) = sources.get(&f.partition).cloned().or_else(|| {
+                    let p = session.partition(f.partition)?;
+                    let src = p.source(&session.disk);
+                    sources.insert(f.partition, (p.clone(), src.clone()));
+                    Some((p, src))
+                }) else {
+                    sum.failures += 1;
+                    continue;
+                };
+                save_fs(&src, &p, f, opts).map(|(path, st)| {
                     sum.fs_files += 1;
                     sum.fs_bytes += st.written;
                     sum.unreadable_bytes += st.unreadable;
@@ -534,8 +593,8 @@ pub fn read_item(session: &Session, item: Item, limit: u64) -> Result<Option<Vec
     let mut out = Vec::with_capacity(item.size() as usize);
     match item {
         Item::Fs(f) => {
-            let src = session.partitions[f.partition].source(&session.disk);
-            fs::extract(src.as_ref(), &f.file, &mut out)?;
+            let p = session.partition(f.partition).context("unknown partition")?;
+            fs::extract(p.source(&session.disk).as_ref(), &f.file, &mut out)?;
         }
         Item::Carved(c) => {
             copy_range(session.disk.as_ref(), c.offset, c.len, &mut out)?;

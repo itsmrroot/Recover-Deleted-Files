@@ -36,6 +36,9 @@ fn task_label(task: &str) -> String {
         "Recovering files" => tr("Recovering files").into(),
         "Checking for duplicates" => tr("Checking for duplicates").into(),
         "Opening saved scan" => tr("Opening saved scan").into(),
+        "Copying the drive" => tr("Copying the drive").into(),
+        "Rebuilding lost partitions" => tr("Looking for lost partitions and old file tables").into(),
+        "Retrying damaged areas" => tr("Retrying damaged areas").into(),
         "Starting..." => tr("Starting…").into(),
         other => other.into(),
     }
@@ -149,6 +152,67 @@ pub fn progress(
         ),
     );
     stop
+}
+
+pub enum ImageAction {
+    None,
+    ScanCopy,
+    Back,
+}
+
+/// After copying a drive into an image file.
+pub fn image_done(ui: &mut Ui, p: &Palette, st: &wdfr::imaging::Stats, out: &Path) -> ImageAction {
+    let mut action = ImageAction::None;
+    theme::card(ui, p, |ui| {
+        ui.set_width(ui.available_width());
+        ui.horizontal(|ui| {
+            let (glyph, color, title) = if st.cancelled {
+                (icon::PAUSE_CIRCLE, p.warning, tr("The copy was stopped"))
+            } else {
+                (icon::CHECK_CIRCLE, p.success, tr("The drive was copied"))
+            };
+            ui.label(RichText::new(glyph).size(30.0).color(color));
+            ui.label(theme::semibold(title, 22.0).color(p.text));
+        });
+        ui.add_space(10.0);
+        let copied = trf(
+            "Copied {copied} of {size} into {file}.",
+            &[("copied", &format_size(st.copied)), ("size", &format_size(st.size)), ("file", &out.display())],
+        );
+        theme::paragraph(ui, &copied, 14.5, p.text);
+        if st.unreadable > 0 {
+            let bad = trf(
+                "{bad} could not be read; those parts are zeros in the copy.",
+                &[("bad", &format_size(st.unreadable))],
+            );
+            theme::paragraph(ui, &bad, 14.5, p.warning);
+        }
+        if st.cancelled {
+            theme::paragraph(
+                ui,
+                trl("To continue where it stopped, copy the drive again into the same file."),
+                14.5,
+                p.weak,
+            );
+        } else {
+            theme::paragraph(
+                ui,
+                trl("Scan the copy now: the drive is not needed any more, so it is not worn out further."),
+                14.5,
+                p.weak,
+            );
+        }
+        ui.add_space(14.0);
+        ui.horizontal(|ui| {
+            if theme::primary_button(ui, p, &icon_label(icon::MAGNIFYING_GLASS, "Scan the copy"), true).clicked() {
+                action = ImageAction::ScanCopy;
+            }
+            if theme::secondary_button(ui, &icon_label(icon::HOUSE, "Back to the start screen")).clicked() {
+                action = ImageAction::Back;
+            }
+        });
+    });
+    action
 }
 
 pub enum DoneAction {

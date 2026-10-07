@@ -19,7 +19,7 @@ use serde::Serialize;
 use crate::ranges::ByteRange;
 use crate::source::{ReadAt, Source, read_tolerant};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub enum FsKind {
     Ntfs,
     Fat12,
@@ -149,7 +149,12 @@ pub trait Volume: Send + Sync {
     fn describe(&self) -> String;
     /// Walks the metadata and returns every deleted file found.
     /// `progress(done, total)` is called periodically.
-    fn scan_deleted(&self, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>>;
+    fn scan_deleted(&self, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
+        self.scan_files(false, progress)
+    }
+    /// Like [`Self::scan_deleted`], and with `live` also the files that
+    /// still exist: all of a lost partition's files are worth recovering.
+    fn scan_files(&self, live: bool, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>>;
     /// Unallocated byte ranges (volume relative) — where deleted data lives.
     fn free_ranges(&self) -> Result<Vec<ByteRange>>;
     /// The underlying volume source (for extraction).

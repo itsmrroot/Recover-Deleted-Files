@@ -15,6 +15,7 @@ mod settings;
 mod theme;
 mod translations;
 mod update;
+mod verifier;
 mod views;
 
 use eframe::egui;

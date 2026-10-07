@@ -51,6 +51,65 @@ pub const GERMAN: &[(&str, &str)] = &[
         "Zum Lesen von Laufwerken sind Administratorrechte nötig. Disk-Images funktionieren auch ohne.",
     ),
     ("Restart with administrator rights", "Mit Administratorrechten neu starten"),
+    ("Back to the start screen", "Zurück zum Startbildschirm"),
+    (
+        "Checked: the file is complete, so it should open.",
+        "Geprüft: Die Datei ist vollständig und sollte sich öffnen lassen.",
+    ),
+    (
+        "Checked: the file is incomplete or broken. It may not open, or only in part.",
+        "Geprüft: Die Datei ist unvollständig oder beschädigt. Sie lässt sich eventuell nicht oder nur teilweise öffnen.",
+    ),
+    ("Checking that files open… {done} of {total}", "Prüfe, ob sich die Dateien öffnen lassen… {done} von {total}"),
+    ("Copied {copied} of {size} into {file}.", "{copied} von {size} nach {file} kopiert."),
+    ("Copy to an image…", "In ein Image kopieren…"),
+    ("Copying the drive", "Laufwerk wird kopiert"),
+    ("Copying the drive…", "Laufwerk wird kopiert…"),
+    ("Copying {name} to {file}", "{name} wird nach {file} kopiert"),
+    (
+        "Files marked \"Verified\" were checked and are complete, so they should open. \"May be damaged\" means a part is missing or broken.",
+        "Als „Geprüft“ markierte Dateien wurden geprüft und sind vollständig, sie sollten sich öffnen lassen. „Möglicherweise beschädigt“ bedeutet, dass ein Teil fehlt oder defekt ist.",
+    ),
+    ("Files that were checked and are complete.", "Dateien, die geprüft wurden und vollständig sind."),
+    (
+        "For failing drives: reads the drive once, damaged areas last, into an image file. Then scan the image instead of the drive.",
+        "Für defekte Laufwerke: liest das Laufwerk nur einmal, beschädigte Bereiche zuletzt, in eine Image-Datei. Scannen Sie danach das Image statt des Laufwerks.",
+    ),
+    (
+        "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
+        "Wenn das Laufwerk sehr langsam ist oder Geräusche macht, wählen Sie es aus und klicken Sie zuerst auf „In ein Image kopieren…“: Das Laufwerk wird nur einmal gelesen, beschädigte Bereiche zuletzt. Scannen Sie dann die Kopie.",
+    ),
+    (
+        "It also finds deleted partitions, and the old file table of a quick-formatted NTFS drive: those files come back with their names and folders.",
+        "Sie findet auch gelöschte Partitionen und die alte Dateitabelle eines schnell formatierten NTFS-Laufwerks: Diese Dateien kommen mit ihren Namen und Ordnern zurück.",
+    ),
+    ("Looking for lost partitions and old file tables", "Suche nach verlorenen Partitionen und alten Dateitabellen"),
+    ("May be damaged", "Möglicherweise beschädigt"),
+    ("Only verified files ({n})", "Nur geprüfte Dateien ({n})"),
+    (
+        "Other files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "Andere Dateien haben keinen ursprünglichen Namen: Sie werden nach Typ benannt oder anhand ihrer eigenen Daten, etwa dem Aufnahmedatum eines Fotos.",
+    ),
+    ("Retrying damaged areas", "Beschädigte Bereiche werden erneut gelesen"),
+    ("Save the copy of the drive", "Kopie des Laufwerks speichern"),
+    ("Scan the copy", "Kopie scannen"),
+    (
+        "Scan the copy now: the drive is not needed any more, so it is not worn out further.",
+        "Scannen Sie jetzt die Kopie: Das Laufwerk wird nicht mehr gebraucht und daher nicht weiter abgenutzt.",
+    ),
+    ("The copy was stopped", "Das Kopieren wurde angehalten"),
+    ("The drive could not be copied.", "Das Laufwerk konnte nicht kopiert werden."),
+    ("The drive was copied", "Das Laufwerk wurde kopiert"),
+    (
+        "To continue where it stopped, copy the drive again into the same file.",
+        "Um dort fortzufahren, wo es aufgehört hat, kopieren Sie das Laufwerk erneut in dieselbe Datei.",
+    ),
+    ("Verified", "Geprüft"),
+    (
+        "{bad} could not be read; those parts are zeros in the copy.",
+        "{bad} konnten nicht gelesen werden; diese Teile sind in der Kopie Nullen.",
+    ),
+    ("{verified} verified · {damaged} may be damaged", "{verified} geprüft · {damaged} möglicherweise beschädigt"),
     (
         "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
         "Wählen Sie „Formatiertes Laufwerk“. Damit werden Dateien anhand ihres Inhalts gefunden, auch ohne Dateisystem.",
@@ -97,10 +156,6 @@ pub const GERMAN: &[(&str, &str)] = &[
     ("Giving the app access to drives", "Der App Zugriff auf Laufwerke geben"),
     ("Help", "Hilfe"),
     (
-        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
-        "Wenn das Laufwerk sehr langsam ist oder Geräusche macht, kopieren Sie es zuerst in ein Disk-Image (zum Beispiel mit ddrescue) und scannen Sie das Image.",
-    ),
-    (
         "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
         "Klicken Sie später auf dem Startbildschirm auf „Gespeicherten Scan öffnen…“, um ohne erneuten Scan weiterzumachen. Dasselbe Laufwerk muss angeschlossen sein.",
     ),
@@ -129,10 +184,6 @@ pub const GERMAN: &[(&str, &str)] = &[
     (
         "Stop using the card or stick right away, and do not format it.",
         "Benutzen Sie die Karte oder den Stick ab sofort nicht mehr und formatieren Sie sie nicht.",
-    ),
-    (
-        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
-        "Solche Dateien haben keinen ursprünglichen Namen: Sie werden nach Typ benannt oder anhand ihrer eigenen Daten, etwa dem Aufnahmedatum eines Fotos.",
     ),
     (
         "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
@@ -575,6 +626,59 @@ pub const ARABIC: &[(&str, &str)] = &[
         "قراءة المحركات تتطلب صلاحيات المسؤول. صور الأقراص تعمل بدونها.",
     ),
     ("Restart with administrator rights", "إعادة التشغيل بصلاحيات المسؤول"),
+    ("Back to the start screen", "العودة إلى شاشة البداية"),
+    ("Checked: the file is complete, so it should open.", "تم التحقق: الملف كامل، لذا يُفترض أن يُفتح."),
+    (
+        "Checked: the file is incomplete or broken. It may not open, or only in part.",
+        "تم التحقق: الملف ناقص أو تالف. قد لا يُفتح، أو يُفتح جزئيًا فقط.",
+    ),
+    ("Checking that files open… {done} of {total}", "جارٍ التحقق من أن الملفات تُفتح… {done} من {total}"),
+    ("Copied {copied} of {size} into {file}.", "تم نسخ {copied} من {size} إلى {file}."),
+    ("Copy to an image…", "نسخ إلى ملف صورة…"),
+    ("Copying the drive", "جارٍ نسخ المحرك"),
+    ("Copying the drive…", "جارٍ نسخ المحرك…"),
+    ("Copying {name} to {file}", "جارٍ نسخ {name} إلى {file}"),
+    (
+        "Files marked \"Verified\" were checked and are complete, so they should open. \"May be damaged\" means a part is missing or broken.",
+        "الملفات المعلَّمة «تم التحقق» فُحصت وهي كاملة، لذا يُفترض أن تُفتح. «قد يكون تالفًا» تعني أن جزءًا منه مفقود أو تالف.",
+    ),
+    ("Files that were checked and are complete.", "ملفات فُحصت وهي كاملة."),
+    (
+        "For failing drives: reads the drive once, damaged areas last, into an image file. Then scan the image instead of the drive.",
+        "للمحركات المعطوبة: يقرأ المحرك مرة واحدة فقط، والمناطق التالفة في النهاية، إلى ملف صورة. ثم افحص الصورة بدلًا من المحرك.",
+    ),
+    (
+        "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
+        "إذا كان المحرك بطيئًا جدًا أو يصدر أصواتًا، فحدّده وانقر أولًا على «نسخ إلى ملف صورة…»: يُقرأ المحرك مرة واحدة فقط، والمناطق التالفة في النهاية. ثم افحص النسخة.",
+    ),
+    (
+        "It also finds deleted partitions, and the old file table of a quick-formatted NTFS drive: those files come back with their names and folders.",
+        "ويجد أيضًا الأقسام المحذوفة وجدول الملفات القديم لمحرك NTFS هُيّئ تهيئة سريعة: تعود هذه الملفات بأسمائها ومجلداتها.",
+    ),
+    ("Looking for lost partitions and old file tables", "البحث عن أقسام مفقودة وجداول ملفات قديمة"),
+    ("May be damaged", "قد يكون تالفًا"),
+    ("Only verified files ({n})", "الملفات التي تم التحقق منها فقط ({n})"),
+    (
+        "Other files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "الملفات الأخرى ليس لها اسمها الأصلي: تُسمّى حسب نوعها، أو من بياناتها الخاصة مثل تاريخ التقاط الصورة.",
+    ),
+    ("Retrying damaged areas", "جارٍ إعادة محاولة قراءة المناطق التالفة"),
+    ("Save the copy of the drive", "حفظ نسخة المحرك"),
+    ("Scan the copy", "فحص النسخة"),
+    (
+        "Scan the copy now: the drive is not needed any more, so it is not worn out further.",
+        "افحص النسخة الآن: لم يعد المحرك مطلوبًا، فلا يتعرض لمزيد من التلف.",
+    ),
+    ("The copy was stopped", "تم إيقاف النسخ"),
+    ("The drive could not be copied.", "تعذّر نسخ المحرك."),
+    ("The drive was copied", "تم نسخ المحرك"),
+    (
+        "To continue where it stopped, copy the drive again into the same file.",
+        "للمتابعة من حيث توقف، انسخ المحرك مرة أخرى إلى الملف نفسه.",
+    ),
+    ("Verified", "تم التحقق"),
+    ("{bad} could not be read; those parts are zeros in the copy.", "تعذّرت قراءة {bad}؛ هذه الأجزاء أصفار في النسخة."),
+    ("{verified} verified · {damaged} may be damaged", "{verified} تم التحقق منها · {damaged} قد تكون تالفة"),
     (
         "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
         "اختر «محرك مُهيّأ». يجد الملفات من محتواها، حتى بدون نظام ملفات.",
@@ -615,10 +719,6 @@ pub const ARABIC: &[(&str, &str)] = &[
     ("Giving the app access to drives", "منح التطبيق الوصول إلى الأقراص"),
     ("Help", "المساعدة"),
     (
-        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
-        "إذا كان المحرك بطيئًا جدًا أو يصدر أصواتًا، انسخه أولًا إلى صورة قرص (مثلًا باستخدام ddrescue) وافحص الصورة.",
-    ),
-    (
         "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
         "لاحقًا، انقر على «فتح فحص محفوظ…» في شاشة البداية للمتابعة دون فحص جديد. يجب أن يكون المحرك نفسه متصلًا.",
     ),
@@ -644,10 +744,6 @@ pub const ARABIC: &[(&str, &str)] = &[
     (
         "Stop using the card or stick right away, and do not format it.",
         "توقف عن استخدام البطاقة أو الذاكرة فورًا، ولا تُهيّئها.",
-    ),
-    (
-        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
-        "ليس لهذه الملفات اسمها الأصلي: تُسمّى حسب نوعها، أو من بياناتها الخاصة مثل تاريخ التقاط الصورة.",
     ),
     (
         "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
@@ -1063,6 +1159,65 @@ pub const SPANISH: &[(&str, &str)] = &[
         "Leer unidades requiere permisos de administrador. Las imágenes de disco funcionan sin ellos.",
     ),
     ("Restart with administrator rights", "Reiniciar con permisos de administrador"),
+    ("Back to the start screen", "Volver a la pantalla de inicio"),
+    (
+        "Checked: the file is complete, so it should open.",
+        "Comprobado: el archivo está completo, así que debería abrirse.",
+    ),
+    (
+        "Checked: the file is incomplete or broken. It may not open, or only in part.",
+        "Comprobado: el archivo está incompleto o dañado. Puede que no se abra, o solo en parte.",
+    ),
+    ("Checking that files open… {done} of {total}", "Comprobando que los archivos se abren… {done} de {total}"),
+    ("Copied {copied} of {size} into {file}.", "Se copiaron {copied} de {size} en {file}."),
+    ("Copy to an image…", "Copiar a una imagen…"),
+    ("Copying the drive", "Copiando la unidad"),
+    ("Copying the drive…", "Copiando la unidad…"),
+    ("Copying {name} to {file}", "Copiando {name} en {file}"),
+    (
+        "Files marked \"Verified\" were checked and are complete, so they should open. \"May be damaged\" means a part is missing or broken.",
+        "Los archivos marcados como «Verificado» se comprobaron y están completos, así que deberían abrirse. «Puede estar dañado» significa que falta o está roto un fragmento.",
+    ),
+    ("Files that were checked and are complete.", "Archivos comprobados y completos."),
+    (
+        "For failing drives: reads the drive once, damaged areas last, into an image file. Then scan the image instead of the drive.",
+        "Para unidades que fallan: lee la unidad una sola vez, las zonas dañadas al final, en un archivo de imagen. Después analice la imagen en lugar de la unidad.",
+    ),
+    (
+        "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
+        "Si la unidad es muy lenta o hace ruidos, selecciónela y haga clic primero en «Copiar a una imagen…»: la unidad se lee una sola vez, las zonas dañadas al final. Después analice la copia.",
+    ),
+    (
+        "It also finds deleted partitions, and the old file table of a quick-formatted NTFS drive: those files come back with their names and folders.",
+        "También encuentra particiones eliminadas y la tabla de archivos antigua de una unidad NTFS con formato rápido: esos archivos vuelven con sus nombres y carpetas.",
+    ),
+    ("Looking for lost partitions and old file tables", "Buscando particiones perdidas y tablas de archivos antiguas"),
+    ("May be damaged", "Puede estar dañado"),
+    ("Only verified files ({n})", "Solo archivos verificados ({n})"),
+    (
+        "Other files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "Los demás archivos no tienen su nombre original: se nombran por tipo o a partir de sus propios datos, como la fecha en que se tomó una foto.",
+    ),
+    ("Retrying damaged areas", "Reintentando las zonas dañadas"),
+    ("Save the copy of the drive", "Guardar la copia de la unidad"),
+    ("Scan the copy", "Analizar la copia"),
+    (
+        "Scan the copy now: the drive is not needed any more, so it is not worn out further.",
+        "Analice la copia ahora: la unidad ya no hace falta, así que no se desgasta más.",
+    ),
+    ("The copy was stopped", "La copia se detuvo"),
+    ("The drive could not be copied.", "No se pudo copiar la unidad."),
+    ("The drive was copied", "La unidad se copió"),
+    (
+        "To continue where it stopped, copy the drive again into the same file.",
+        "Para continuar donde se detuvo, vuelva a copiar la unidad en el mismo archivo.",
+    ),
+    ("Verified", "Verificado"),
+    (
+        "{bad} could not be read; those parts are zeros in the copy.",
+        "No se pudieron leer {bad}; esas partes son ceros en la copia.",
+    ),
+    ("{verified} verified · {damaged} may be damaged", "{verified} verificados · {damaged} pueden estar dañados"),
     (
         "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
         "Elija «Unidad formateada». Encuentra los archivos por su contenido, incluso sin sistema de archivos.",
@@ -1106,10 +1261,6 @@ pub const SPANISH: &[(&str, &str)] = &[
     ("Giving the app access to drives", "Dar a la aplicación acceso a las unidades"),
     ("Help", "Ayuda"),
     (
-        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
-        "Si la unidad es muy lenta o hace ruidos, cópiela primero a una imagen de disco (por ejemplo con ddrescue) y analice la imagen.",
-    ),
-    (
         "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
         "Más tarde, haga clic en «Abrir análisis guardado…» en la pantalla de inicio para continuar sin volver a analizar. La misma unidad debe estar conectada.",
     ),
@@ -1135,10 +1286,6 @@ pub const SPANISH: &[(&str, &str)] = &[
     (
         "Stop using the card or stick right away, and do not format it.",
         "Deje de usar la tarjeta o memoria de inmediato y no la formatee.",
-    ),
-    (
-        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
-        "Estos archivos no tienen su nombre original: se nombran por tipo o a partir de sus propios datos, como la fecha en que se tomó una foto.",
     ),
     (
         "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
@@ -1581,6 +1728,68 @@ pub const FRENCH: &[(&str, &str)] = &[
         "La lecture des disques nécessite des droits d'administrateur. Les images disque fonctionnent sans eux.",
     ),
     ("Restart with administrator rights", "Redémarrer avec les droits d'administrateur"),
+    ("Back to the start screen", "Retour à l'écran d'accueil"),
+    (
+        "Checked: the file is complete, so it should open.",
+        "Vérifié : le fichier est complet, il devrait donc s'ouvrir.",
+    ),
+    (
+        "Checked: the file is incomplete or broken. It may not open, or only in part.",
+        "Vérifié : le fichier est incomplet ou endommagé. Il risque de ne pas s'ouvrir, ou seulement en partie.",
+    ),
+    ("Checking that files open… {done} of {total}", "Vérification de l'ouverture des fichiers… {done} sur {total}"),
+    ("Copied {copied} of {size} into {file}.", "{copied} sur {size} copiés dans {file}."),
+    ("Copy to an image…", "Copier vers une image…"),
+    ("Copying the drive", "Copie du disque"),
+    ("Copying the drive…", "Copie du disque…"),
+    ("Copying {name} to {file}", "Copie de {name} vers {file}"),
+    (
+        "Files marked \"Verified\" were checked and are complete, so they should open. \"May be damaged\" means a part is missing or broken.",
+        "Les fichiers marqués « Vérifié » ont été contrôlés et sont complets : ils devraient s'ouvrir. « Peut-être endommagé » signifie qu'une partie manque ou est abîmée.",
+    ),
+    ("Files that were checked and are complete.", "Fichiers contrôlés et complets."),
+    (
+        "For failing drives: reads the drive once, damaged areas last, into an image file. Then scan the image instead of the drive.",
+        "Pour les disques défaillants : lit le disque une seule fois, les zones endommagées en dernier, dans un fichier image. Analysez ensuite l'image au lieu du disque.",
+    ),
+    (
+        "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
+        "Si le disque est très lent ou fait du bruit, sélectionnez-le et cliquez d'abord sur « Copier vers une image… » : le disque n'est lu qu'une fois, les zones endommagées en dernier. Analysez ensuite la copie.",
+    ),
+    (
+        "It also finds deleted partitions, and the old file table of a quick-formatted NTFS drive: those files come back with their names and folders.",
+        "Elle retrouve aussi les partitions supprimées et l'ancienne table des fichiers d'un disque NTFS formaté rapidement : ces fichiers reviennent avec leurs noms et dossiers.",
+    ),
+    (
+        "Looking for lost partitions and old file tables",
+        "Recherche de partitions perdues et d'anciennes tables de fichiers",
+    ),
+    ("May be damaged", "Peut-être endommagé"),
+    ("Only verified files ({n})", "Fichiers vérifiés uniquement ({n})"),
+    (
+        "Other files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "Les autres fichiers n'ont pas leur nom d'origine : ils sont nommés d'après leur type ou leurs propres données, comme la date de prise d'une photo.",
+    ),
+    ("Retrying damaged areas", "Nouvelle tentative sur les zones endommagées"),
+    ("Save the copy of the drive", "Enregistrer la copie du disque"),
+    ("Scan the copy", "Analyser la copie"),
+    (
+        "Scan the copy now: the drive is not needed any more, so it is not worn out further.",
+        "Analysez la copie maintenant : le disque n'est plus nécessaire, il ne s'use donc pas davantage.",
+    ),
+    ("The copy was stopped", "La copie a été arrêtée"),
+    ("The drive could not be copied.", "Le disque n'a pas pu être copié."),
+    ("The drive was copied", "Le disque a été copié"),
+    (
+        "To continue where it stopped, copy the drive again into the same file.",
+        "Pour reprendre là où elle s'est arrêtée, copiez à nouveau le disque dans le même fichier.",
+    ),
+    ("Verified", "Vérifié"),
+    (
+        "{bad} could not be read; those parts are zeros in the copy.",
+        "{bad} n'ont pas pu être lus ; ces parties sont des zéros dans la copie.",
+    ),
+    ("{verified} verified · {damaged} may be damaged", "{verified} vérifiés · {damaged} peut-être endommagés"),
     (
         "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
         "Choisissez « Disque formaté ». Les fichiers sont retrouvés d'après leur contenu, même sans système de fichiers.",
@@ -1627,10 +1836,6 @@ pub const FRENCH: &[(&str, &str)] = &[
     ("Giving the app access to drives", "Donner à l'application l'accès aux disques"),
     ("Help", "Aide"),
     (
-        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
-        "Si le disque est très lent ou fait du bruit, copiez-le d'abord dans une image disque (par exemple avec ddrescue) et analysez l'image.",
-    ),
-    (
         "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
         "Plus tard, cliquez sur « Ouvrir une analyse enregistrée… » sur l'écran d'accueil pour continuer sans relancer l'analyse. Le même disque doit être branché.",
     ),
@@ -1659,10 +1864,6 @@ pub const FRENCH: &[(&str, &str)] = &[
     (
         "Stop using the card or stick right away, and do not format it.",
         "Cessez immédiatement d'utiliser la carte ou la clé, et ne la formatez pas.",
-    ),
-    (
-        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
-        "Ces fichiers n'ont pas leur nom d'origine : ils sont nommés d'après leur type ou leurs propres données, comme la date de prise d'une photo.",
     ),
     (
         "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
@@ -2108,6 +2309,62 @@ pub const RUSSIAN: &[(&str, &str)] = &[
         "Для чтения дисков нужны права администратора. Образы дисков работают и без них.",
     ),
     ("Restart with administrator rights", "Перезапустить с правами администратора"),
+    ("Back to the start screen", "Вернуться на начальный экран"),
+    ("Checked: the file is complete, so it should open.", "Проверено: файл цел, поэтому должен открыться."),
+    (
+        "Checked: the file is incomplete or broken. It may not open, or only in part.",
+        "Проверено: файл неполный или повреждён. Он может не открыться или открыться лишь частично.",
+    ),
+    ("Checking that files open… {done} of {total}", "Проверка, открываются ли файлы… {done} из {total}"),
+    ("Copied {copied} of {size} into {file}.", "Скопировано {copied} из {size} в {file}."),
+    ("Copy to an image…", "Скопировать в образ…"),
+    ("Copying the drive", "Копирование диска"),
+    ("Copying the drive…", "Копирование диска…"),
+    ("Copying {name} to {file}", "Копирование {name} в {file}"),
+    (
+        "Files marked \"Verified\" were checked and are complete, so they should open. \"May be damaged\" means a part is missing or broken.",
+        "Файлы с пометкой «Проверен» прошли проверку и целы, поэтому должны открыться. «Возможно, повреждён» означает, что часть файла отсутствует или испорчена.",
+    ),
+    ("Files that were checked and are complete.", "Файлы, которые прошли проверку и целы."),
+    (
+        "For failing drives: reads the drive once, damaged areas last, into an image file. Then scan the image instead of the drive.",
+        "Для неисправных дисков: читает диск один раз, повреждённые участки в последнюю очередь, в файл образа. Затем сканируйте образ вместо диска.",
+    ),
+    (
+        "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
+        "Если диск работает очень медленно или издаёт звуки, выберите его и сначала нажмите «Скопировать в образ…»: диск читается только один раз, повреждённые участки в последнюю очередь. Затем сканируйте копию.",
+    ),
+    (
+        "It also finds deleted partitions, and the old file table of a quick-formatted NTFS drive: those files come back with their names and folders.",
+        "Он также находит удалённые разделы и старую таблицу файлов диска NTFS после быстрого форматирования: такие файлы возвращаются со своими именами и папками.",
+    ),
+    ("Looking for lost partitions and old file tables", "Поиск потерянных разделов и старых таблиц файлов"),
+    ("May be damaged", "Возможно, повреждён"),
+    ("Only verified files ({n})", "Только проверенные файлы ({n})"),
+    (
+        "Other files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "У остальных файлов нет исходного имени: они названы по типу или по своим данным, например по дате съёмки фото.",
+    ),
+    ("Retrying damaged areas", "Повторное чтение повреждённых участков"),
+    ("Save the copy of the drive", "Сохранить копию диска"),
+    ("Scan the copy", "Сканировать копию"),
+    (
+        "Scan the copy now: the drive is not needed any more, so it is not worn out further.",
+        "Сканируйте копию сейчас: диск больше не нужен, поэтому он не изнашивается дальше.",
+    ),
+    ("The copy was stopped", "Копирование остановлено"),
+    ("The drive could not be copied.", "Не удалось скопировать диск."),
+    ("The drive was copied", "Диск скопирован"),
+    (
+        "To continue where it stopped, copy the drive again into the same file.",
+        "Чтобы продолжить с места остановки, снова скопируйте диск в тот же файл.",
+    ),
+    ("Verified", "Проверен"),
+    (
+        "{bad} could not be read; those parts are zeros in the copy.",
+        "Не удалось прочитать {bad}; в копии эти части заполнены нулями.",
+    ),
+    ("{verified} verified · {damaged} may be damaged", "{verified} проверено · {damaged} возможно, повреждены"),
     (
         "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
         "Выберите «Отформатированный диск». Файлы находятся по содержимому, даже без файловой системы.",
@@ -2154,10 +2411,6 @@ pub const RUSSIAN: &[(&str, &str)] = &[
     ("Giving the app access to drives", "Доступ приложения к дискам"),
     ("Help", "Справка"),
     (
-        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
-        "Если диск работает очень медленно или издаёт звуки, сначала скопируйте его в образ (например, с помощью ddrescue) и сканируйте образ.",
-    ),
-    (
         "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
         "Позже нажмите «Открыть сохранённое сканирование…» на начальном экране, чтобы продолжить без повторного сканирования. Тот же диск должен быть подключён.",
     ),
@@ -2183,10 +2436,6 @@ pub const RUSSIAN: &[(&str, &str)] = &[
     (
         "Stop using the card or stick right away, and do not format it.",
         "Сразу перестаньте пользоваться картой или флешкой и не форматируйте её.",
-    ),
-    (
-        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
-        "У таких файлов нет исходного имени: они названы по типу или по своим данным, например по дате съёмки фото.",
     ),
     (
         "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
@@ -2623,6 +2872,59 @@ pub const CHINESE: &[(&str, &str)] = &[
         "读取驱动器需要管理员权限。磁盘映像无需管理员权限。",
     ),
     ("Restart with administrator rights", "以管理员权限重新启动"),
+    ("Back to the start screen", "返回开始屏幕"),
+    ("Checked: the file is complete, so it should open.", "已检查：文件完整，应能正常打开。"),
+    (
+        "Checked: the file is incomplete or broken. It may not open, or only in part.",
+        "已检查：文件不完整或已损坏。可能无法打开，或只能部分打开。",
+    ),
+    ("Checking that files open… {done} of {total}", "正在检查文件能否打开… {done} / {total}"),
+    ("Copied {copied} of {size} into {file}.", "已将 {size} 中的 {copied} 复制到 {file}。"),
+    ("Copy to an image…", "复制为映像…"),
+    ("Copying the drive", "正在复制驱动器"),
+    ("Copying the drive…", "正在复制驱动器…"),
+    ("Copying {name} to {file}", "正在将 {name} 复制到 {file}"),
+    (
+        "Files marked \"Verified\" were checked and are complete, so they should open. \"May be damaged\" means a part is missing or broken.",
+        "标记为“已验证”的文件已检查且完整，应能打开。“可能已损坏”表示有部分缺失或损坏。",
+    ),
+    ("Files that were checked and are complete.", "已检查且完整的文件。"),
+    (
+        "For failing drives: reads the drive once, damaged areas last, into an image file. Then scan the image instead of the drive.",
+        "适用于故障驱动器：将驱动器只读取一次（损坏区域最后读取）到映像文件中。之后扫描映像而不是驱动器。",
+    ),
+    (
+        "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
+        "如果驱动器非常慢或发出异响，请先选中它并点击“复制为映像…”：驱动器只会被读取一次，损坏区域最后读取。然后扫描该副本。",
+    ),
+    (
+        "It also finds deleted partitions, and the old file table of a quick-formatted NTFS drive: those files come back with their names and folders.",
+        "它还能找到已删除的分区，以及快速格式化的 NTFS 驱动器的旧文件表：这些文件会带着原来的名称和文件夹恢复。",
+    ),
+    ("Looking for lost partitions and old file tables", "正在查找丢失的分区和旧文件表"),
+    ("May be damaged", "可能已损坏"),
+    ("Only verified files ({n})", "仅已验证的文件（{n}）"),
+    (
+        "Other files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "其他文件没有原始名称：会按类型命名，或根据其自身数据命名，例如照片的拍摄日期。",
+    ),
+    ("Retrying damaged areas", "正在重试损坏的区域"),
+    ("Save the copy of the drive", "保存驱动器副本"),
+    ("Scan the copy", "扫描副本"),
+    (
+        "Scan the copy now: the drive is not needed any more, so it is not worn out further.",
+        "现在就扫描副本：不再需要该驱动器，因此不会进一步磨损。",
+    ),
+    ("The copy was stopped", "复制已停止"),
+    ("The drive could not be copied.", "无法复制驱动器。"),
+    ("The drive was copied", "驱动器已复制"),
+    (
+        "To continue where it stopped, copy the drive again into the same file.",
+        "若要从停止处继续，请再次将驱动器复制到同一个文件。",
+    ),
+    ("Verified", "已验证"),
+    ("{bad} could not be read; those parts are zeros in the copy.", "有 {bad} 无法读取；这些部分在副本中为零。"),
+    ("{verified} verified · {damaged} may be damaged", "{verified} 个已验证 · {damaged} 个可能已损坏"),
     (
         "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
         "选择“已格式化的驱动器”。它按内容查找文件，即使没有文件系统也可以。",
@@ -2657,10 +2959,6 @@ pub const CHINESE: &[(&str, &str)] = &[
     ("Giving the app access to drives", "授予应用访问驱动器的权限"),
     ("Help", "帮助"),
     (
-        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
-        "如果驱动器非常慢或发出异响，请先将其复制为磁盘映像（例如使用 ddrescue），再扫描该映像。",
-    ),
-    (
         "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
         "之后在开始屏幕上点击“打开已保存的扫描…”，即可无需重新扫描继续操作。必须连接同一个驱动器。",
     ),
@@ -2684,10 +2982,6 @@ pub const CHINESE: &[(&str, &str)] = &[
     ),
     ("Step-by-step guides for the most common situations.", "针对最常见情况的分步指南。"),
     ("Stop using the card or stick right away, and do not format it.", "立即停止使用该存储卡或 U 盘，也不要格式化它。"),
-    (
-        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
-        "这类文件没有原始名称：会按类型命名，或根据其自身数据命名，例如照片的拍摄日期。",
-    ),
     (
         "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
         "状态显示文件能够打开的可能性。标记为“已覆盖”或“已被驱动器擦除”的文件通常无法恢复。",
@@ -3087,6 +3381,59 @@ pub const TURKISH: &[(&str, &str)] = &[
         "Sürücüleri okumak yönetici hakları gerektirir. Disk görüntüleri bu haklar olmadan da çalışır.",
     ),
     ("Restart with administrator rights", "Yönetici haklarıyla yeniden başlat"),
+    ("Back to the start screen", "Başlangıç ekranına dön"),
+    ("Checked: the file is complete, so it should open.", "Denetlendi: dosya eksiksiz, bu yüzden açılması gerekir."),
+    (
+        "Checked: the file is incomplete or broken. It may not open, or only in part.",
+        "Denetlendi: dosya eksik veya bozuk. Açılmayabilir ya da yalnızca kısmen açılabilir.",
+    ),
+    ("Checking that files open… {done} of {total}", "Dosyaların açıldığı denetleniyor… {done} / {total}"),
+    ("Copied {copied} of {size} into {file}.", "{size} içinden {copied} {file} dosyasına kopyalandı."),
+    ("Copy to an image…", "Görüntüye kopyala…"),
+    ("Copying the drive", "Sürücü kopyalanıyor"),
+    ("Copying the drive…", "Sürücü kopyalanıyor…"),
+    ("Copying {name} to {file}", "{name}, {file} dosyasına kopyalanıyor"),
+    (
+        "Files marked \"Verified\" were checked and are complete, so they should open. \"May be damaged\" means a part is missing or broken.",
+        "\"Doğrulandı\" olarak işaretli dosyalar denetlendi ve eksiksizdir, açılmaları gerekir. \"Hasarlı olabilir\", bir parçanın eksik veya bozuk olduğu anlamına gelir.",
+    ),
+    ("Files that were checked and are complete.", "Denetlenen ve eksiksiz olan dosyalar."),
+    (
+        "For failing drives: reads the drive once, damaged areas last, into an image file. Then scan the image instead of the drive.",
+        "Arızalı sürücüler için: sürücüyü yalnızca bir kez, hasarlı alanları en sona bırakarak bir görüntü dosyasına okur. Ardından sürücü yerine görüntüyü tarayın.",
+    ),
+    (
+        "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
+        "Sürücü çok yavaşsa veya ses çıkarıyorsa, onu seçin ve önce \"Görüntüye kopyala…\" düğmesine tıklayın: sürücü yalnızca bir kez okunur, hasarlı alanlar en sona kalır. Ardından kopyayı tarayın.",
+    ),
+    (
+        "It also finds deleted partitions, and the old file table of a quick-formatted NTFS drive: those files come back with their names and folders.",
+        "Silinmiş bölümleri ve hızlı biçimlendirilmiş bir NTFS sürücüsünün eski dosya tablosunu da bulur: bu dosyalar adları ve klasörleriyle geri gelir.",
+    ),
+    ("Looking for lost partitions and old file tables", "Kayıp bölümler ve eski dosya tabloları aranıyor"),
+    ("May be damaged", "Hasarlı olabilir"),
+    ("Only verified files ({n})", "Yalnızca doğrulanan dosyalar ({n})"),
+    (
+        "Other files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
+        "Diğer dosyaların özgün adı yoktur: türlerine göre ya da kendi verilerinden, örneğin bir fotoğrafın çekildiği tarihten adlandırılırlar.",
+    ),
+    ("Retrying damaged areas", "Hasarlı alanlar yeniden deneniyor"),
+    ("Save the copy of the drive", "Sürücünün kopyasını kaydet"),
+    ("Scan the copy", "Kopyayı tara"),
+    (
+        "Scan the copy now: the drive is not needed any more, so it is not worn out further.",
+        "Kopyayı şimdi tarayın: sürücüye artık gerek yok, bu yüzden daha fazla yıpranmaz.",
+    ),
+    ("The copy was stopped", "Kopyalama durduruldu"),
+    ("The drive could not be copied.", "Sürücü kopyalanamadı."),
+    ("The drive was copied", "Sürücü kopyalandı"),
+    (
+        "To continue where it stopped, copy the drive again into the same file.",
+        "Kaldığı yerden devam etmek için sürücüyü yeniden aynı dosyaya kopyalayın.",
+    ),
+    ("Verified", "Doğrulandı"),
+    ("{bad} could not be read; those parts are zeros in the copy.", "{bad} okunamadı; bu kısımlar kopyada sıfırdır."),
+    ("{verified} verified · {damaged} may be damaged", "{verified} doğrulandı · {damaged} hasarlı olabilir"),
     (
         "Choose \"Formatted drive\". It finds files by their content, even without a file system.",
         "\"Biçimlendirilmiş sürücü\"yü seçin. Dosyaları, dosya sistemi olmasa bile içeriklerinden bulur.",
@@ -3130,10 +3477,6 @@ pub const TURKISH: &[(&str, &str)] = &[
     ("Giving the app access to drives", "Uygulamaya sürücülere erişim verme"),
     ("Help", "Yardım"),
     (
-        "If the drive is very slow or makes noises, copy it to a disk image first (for example with ddrescue) and scan the image.",
-        "Sürücü çok yavaşsa veya ses çıkarıyorsa, önce bir disk görüntüsüne kopyalayın (örneğin ddrescue ile) ve görüntüyü tarayın.",
-    ),
-    (
         "Later, click \"Open saved scan…\" on the start screen to continue without scanning again. The same drive must be connected.",
         "Daha sonra, yeniden taramadan devam etmek için başlangıç ekranında \"Kayıtlı taramayı aç…\"a tıklayın. Aynı sürücü takılı olmalıdır.",
     ),
@@ -3159,10 +3502,6 @@ pub const TURKISH: &[(&str, &str)] = &[
     (
         "Stop using the card or stick right away, and do not format it.",
         "Kartı veya belleği hemen kullanmayı bırakın ve biçimlendirmeyin.",
-    ),
-    (
-        "Such files have no original name: they are named by type, or from their own data, such as the date a photo was taken.",
-        "Bu dosyaların özgün adı yoktur: türlerine göre ya da kendi verilerinden, örneğin bir fotoğrafın çekildiği tarihten adlandırılırlar.",
     ),
     (
         "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",

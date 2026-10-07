@@ -14,7 +14,8 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::carve::{self, Carved, Category};
-use crate::fs::{Condition, DeletedFile, Extent, FileData};
+use crate::fs::{Condition, DeletedFile, Extent, FileData, FsKind};
+use crate::partition::{Partition, Scheme};
 use crate::recover::{Found, FsFound, ItemRef, Session};
 
 /// File extension of saved scans.
@@ -34,6 +35,18 @@ pub struct SavedScan {
     duplicates: Vec<(ItemRef, ItemRef)>,
     erased_by_drive: bool,
     cancelled: bool,
+    /// Partitions the deep search found (numbered after the table's).
+    #[serde(default)]
+    found_partitions: Vec<SavedPartition>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavedPartition {
+    index: usize,
+    start: u64,
+    len: u64,
+    kind: String,
+    fs: Option<FsKind>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -138,6 +151,11 @@ pub fn save(path: &Path, session: &Session, found: &Found) -> Result<()> {
         duplicates: found.duplicates.iter().map(|(a, b)| (*a, *b)).collect(),
         erased_by_drive: found.erased_by_drive,
         cancelled: found.cancelled,
+        found_partitions: session
+            .found_partitions()
+            .into_iter()
+            .map(|p| SavedPartition { index: p.index, start: p.start, len: p.len, kind: p.kind, fs: p.fs })
+            .collect(),
     };
     // Written next to the target and renamed, so a failure never leaves a
     // half-written file under the chosen name.
@@ -189,7 +207,19 @@ impl SavedScan {
                 date: c.date,
             });
         }
-        let parts = session.partitions.len();
+        for p in self.found_partitions {
+            ensure!(p.start < session.disk.size(), "the saved scan refers to a partition that does not exist");
+            session.add_found(Partition {
+                index: p.index,
+                start: p.start,
+                len: p.len,
+                scheme: Scheme::Found,
+                kind: p.kind,
+                name: String::new(),
+                fs: p.fs,
+            });
+        }
+        let parts = session.partitions.len() + session.found_partitions().len();
         let mut fs = Vec::with_capacity(self.fs.len());
         for f in self.fs {
             ensure!(f.partition < parts, "the saved scan refers to a partition that does not exist");

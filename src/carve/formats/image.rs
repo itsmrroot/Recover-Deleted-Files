@@ -1,4 +1,5 @@
-//! Still images: JPEG, PNG, GIF, BMP, TIFF and TIFF-based camera RAW.
+//! Still images: JPEG, PNG, GIF, BMP, TIFF and TIFF-based camera RAW
+//! (incl. Olympus ORF and Panasonic RW2), Fujifilm RAF and Photoshop PSD.
 
 use std::collections::HashSet;
 
@@ -223,6 +224,8 @@ impl Format for Tiff {
             ("dng", Category::Image),
             ("pef", Category::Image),
             ("srw", Category::Image),
+            ("orf", Category::Image),
+            ("rw2", Category::Image),
         ]
     }
     fn first_bytes(&self) -> &'static [u8] {
@@ -232,12 +235,12 @@ impl Format for Tiff {
         1024 * MIB
     }
     fn probe(&self, h: &[u8]) -> bool {
-        let first = if h.starts_with(b"II*\0") {
-            crate::bytes::le32(h, 4)
-        } else if h.starts_with(b"MM\0*") {
-            crate::bytes::be32(h, 4)
-        } else {
-            None
+        // Olympus ORF ("IIRO", "IIRS", "MMOR") and Panasonic RW2 ("IIU\0")
+        // are TIFF with their own magic number.
+        let first = match h.get(..4) {
+            Some(b"II*\0" | b"IIRO" | b"IIRS" | b"IIU\0") => crate::bytes::le32(h, 4),
+            Some(b"MM\0*" | b"MMOR") => crate::bytes::be32(h, 4),
+            _ => None,
         };
         first.is_some_and(|o| (8..1 << 30).contains(&o))
     }
@@ -252,6 +255,10 @@ impl Format for Tiff {
         let mut make = String::new();
         let mut dng = false;
         let mut ifds = 0;
+        // Panasonic RW2 stores its raw data at RawDataOffset with no length:
+        // the sensor size bounds it.
+        let rw2 = r.starts_with(0, b"IIU\0");
+        let (mut sensor_w, mut sensor_h, mut raw_offset) = (0u64, 0u64, 0u64);
         while let Some(off) = queue.pop() {
             if off < 8 || !visited.insert(off) || ifds >= 64 {
                 continue;
@@ -302,6 +309,9 @@ impl Format for Tiff {
                         }
                     }
                     50706 => dng = true,
+                    2 if rw2 => sensor_w = values(r).first().copied().unwrap_or(0),
+                    3 if rw2 => sensor_h = values(r).first().copied().unwrap_or(0),
+                    280 if rw2 => raw_offset = values(r).first().copied().unwrap_or(0),
                     _ => {}
                 }
             }
@@ -324,11 +334,19 @@ impl Format for Tiff {
                 queue.push(next);
             }
         }
+        if rw2 && raw_offset > 0 && sensor_w > 0 && sensor_h > 0 {
+            // At most 16 bits a pixel; a little extra is harmless.
+            end = end.max(raw_offset + sensor_w * sensor_h * 2);
+        }
         if end > r.limit() {
             return None;
         }
         let ext = if dng {
             "dng"
+        } else if r.starts_with(2, b"RO") || r.starts_with(2, b"RS") || r.starts_with(2, b"OR") {
+            "orf"
+        } else if rw2 {
+            "rw2"
         } else if r.starts_with(8, b"CR") {
             "cr2"
         } else if make.starts_with("NIKON") {
@@ -343,5 +361,109 @@ impl Format for Tiff {
             "tif"
         };
         Some(Hit { len: end, ext })
+    }
+}
+
+pub struct Raf;
+
+impl Format for Raf {
+    fn name(&self) -> &'static str {
+        "raf"
+    }
+    fn kinds(&self) -> &'static [(&'static str, Category)] {
+        &[("raf", Category::Image)]
+    }
+    fn first_bytes(&self) -> &'static [u8] {
+        b"F"
+    }
+    fn max_size(&self) -> u64 {
+        512 * MIB
+    }
+    fn probe(&self, h: &[u8]) -> bool {
+        h.starts_with(b"FUJIFILMCCD-RAW ")
+    }
+
+    /// The header lists (offset, length) of the preview JPEG, the CFA
+    /// header and the CFA (sensor) data: the file ends with the last.
+    fn measure(&self, r: &mut Reader) -> Option<Hit> {
+        let mut end = 0x6Cu64;
+        for at in [0x54u64, 0x5C, 0x64] {
+            let (off, len) = (u64::from(r.be32(at)?), u64::from(r.be32(at + 4)?));
+            if off == 0 || len == 0 {
+                continue;
+            }
+            if off < 0x6C {
+                return None;
+            }
+            end = end.max(off + len);
+        }
+        // The preview JPEG must be where the header says.
+        let jpeg = u64::from(r.be32(0x54)?);
+        if end == 0x6C || !r.starts_with(jpeg, &[0xFF, 0xD8, 0xFF]) || end > r.limit() {
+            return None;
+        }
+        Some(Hit { len: end, ext: "raf" })
+    }
+}
+
+pub struct Psd;
+
+impl Format for Psd {
+    fn name(&self) -> &'static str {
+        "psd"
+    }
+    fn kinds(&self) -> &'static [(&'static str, Category)] {
+        &[("psd", Category::Image), ("psb", Category::Image)]
+    }
+    fn first_bytes(&self) -> &'static [u8] {
+        b"8"
+    }
+    fn max_size(&self) -> u64 {
+        4096 * MIB
+    }
+    fn probe(&self, h: &[u8]) -> bool {
+        use crate::bytes::{be16, be32};
+        h.starts_with(b"8BPS")
+            && matches!(be16(h, 4), Some(1 | 2))
+            && h.get(6..12) == Some(&[0; 6])
+            && be16(h, 12).is_some_and(|c| (1..=56).contains(&c))
+            && be32(h, 14).is_some_and(|v| v > 0)
+            && be32(h, 18).is_some_and(|v| v > 0)
+            && matches!(be16(h, 22), Some(1 | 8 | 16 | 32))
+            && be16(h, 24).is_some_and(|m| m <= 9)
+    }
+
+    /// Header, three length-prefixed sections, then the merged image:
+    /// raw (size from the dimensions) or RLE (a table of row lengths).
+    fn measure(&self, r: &mut Reader) -> Option<Hit> {
+        let psb = r.be16(4)? == 2;
+        let channels = u64::from(r.be16(12)?);
+        let height = u64::from(r.be32(14)?);
+        let width = u64::from(r.be32(18)?);
+        let depth = u64::from(r.be16(22)?);
+        let mut pos = 26u64;
+        pos += 4 + u64::from(r.be32(pos)?); // colour mode data
+        pos += 4 + u64::from(r.be32(pos)?); // image resources
+        pos += if psb { 8 + r.be64(pos)? } else { 4 + u64::from(r.be32(pos)?) }; // layers and masks
+        let compression = r.be16(pos)?;
+        pos += 2;
+        let rows = height.checked_mul(channels)?;
+        match compression {
+            0 => pos += (width * depth).div_ceil(8).checked_mul(rows)?,
+            1 => {
+                let size = if psb { 4 } else { 2 };
+                if rows > 1 << 24 {
+                    return None;
+                }
+                let mut data = 0u64;
+                for i in 0..rows {
+                    data += if psb { u64::from(r.be32(pos + i * 4)?) } else { u64::from(r.be16(pos + i * 2)?) };
+                }
+                pos += rows * size + data;
+            }
+            // ZIP-compressed merged data has no stated length.
+            _ => return None,
+        }
+        (pos <= r.limit()).then_some(Hit { len: pos, ext: if psb { "psb" } else { "psd" } })
     }
 }

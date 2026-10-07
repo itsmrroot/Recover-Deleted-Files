@@ -58,6 +58,8 @@ pub enum Action {
     Elevate,
     /// Open the results of an earlier scan.
     OpenScan(std::path::PathBuf),
+    /// Copy the selected drive into this image file.
+    CopyToImage(std::path::PathBuf),
 }
 
 pub struct Home {
@@ -137,6 +139,25 @@ impl Home {
                     let label = icon_label(icon::MAGNIFYING_GLASS, "Start scan");
                     if theme::primary_button(ui, p, &label, ready).clicked() {
                         action = Action::Scan;
+                    }
+                    // Only drives can be copied; an image already is a copy.
+                    let drive = self.selected.as_ref().filter(|sel| !self.images.contains(sel));
+                    if drive.is_some()
+                        && theme::secondary_button(ui, &icon_label(icon::COPY, "Copy to an image…"))
+                            .on_hover_text(tr(
+                                "For failing drives: reads the drive once, damaged areas last, into an image file. Then scan the image instead of the drive.",
+                            ))
+                            .clicked()
+                    {
+                        let name = format!("{}.img", crate::app::file_safe(&self.source_name()));
+                        if let Some(out) = rfd::FileDialog::new()
+                            .set_title(tr("Save the copy of the drive"))
+                            .set_file_name(name)
+                            .add_filter(trl("Disk images"), &["img"])
+                            .save_file()
+                        {
+                            action = Action::CopyToImage(out);
+                        }
                     }
                     ui.add_space(8.0);
                     let hint = if ready {

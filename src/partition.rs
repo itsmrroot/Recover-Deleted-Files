@@ -10,12 +10,15 @@ use crate::fs::{self, FsKind};
 use crate::ranges::{ByteRange, normalize, subtract};
 use crate::source::{ReadAt, Source, SubSource};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 pub enum Scheme {
     /// The source is itself a volume (e.g. `\\.\C:` or a partition image).
     None,
     Mbr,
     Gpt,
+    /// Not in the partition table: found by a deep search (a deleted
+    /// partition, or the old file table of a formatted one).
+    Found,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -50,6 +53,7 @@ impl Partition {
         let fs = self.fs.map_or_else(|| "unknown".to_string(), |f| f.to_string());
         match self.scheme {
             Scheme::None => format!("volume_{fs}"),
+            Scheme::Found => format!("found{}_{fs}", self.index),
             _ => format!("partition{}_{fs}", self.index),
         }
     }

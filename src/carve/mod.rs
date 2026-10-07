@@ -21,7 +21,7 @@ use std::str::FromStr;
 use serde::Serialize;
 
 pub use reader::Reader;
-pub use scan::{CarveOptions, CarveStats, Carved, carve};
+pub use scan::{CarveOptions, CarveStats, Carved, carve, carve_with_blocks};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, serde::Deserialize, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
@@ -146,7 +146,9 @@ pub fn category_for_ext(ext: &str) -> Option<Category> {
         | "mov" | "mp4" => Video,
         "mp3" | "wav" | "flac" | "ogg" | "opus" | "m4a" | "aac" | "wma" | "aiff" | "aif" | "amr" | "mid" => Audio,
         "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods" | "odp" | "rtf" | "txt" | "csv"
-        | "epub" | "md" | "pages" | "numbers" | "key" | "html" | "xml" | "json" | "msg" | "eml" | "pst" => Document,
+        | "epub" | "md" | "pages" | "numbers" | "key" | "html" | "xml" | "json" | "msg" | "eml" | "pst" | "ost" => {
+            Document
+        }
         "zip" | "7z" | "rar" | "tar" | "gz" | "tgz" | "bz2" | "xz" | "cab" | "iso" | "jar" | "apk" => Archive,
         "sqlite" | "db" | "sqlite3" | "mdb" | "accdb" => Database,
         _ => return None,
