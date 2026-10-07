@@ -156,10 +156,26 @@ pub fn page(ui: &mut Ui, p: &Palette, s: &mut Settings) -> bool {
                 }
             });
             row(ui, p, tr("Interface size"), trl("Make everything larger or smaller."), |ui| {
-                let mut pct = (s.ui_scale * 100.0).round() as i32;
-                if ui.add(egui::Slider::new(&mut pct, 80..=150).step_by(10.0).suffix(" %")).changed() {
-                    s.ui_scale = pct as f32 / 100.0;
+                // Applied when the mouse button is released: resizing the
+                // interface during a drag moves the slider away under the
+                // mouse, which then points at another size, and so on.
+                let held_id = egui::Id::new("interface-size-held");
+                let current = (s.ui_scale * 100.0).round() as i32;
+                let mut pct = ui.data(|d| d.get_temp::<i32>(held_id)).unwrap_or(current);
+                // Wide enough that each of the eight steps is easy to hit.
+                ui.spacing_mut().slider_width = 240.0;
+                let slider = ui.add(egui::Slider::new(&mut pct, 80..=150).step_by(10.0).suffix(" %"));
+                if slider.is_pointer_button_down_on() {
+                    ui.data_mut(|d| d.insert_temp(held_id, pct));
+                } else {
+                    ui.data_mut(|d| d.remove::<i32>(held_id));
+                    if pct != current {
+                        s.ui_scale = pct as f32 / 100.0;
+                    }
                 }
+                // For the interface-size test in the screenshot tour.
+                #[cfg(debug_assertions)]
+                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("tour-size-control"), slider.rect));
             });
         });
         ui.add_space(14.0);

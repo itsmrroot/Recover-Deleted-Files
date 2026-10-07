@@ -79,6 +79,8 @@ impl App {
         elevate::announce_ready();
         let lang = i18n::set_language(settings.language);
         theme::install_fonts(&cc.egui_ctx, lang);
+        // Zoom shortcuts are handled as changes of the interface size setting.
+        cc.egui_ctx.options_mut(|o| o.zoom_with_keyboard = false);
         let logo = {
             let img = image::load_from_memory(include_bytes!("../assets/icon.png")).map(|i| i.to_rgba8());
             let color = match img {
@@ -123,6 +125,18 @@ impl App {
     }
 
     fn apply_settings(&mut self, ctx: &egui::Context) {
+        // Ctrl/Cmd with +, - and 0 change the interface size too, in the same
+        // steps and range as the Settings page (egui's own zoom keys are off).
+        use egui::gui_zoom::kb_shortcuts as keys;
+        let pressed = |k| ctx.input_mut(|i| i.consume_shortcut(&k));
+        let scale = &mut self.settings.ui_scale;
+        if pressed(keys::ZOOM_RESET) {
+            *scale = 1.0;
+        } else if pressed(keys::ZOOM_IN) || pressed(keys::ZOOM_IN_SECONDARY) {
+            *scale = ((*scale * 10.0).round() / 10.0 + 0.1).min(1.5);
+        } else if pressed(keys::ZOOM_OUT) {
+            *scale = ((*scale * 10.0).round() / 10.0 - 0.1).max(0.8);
+        }
         let want = (self.settings.accent, self.settings.ui_scale, self.settings.theme);
         if self.applied != Some(want) {
             let midnight = self.settings.theme == settings::ThemeChoice::Midnight;
@@ -656,6 +670,12 @@ impl App {
 }
 
 impl eframe::App for App {
+    /// The screenshot tour can move the mouse like a person would.
+    #[cfg(debug_assertions)]
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        self.tour_mouse(ctx, raw_input);
+    }
+
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.fit_to_screen(&ctx);
@@ -815,6 +835,10 @@ mod tour {
         pub frames: u32,
         pub waiting_for_shot: Option<&'static str>,
         pub language: Option<crate::i18n::Language>,
+        /// WDFR_TOUR_SIZE_DRAG: the simulated mouse, in physical pixels,
+        /// and how many frames it has been held down.
+        pub drag: Option<(eframe::egui::Pos2, u32)>,
+        pub log: Vec<String>,
     }
 
     impl Tour {
@@ -833,13 +857,59 @@ mod tour {
                 Ok("tr") => Some(crate::i18n::Language::Turkish),
                 _ => None,
             };
-            Some(Self { dir, image, step: 0, frames: 0, waiting_for_shot: None, language })
+            Some(Self { dir, image, step: 0, frames: 0, waiting_for_shot: None, language, drag: None, log: Vec::new() })
         }
     }
 }
 
 #[cfg(debug_assertions)]
 impl App {
+    /// Feeds the simulated mouse of WDFR_TOUR_SIZE_DRAG into egui: pressed,
+    /// moved 4 physical pixels to the right per frame for 40 frames, then
+    /// released; then Cmd/Ctrl - twice and + once.
+    fn tour_mouse(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        let zoom = ctx.zoom_factor();
+        let value = self.settings.ui_scale;
+        let Some(t) = self.tour.as_mut() else { return };
+        let Some((physical, n)) = t.drag.as_mut() else { return };
+        let pos = *physical / zoom;
+        let button = |pressed| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        if *n <= 41 {
+            raw_input.events.push(egui::Event::PointerMoved(pos));
+        }
+        let key = |key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::COMMAND,
+        };
+        match *n {
+            0 => raw_input.events.push(button(true)),
+            41 => raw_input.events.push(button(false)),
+            // Then the keyboard: smaller twice, larger once.
+            56 | 60 => raw_input.events.push(key(egui::Key::Minus)),
+            64 => raw_input.events.push(key(egui::Key::Plus)),
+            _ => {}
+        }
+        t.log.push(format!(
+            "frame {n:2}: mouse at {:.0} px = {:.0} pt, zoom {zoom:.2}, setting {:.0} %",
+            physical.x,
+            pos.x,
+            value * 100.0
+        ));
+        *n += 1;
+        physical.x += 4.0;
+        if *n > 68 {
+            t.drag = None;
+        }
+    }
+
     fn run_tour(&mut self, ctx: &egui::Context) {
         let Some(t) = self.tour.as_mut() else { return };
         ctx.request_repaint();
@@ -901,6 +971,38 @@ impl App {
                     shoot("reopened", ctx, self.tour.as_mut().unwrap())
                 }
                 2 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                _ => {}
+            }
+            return;
+        }
+        // WDFR_TOUR_SIZE_DRAG: drag the interface size control to the right
+        // as a hand would (steady in physical pixels) and log what happens.
+        if std::env::var_os("WDFR_TOUR_SIZE_DRAG").is_some() {
+            match step {
+                0 if frames == 1 => {
+                    self.settings.ui_scale = 1.0;
+                    self.page = Page::Settings;
+                }
+                0 if frames > 20 => {
+                    let rect = ctx.data(|d| d.get_temp::<egui::Rect>(egui::Id::new("tour-size-control")));
+                    if let Some(rect) = rect {
+                        // The number box comes first: press on the rail,
+                        // about where 100 % is.
+                        let x = rect.right() - 240.0 + 240.0 * 0.3;
+                        let t = self.tour.as_mut().unwrap();
+                        t.drag = Some((egui::pos2(x, rect.center().y) * ctx.zoom_factor(), 0));
+                        t.log.push(format!("control at {rect:?}"));
+                        (t.step, t.frames) = (1, 0);
+                    }
+                }
+                1 if self.tour.as_ref().unwrap().drag.is_none() && frames > 20 => {
+                    shoot("size-after-drag", ctx, self.tour.as_mut().unwrap())
+                }
+                2 => {
+                    let t = self.tour.as_ref().unwrap();
+                    let _ = std::fs::write(t.dir.join("size-drag.log"), t.log.join("\n"));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
                 _ => {}
             }
             return;
