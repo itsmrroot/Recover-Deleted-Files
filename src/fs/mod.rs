@@ -4,8 +4,11 @@
 //! describes where their data lived as a list of [`Extent`]s. Extraction is
 //! shared and lives here.
 
+pub mod apfs;
 pub mod exfat;
+pub mod ext;
 pub mod fat;
+pub mod hfsplus;
 pub mod ntfs;
 pub mod recycle;
 
@@ -26,6 +29,12 @@ pub enum FsKind {
     Fat16,
     Fat32,
     ExFat,
+    /// ext2, ext3 or ext4 (Linux).
+    Ext,
+    /// HFS+ / HFSX (Mac OS Extended).
+    HfsPlus,
+    /// APFS container (Apple File System).
+    Apfs,
 }
 
 impl fmt::Display for FsKind {
@@ -36,6 +45,9 @@ impl fmt::Display for FsKind {
             FsKind::Fat16 => "FAT16",
             FsKind::Fat32 => "FAT32",
             FsKind::ExFat => "exFAT",
+            FsKind::Ext => "ext",
+            FsKind::HfsPlus => "HFS+",
+            FsKind::Apfs => "APFS",
         })
     }
 }
@@ -159,6 +171,8 @@ pub trait Volume: Send + Sync {
     fn free_ranges(&self) -> Result<Vec<ByteRange>>;
     /// The underlying volume source (for extraction).
     fn source(&self) -> &Source;
+    /// Bytes in a cluster: files are stored in pieces of this size.
+    fn cluster_size(&self) -> u64;
 }
 
 /// Identifies the file system whose boot sector starts at offset 0 of `src`.
@@ -171,13 +185,28 @@ pub fn detect(src: &dyn ReadAt) -> Option<FsKind> {
     if &bs[3..11] == b"EXFAT   " {
         return Some(FsKind::ExFat);
     }
-    fat::detect_boot_sector(&bs)
+    if let Some(k) = fat::detect_boot_sector(&bs) {
+        return Some(k);
+    }
+    if apfs::detect(&bs) {
+        return Some(FsKind::Apfs);
+    }
+    // The others keep their superblock at 1024.
+    let mut sb = [0u8; 1024];
+    src.read_exact_at(1024, &mut sb).ok()?;
+    if ext::detect(&sb) {
+        return Some(FsKind::Ext);
+    }
+    hfsplus::detect(&sb).then_some(FsKind::HfsPlus)
 }
 
 pub fn open(src: Source) -> Result<Box<dyn Volume>> {
     match detect(src.as_ref()) {
         Some(FsKind::Ntfs) => Ok(Box::new(ntfs::Ntfs::open(src)?)),
         Some(FsKind::ExFat) => Ok(Box::new(exfat::ExFat::open(src)?)),
+        Some(FsKind::Ext) => Ok(Box::new(ext::Ext::open(src)?)),
+        Some(FsKind::HfsPlus) => Ok(Box::new(hfsplus::HfsPlus::open(src)?)),
+        Some(FsKind::Apfs) => Ok(Box::new(apfs::Apfs::open(src)?)),
         Some(_) => Ok(Box::new(fat::Fat::open(src)?)),
         None => anyhow::bail!("no supported file system found"),
     }

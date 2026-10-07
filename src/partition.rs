@@ -53,6 +53,8 @@ impl Partition {
         let fs = self.fs.map_or_else(|| "unknown".to_string(), |f| f.to_string());
         match self.scheme {
             Scheme::None => format!("volume_{fs}"),
+            // Without a file system, named after what it holds ("rebuilt videos").
+            Scheme::Found if self.fs.is_none() => format!("found{}_{}", self.index, self.kind.replace(' ', "_")),
             Scheme::Found => format!("found{}_{fs}", self.index),
             _ => format!("partition{}_{fs}", self.index),
         }

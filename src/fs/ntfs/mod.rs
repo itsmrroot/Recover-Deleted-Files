@@ -242,6 +242,10 @@ impl Volume for Ntfs {
         &self.src
     }
 
+    fn cluster_size(&self) -> u64 {
+        self.cluster
+    }
+
     fn scan_files(&self, live: bool, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
         let count = self.record_count();
         let rs = self.record_size as usize;

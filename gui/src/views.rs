@@ -38,6 +38,7 @@ fn task_label(task: &str) -> String {
         "Opening saved scan" => tr("Opening saved scan").into(),
         "Copying the drive" => tr("Copying the drive").into(),
         "Rebuilding lost partitions" => tr("Looking for lost partitions and old file tables").into(),
+        "Rebuilding fragmented videos" => tr("Putting videos stored in pieces back together").into(),
         "Retrying damaged areas" => tr("Retrying damaged areas").into(),
         "Starting..." => tr("Starting…").into(),
         other => other.into(),

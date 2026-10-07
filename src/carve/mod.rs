@@ -10,6 +10,7 @@
 //! Carving assumes a file is stored contiguously, which holds for most
 //! media written once by cameras and phones.
 
+pub mod bmff;
 pub mod formats;
 pub mod meta;
 mod reader;

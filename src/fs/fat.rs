@@ -412,6 +412,10 @@ impl Volume for Fat {
         &self.src
     }
 
+    fn cluster_size(&self) -> u64 {
+        self.cluster
+    }
+
     fn scan_files(&self, live: bool, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
         let mut existing = Vec::new();
         let root = if self.g.kind == FsKind::Fat32 { DirLoc::Chain(self.g.root_cluster) } else { DirLoc::FixedRoot };

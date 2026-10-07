@@ -46,8 +46,8 @@ struct Boot {
 }
 
 impl Boot {
-    /// The volume's length, where its backup boot sectors lie (relative to
-    /// its start) and its cluster size.
+    /// The volume's length, where in the volume this sector can be (the
+    /// main copy first, then backups) and its cluster size.
     fn geometry(&self) -> Option<(u64, Vec<u64>, u64)> {
         let b = &self.bytes;
         match self.kind {
@@ -61,12 +61,31 @@ impl Boot {
                     return None;
                 }
                 // The backup boot sector follows the last sector of the volume.
-                Some(((total + 1) * bps, vec![total * bps], cluster))
+                Some(((total + 1) * bps, vec![0, total * bps], cluster))
             }
             FsKind::ExFat => {
                 let bps = 1u64 << u8_at(b, 0x6C)?.min(12);
                 let cluster = bps << u8_at(b, 0x6D)?.min(25);
-                Some((le64(b, 0x48)? * bps, vec![12 * bps], cluster))
+                Some((le64(b, 0x48)? * bps, vec![0, 12 * bps], cluster))
+            }
+            FsKind::Ext => {
+                let block = 1024u64 << le32(b, 24)?.min(6);
+                let blocks = u64::from(le32(b, 4)?);
+                let group = u64::from(le16(b, 0x5A)?);
+                let (first, per_group) = (u64::from(le32(b, 20)?), u64::from(le32(b, 32)?));
+                // Group 0's superblock is 1024 bytes in; backups start their group.
+                let at = if group == 0 { 1024 } else { (group * per_group + first) * block };
+                Some((blocks * block, vec![at], block))
+            }
+            FsKind::HfsPlus => {
+                let block = u64::from(crate::bytes::be32(b, 40)?);
+                let len = u64::from(crate::bytes::be32(b, 44)?) * block;
+                // The volume header, and its copy 1024 bytes before the end.
+                Some((len, vec![1024, len.checked_sub(1024)?], block))
+            }
+            FsKind::Apfs => {
+                let block = u64::from(le32(b, 36)?);
+                Some((le64(b, 40)? * block, vec![0], block))
             }
             _ => {
                 let bps = u64::from(le16(b, 11)?);
@@ -121,6 +140,8 @@ impl Finder {
                 self.record(disk, abs, &block[off..]);
             } else if s[510..512] == [0x55, 0xAA] {
                 self.boot(abs, s);
+            } else if let Some(kind) = superblock(s) {
+                self.boots.entry(abs).or_insert_with(|| Boot { offset: abs, kind, bytes: s.to_vec() });
             }
             abs += SECTOR;
         }
@@ -187,14 +208,14 @@ impl Finder {
         // over a backup that points at the same start.
         let mut candidates: BTreeMap<u64, (&Boot, u64)> = BTreeMap::new();
         for b in self.boots.values() {
-            let Some((len, backups, _)) = b.geometry() else { continue };
-            let starts = std::iter::once(b.offset).chain(backups.iter().filter_map(|d| b.offset.checked_sub(*d)));
-            for start in starts {
+            let Some((len, positions, _)) = b.geometry() else { continue };
+            for (k, pos) in positions.iter().enumerate() {
+                let Some(start) = b.offset.checked_sub(*pos) else { continue };
                 if current.contains(&start) {
                     continue;
                 }
                 let e = candidates.entry(start).or_insert((b, len));
-                if b.offset == start {
+                if k == 0 {
                     *e = (b, len);
                 }
             }
@@ -206,12 +227,15 @@ impl Finder {
                 continue;
             }
             let sub: Source = Arc::new(SubSource::new(disk.clone(), start, len));
+            // The main copy may be gone: read the volume through its backup.
+            let main = boot.geometry().and_then(|g| g.1.first().copied()).unwrap_or(0);
             let mut first = vec![0u8; SECTOR as usize];
-            read_tolerant(sub.as_ref(), 0, &mut first);
-            // The primary boot sector may be gone: read the volume through
-            // its backup.
-            let src: Source =
-                if first == boot.bytes { sub } else { Arc::new(Patched { inner: sub, boot: boot.bytes.clone() }) };
+            read_tolerant(sub.as_ref(), main, &mut first);
+            let src: Source = if first == boot.bytes {
+                sub
+            } else {
+                Arc::new(Patched { inner: sub, at: main, boot: boot.bytes.clone() })
+            };
             let Ok(vol) = fs::open(src) else { continue };
             let Ok(mut files) = vol.scan_files(true, &mut |_, _| {}) else { continue };
             for f in &mut files {
@@ -289,8 +313,8 @@ impl Finder {
             starts.push((h.start, cluster));
         }
         for b in self.boots.values().filter(|b| b.kind == FsKind::Ntfs) {
-            let Some((_, backups, cluster)) = b.geometry() else { continue };
-            for s in std::iter::once(b.offset).chain(backups.iter().filter_map(|d| b.offset.checked_sub(*d))) {
+            let Some((_, positions, cluster)) = b.geometry() else { continue };
+            for s in positions.iter().filter_map(|d| b.offset.checked_sub(*d)) {
                 if s <= lowest && host.is_none_or(|h| h.range().contains(&s)) && !starts.iter().any(|x| x.0 == s) {
                     starts.push((s, Some(cluster)));
                 }
@@ -455,20 +479,35 @@ fn add_note(f: &mut DeletedFile, note: &str) {
     });
 }
 
-/// A volume read with another boot sector (its backup) at the start.
+/// The superblock of ext, HFS+ or APFS at the start of `s`, if it is one.
+fn superblock(s: &[u8]) -> Option<FsKind> {
+    if fs::ext::detect(s) {
+        Some(FsKind::Ext)
+    } else if fs::hfsplus::detect(s) {
+        Some(FsKind::HfsPlus)
+    } else if fs::apfs::detect(s) {
+        Some(FsKind::Apfs)
+    } else {
+        None
+    }
+}
+
+/// A volume read with its boot sector (or superblock) replaced by a backup
+/// copy at offset `at`.
 struct Patched {
     inner: Source,
+    at: u64,
     boot: Vec<u8>,
 }
 
 impl ReadAt for Patched {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
         let n = self.inner.read_at(offset, buf)?;
-        let boot_len = self.boot.len() as u64;
-        if offset < boot_len {
-            let from = offset as usize;
-            let k = (self.boot.len() - from).min(n);
-            buf[..k].copy_from_slice(&self.boot[from..from + k]);
+        let (from, to) = (self.at, self.at + self.boot.len() as u64);
+        let (s, e) = (offset.max(from), (offset + n as u64).min(to));
+        if s < e {
+            buf[(s - offset) as usize..(e - offset) as usize]
+                .copy_from_slice(&self.boot[(s - from) as usize..(e - from) as usize]);
         }
         Ok(n)
     }

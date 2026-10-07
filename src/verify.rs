@@ -98,6 +98,10 @@ pub fn check_data(ext: &str, data: &dyn ReadAt) -> Verdict {
     if carve::category_for_ext(&ext) == Some(Category::Image) && has_zero_block(data) {
         return Verdict::Damaged;
     }
+    // Videos: their frames must be where the index says.
+    if matches!(ext.as_str(), "mp4" | "mov" | "m4v" | "3gp") && !crate::fragments::intact(data, 0, size) {
+        return Verdict::Damaged;
+    }
     Verdict::Verified
 }
 

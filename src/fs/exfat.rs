@@ -222,6 +222,10 @@ impl Volume for ExFat {
         &self.src
     }
 
+    fn cluster_size(&self) -> u64 {
+        self.cluster
+    }
+
     fn scan_files(&self, live: bool, progress: &mut dyn FnMut(u64, u64)) -> Result<Vec<DeletedFile>> {
         let mut stack: Vec<(Option<Alloc>, String, bool)> = vec![(None, String::new(), false)];
         let mut visited = HashSet::new();

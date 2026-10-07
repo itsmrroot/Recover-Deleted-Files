@@ -51,6 +51,9 @@ fn guides() -> Vec<Guide> {
                 trl("Stop using the card or stick right away, and do not format it."),
                 trl("Connect it to the computer. If it does not appear, click Refresh."),
                 trl("Use Recommended. If the card was formatted, use \"Formatted drive\"."),
+                trl(
+                    "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
+                ),
             ],
         },
         Guide {
@@ -66,6 +69,21 @@ fn guides() -> Vec<Guide> {
                 ),
                 trl(
                     "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
+                ),
+            ],
+        },
+        Guide {
+            icon: icon::HARD_DRIVE,
+            title: tr("Mac and Linux drives"),
+            steps: vec![
+                trl(
+                    "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+                ),
+                trl(
+                    "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
+                ),
+                trl(
+                    "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
                 ),
             ],
         },

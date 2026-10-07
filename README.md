@@ -47,8 +47,9 @@ The app tells you when a new version is out and installs it in one click.
 <td width="50%" valign="top">
 
 ### 📁 Original names & folders
-On **NTFS**, **FAT32** and **exFAT**, deleted files come back with their real
-names, folders and dates.
+On **NTFS**, **FAT32** and **exFAT** (Windows, cards, sticks), **APFS** and
+**Mac OS Extended** (Mac) and **ext2/3/4** (Linux), deleted files come back with
+their real names, folders and dates.
 
 </td>
 </tr>
@@ -58,6 +59,7 @@ names, folders and dates.
 ### 🔍 Deep search
 Formatted card? Corrupted drive? Files are found by their content in **~60 file
 types**, and each is cut at its **exact** length — no broken or bloated files.
+Videos a camera stored **in pieces** are put back together, frame by frame.
 
 </td>
 <td valign="top">
@@ -250,8 +252,9 @@ administrator rights (needed to read drives).
 Disk images work without either step.
 
 > [!NOTE]
-> On a Mac, the app is most useful for **USB sticks, SD cards and external drives** (FAT32, exFAT, NTFS).
-> The Mac's own drive (APFS) can only be searched by content, and its SSD usually erases deleted data on its own.
+> On a Mac, the app is most useful for **USB sticks, SD cards and external drives** (FAT32, exFAT, NTFS, APFS,
+> Mac OS Extended). The Mac's own drive is encrypted and its SSD erases deleted data on its own, so little can be
+> recovered from it.
 
 <sub>**Uninstall:** drag *Deleted Files Recovery* from Applications to the Trash.</sub>
 
@@ -469,6 +472,9 @@ are also decoded. Complete files are marked **Verified**, broken or cut-short on
 | **NTFS** | The MFT record (name, parent, timestamps, data run list) until it is reused | Scans every MFT record (applying update-sequence fixups), rebuilds paths from parent references with sequence-number checks, follows `$ATTRIBUTE_LIST` extension records, decompresses LZNT1-compressed files, handles sparse files, resident (tiny) files and alternate data streams |
 | **FAT12/16/32** | The directory entry, minus its first character; the cluster chain is erased | Reconstructs long file names (recovering the lost first character from the LFN checksum), walks into deleted folders (verifying each claimed folder cluster through its `..` back-pointer), and assigns clusters to files around other files to undo common fragmentation; restores the high word of FAT32 start clusters that Windows clears |
 | **exFAT** | The whole entry set, with the "in use" bit cleared | Recovers exact names and sizes; uses the `NoFatChain` flag or the FAT chain when it survives, contiguous allocation otherwise |
+| **APFS** | Nothing is changed in place: older checkpoints still describe the file tree as it was | Reads every checkpoint in the container's ring; files in an earlier tree but not the newest one are the deleted files, with names, folders and extents (encrypted volumes cannot be read) |
+| **Mac OS Extended (HFS+)** | Old copies of catalog records, in freed catalog nodes and in the journal | Parses every catalog leaf node (live, freed and journaled); file records the live tree no longer has are the deleted files; follows the extents overflow file |
+| **ext2/3/4** | The name in its directory (until the kernel wipes it) and older inode copies in the journal | Walks directories, reads deleted names from the gaps between entries, and takes a deleted file's block list from the newest journal copy of its inode (as extundelete does) |
 
 Carving parsers: JPEG marker segments and entropy-coded scans, PNG chunks, MP4/MOV box trees, Matroska EBML elements,
 RIFF chunks (incl. AVI OpenDML), ASF headers, transport-stream packets, MP3 frames, Ogg pages, ZIP central directories
@@ -491,7 +497,7 @@ Files recovered through the file system (stage 1) can be **any** type — the li
 
 ## ✅ Tested on real data
 
-Besides 80+ unit and integration tests (including the full scan-and-save pipeline) running on Windows, macOS and Linux for every change, `wdfr` was checked against
+Besides 100+ unit and integration tests (including the full scan-and-save pipeline) running on Windows, macOS and Linux for every change, `wdfr` was checked against
 the public [Digital Forensics Tool Testing](https://dftt.sourceforge.net/) images and real volumes:
 
 | Test | Result |
@@ -502,6 +508,9 @@ the public [Digital Forensics Tool Testing](https://dftt.sourceforge.net/) image
 | Real FAT32 and exFAT volumes | **All** deleted files byte-identical, incl. a fragmented video and whole deleted folder trees |
 | 19 real files hidden in random data | **19 / 19** byte-identical, no false results |
 | 1 GB of random data | **0** false results |
+| ext3 / ext4 made and deleted by Linux | **All** deleted files byte-identical, with names and folders (from the journal) |
+| APFS / Mac OS Extended made and deleted by macOS | **All** deleted files byte-identical, with names and folders |
+| A video in 13 pieces, the last before the first on the disk | Put back together **byte-identical** |
 
 ## ❓ FAQ
 
@@ -558,10 +567,10 @@ as ciphertext and flagged in the report.
 </details>
 
 <details>
-<summary><b>What about ext4, APFS, HFS+ or other file systems?</b></summary>
+<summary><b>What about Mac and Linux drives (APFS, HFS+, ext4) or other file systems?</b></summary>
 
-They are supported by the deep search (content-based), without original names. The deep search assumes each file is
-stored in one piece, which is true for most camera and phone media.
+APFS, Mac OS Extended (HFS+) and ext2/3/4 are read with names and folders, including deleted files where their
+records survive (see *How it works*). Other file systems are supported by the deep search, without original names.
 
 </details>
 

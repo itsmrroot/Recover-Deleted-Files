@@ -17,6 +17,7 @@ pub mod carve;
 pub mod dedupe;
 pub mod devices;
 pub mod filter;
+pub mod fragments;
 pub mod fs;
 pub mod imaging;
 pub mod output;

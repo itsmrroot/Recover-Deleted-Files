@@ -145,3 +145,55 @@ pub fn png() -> Vec<u8> {
     chunk(&mut v, b"IEND", &[]);
     v
 }
+
+/// Loads a disk image stored as its non-empty sectors (`tests/data/*.sectors`:
+/// "WDFRSECT", the image size, then (offset, 512 bytes) for each sector).
+pub fn load_sectors(name: &str) -> Vec<u8> {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data").join(name);
+    let raw = std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    assert_eq!(&raw[..8], b"WDFRSECT");
+    let size = u64::from_le_bytes(raw[8..16].try_into().unwrap()) as usize;
+    let mut img = vec![0u8; size];
+    for s in raw[16..].as_chunks::<{ 8 + 512 }>().0 {
+        let at = u64::from_le_bytes(s[..8].try_into().unwrap()) as usize;
+        img[at..at + 512].copy_from_slice(&s[8..]);
+    }
+    img
+}
+
+/// A disk with an empty partition table and `volume` at 1 MiB (its first
+/// `wipe` bytes zeroed), scanned with Recommended. Returns the session and
+/// what was found.
+pub fn scan_lost(volume: Vec<u8>, wipe: usize) -> (wdfr::recover::Session, wdfr::recover::Found) {
+    use std::sync::atomic::AtomicBool;
+    const START: usize = 1 << 20;
+    let mut disk = vec![0u8; START];
+    disk[510] = 0x55;
+    disk[511] = 0xAA;
+    disk.extend(volume);
+    disk.resize(disk.len() + (1 << 20), 0);
+    disk[START..START + wipe].fill(0);
+    let disk: Source = Arc::new(MemSource(disk));
+    let parts = wdfr::partition::discover(&disk);
+    let session = wdfr::recover::Session::new(disk, "test".into(), parts);
+    let opts = wdfr::recover::ScanOptions {
+        method: wdfr::recover::Method::All,
+        partition: None,
+        filter: wdfr::filter::Filter::new(&[], &[], None, 0, None).unwrap(),
+        carve_all_space: false,
+        step: 512,
+        max_carve_size: None,
+    };
+    let found = wdfr::recover::scan(&session, &opts, &wdfr::progress::Silent, &AtomicBool::new(false)).unwrap();
+    (session, found)
+}
+
+/// The content of the found file at `path`, read through its partition.
+pub fn found_content(session: &wdfr::recover::Session, found: &wdfr::recover::Found, path: &str) -> Vec<u8> {
+    let f = found.fs.iter().find(|f| f.file.path == path).unwrap_or_else(|| {
+        panic!("{path} not found in {:?}", found.fs.iter().map(|f| &f.file.path).collect::<Vec<_>>())
+    });
+    let p = session.partition(f.partition).unwrap();
+    assert_eq!((p.scheme, p.start), (wdfr::partition::Scheme::Found, 1 << 20));
+    wdfr::recover::read_item(session, wdfr::recover::Item::Fs(f), 1 << 30).unwrap().unwrap()
+}

@@ -24,8 +24,8 @@ use crate::output::{self, Report, ReportRow};
 use crate::partition::{self, Partition};
 use crate::progress::{Progress, Unit};
 use crate::ranges::{self, ByteRange};
-use crate::rescue;
 use crate::source::{DiskSource, ReadAt, Source, read_tolerant};
+use crate::{fragments, rescue};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, serde::Serialize, serde::Deserialize)]
 pub enum Method {
@@ -340,6 +340,8 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
     let mut found = Found::default();
     let mut claimed: Vec<ByteRange> = Vec::new();
     let mut free: Vec<ByteRange> = Vec::new();
+    // Cluster size of each volume, to put fragmented videos back together.
+    let mut clusters: Vec<(ByteRange, u64)> = Vec::new();
 
     for p in session.selected(opts.partition)? {
         if cancel.load(Ordering::Relaxed) {
@@ -371,6 +373,9 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
                 }
             }
         };
+        if let Some(v) = &vol {
+            clusters.push((p.range(), v.cluster_size()));
+        }
         // Work out which part of this partition is worth carving.
         if opts.method != Method::Fs {
             let unalloc = match (&vol, opts.carve_all_space) {
@@ -394,7 +399,8 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
         let todo = ranges::subtract(&free, &ranges::normalize(claimed));
         // Lost partitions and old file tables live in the same space.
         let mut finder = rescue::Finder::new();
-        found.carved = carve_ranges(session, &todo, opts, progress, cancel, Some(&mut finder))?;
+        let mut videos = fragments::VideoFinder::new();
+        found.carved = carve_ranges(session, &todo, opts, progress, cancel, Some(&mut finder), &mut videos)?;
         if !cancel.load(Ordering::Relaxed) {
             progress.begin("Rebuilding lost partitions", 0, Unit::Items);
             for r in finder.finish(session, &free) {
@@ -408,6 +414,34 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
             }
             progress.end();
         }
+        if !cancel.load(Ordering::Relaxed) {
+            progress.begin("Rebuilding fragmented videos", 0, Unit::Items);
+            // Without a file system, 4 KiB: any cluster size is a multiple.
+            let cluster_at =
+                |o: u64| clusters.iter().find(|(r, _)| r.contains(&o)).map_or(4096, |c| c.1).max(SECTOR_SIZE);
+            let rebuilt = videos.rebuild(session.disk.as_ref(), &mut found.carved, &cluster_at, cancel);
+            if !rebuilt.is_empty() {
+                let pos = session.add_found(Partition {
+                    index: session.found_partitions().len() + 1,
+                    start: 0,
+                    len: session.disk.size(),
+                    scheme: partition::Scheme::Found,
+                    kind: "rebuilt videos".into(),
+                    name: String::new(),
+                    fs: None,
+                });
+                for v in rebuilt {
+                    let file = rebuilt_file(v);
+                    if opts.filter.matches_file(&file) {
+                        progress.found(file_category(&file));
+                        let f = FsFound { partition: pos, file };
+                        progress.file_found(&f);
+                        found.fs.push(f);
+                    }
+                }
+            }
+            progress.end();
+        }
     }
     if !cancel.load(Ordering::Relaxed) {
         found.duplicates = crate::dedupe::find(session, &found, progress, cancel);
@@ -416,6 +450,28 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
     Ok(found)
 }
 
+/// A rebuilt video as a found file (its pieces are its extents on the disk).
+fn rebuilt_file(v: fragments::Rebuilt) -> DeletedFile {
+    let pieces = v.extents.len();
+    let note = if v.complete {
+        format!("rebuilt from {pieces} pieces")
+    } else {
+        format!("rebuilt from {pieces} pieces; the rest was not found")
+    };
+    DeletedFile {
+        id: v.start,
+        path: format!("f{:012x}.{}", v.start, v.ext),
+        size: v.size,
+        created: v.created,
+        modified: v.created,
+        condition: if v.complete { Condition::Recoverable } else { Condition::Partial(v.percent.min(99)) },
+        note: Some(note),
+        data: fs::FileData::Extents(v.extents),
+    }
+}
+
+const SECTOR_SIZE: u64 = 512;
+
 fn carve_ranges(
     session: &Session,
     todo: &[ByteRange],
@@ -423,6 +479,7 @@ fn carve_ranges(
     progress: &dyn Progress,
     cancel: &AtomicBool,
     mut finder: Option<&mut rescue::Finder>,
+    videos: &mut fragments::VideoFinder,
 ) -> Result<Vec<Carved>> {
     let formats: Vec<_> = carve::all_formats().into_iter().filter(|f| opts.filter.wants_format(*f)).collect();
     let mut out = Vec::new();
@@ -453,6 +510,7 @@ fn carve_ranges(
             if let Some(f) = finder.as_deref_mut() {
                 f.look(disk, pos, block);
             }
+            videos.look(disk, pos, block);
         },
     );
     progress.end();
@@ -682,7 +740,7 @@ fn rel(base: &Path, p: &Path) -> String {
 mod tests {
     use super::*;
     use crate::fs::{Extent, FileData};
-    use crate::source::MemSource;
+    use crate::source::{MemSource, Source};
 
     fn file(offset: u64, size: u64) -> DeletedFile {
         DeletedFile {
@@ -695,6 +753,49 @@ mod tests {
             note: None,
             data: FileData::Extents(vec![Extent { offset: Some(offset), len: size }]),
         }
+    }
+
+    #[test]
+    fn a_fragmented_video_is_rebuilt_by_a_deep_search() {
+        use crate::carve::bmff::testing::mp4;
+        const CLUSTER: usize = 4096;
+        // A video in four pieces and a photo-less video in one piece, on a
+        // disk without a file system, between data that is no video.
+        let sizes: Vec<usize> = (0..48).map(|i| 4000 + (i * 3571) % 9000).collect();
+        let video = mp4(&sizes);
+        let whole = mp4(&[3000; 8]);
+        let mut disk: Vec<u8> = (0..400 * CLUSTER).map(|i| (i as u8).wrapping_mul(29) | 0x80).collect();
+        let clusters: Vec<&[u8]> = video.chunks(CLUSTER).collect();
+        let n = clusters.len();
+        let starts = [20, 90, 160, 230];
+        for (k, c) in clusters.iter().enumerate() {
+            let piece = k * 4 / n;
+            let at = (starts[piece] + k - piece * n / 4) * CLUSTER;
+            disk[at..at + c.len()].copy_from_slice(c);
+        }
+        disk[320 * CLUSTER..320 * CLUSTER + whole.len()].copy_from_slice(&whole);
+        let disk: Source = Arc::new(MemSource(disk));
+        let session = Session::new(disk.clone(), "test".into(), partition::discover(&disk));
+        let opts = ScanOptions {
+            method: Method::Carve,
+            partition: None,
+            filter: Filter::new(&[], &[], None, 0, None).unwrap(),
+            carve_all_space: false,
+            step: 512,
+            max_carve_size: None,
+        };
+        let found = scan(&session, &opts, &crate::progress::Silent, &AtomicBool::new(false)).unwrap();
+        // The fragmented one, rebuilt.
+        assert_eq!(found.fs.len(), 1, "{:?}", found.fs.iter().map(|f| &f.file.path).collect::<Vec<_>>());
+        let f = &found.fs[0];
+        assert_eq!(f.file.path, format!("f{:012x}.mp4", 20 * CLUSTER));
+        assert_eq!(f.file.condition, Condition::Recoverable);
+        assert_eq!(session.partition(f.partition).unwrap().label(), "found1_rebuilt_videos");
+        assert_eq!(read_item(&session, Item::Fs(f), 1 << 30).unwrap().unwrap(), video);
+        assert_eq!(crate::verify::check(&session, Item::Fs(f)), crate::verify::Verdict::Verified);
+        // The whole one, found by the deep search as before.
+        assert_eq!(found.carved.len(), 1);
+        assert_eq!((found.carved[0].offset, found.carved[0].len), ((320 * CLUSTER) as u64, whole.len() as u64));
     }
 
     #[test]

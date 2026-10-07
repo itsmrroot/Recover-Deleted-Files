@@ -51,6 +51,24 @@ pub const GERMAN: &[(&str, &str)] = &[
         "Zum Lesen von Laufwerken sind Administratorrechte nötig. Disk-Images funktionieren auch ohne.",
     ),
     ("Restart with administrator rights", "Mit Administratorrechten neu starten"),
+    (
+        "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
+        "Gelöschte Dateien werden in den älteren Kopien gefunden, die diese Dateisysteme aufbewahren: frühere Prüfpunkte von APFS, alte Katalogeinträge von Mac OS Extended und das Journal von ext3 und ext4.",
+    ),
+    (
+        "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+        "Laufwerke von einem Mac (APFS, Mac OS Extended) und von Linux (ext2, ext3, ext4) werden wie Windows-Laufwerke mit ihren Namen und Ordnern gelesen.",
+    ),
+    (
+        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
+        "Verschlüsselte Laufwerke (FileVault, BitLocker) lassen sich ohne ihr Passwort nicht lesen; auch die Tiefensuche findet darauf nichts.",
+    ),
+    (
+        "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
+        "Lange Videos von Kameras und Handys werden oft in Teilen gespeichert: Die Tiefensuche setzt sie wieder zusammen.",
+    ),
+    ("Mac and Linux drives", "Mac- und Linux-Laufwerke"),
+    ("Putting videos stored in pieces back together", "In Teilen gespeicherte Videos werden zusammengesetzt"),
     ("Back to the start screen", "Zurück zum Startbildschirm"),
     (
         "Checked: the file is complete, so it should open.",
@@ -626,6 +644,24 @@ pub const ARABIC: &[(&str, &str)] = &[
         "قراءة المحركات تتطلب صلاحيات المسؤول. صور الأقراص تعمل بدونها.",
     ),
     ("Restart with administrator rights", "إعادة التشغيل بصلاحيات المسؤول"),
+    (
+        "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
+        "يُعثر على الملفات المحذوفة في النسخ الأقدم التي تحتفظ بها أنظمة الملفات هذه: نقاط التحقق السابقة في APFS، وإدخالات الفهرس القديمة في Mac OS Extended، وسجل ext3 وext4.",
+    ),
+    (
+        "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+        "تُقرأ أقراص Mac (APFS وMac OS Extended) وأقراص Linux (ext2 وext3 وext4) بأسمائها ومجلداتها، مثل أقراص Windows.",
+    ),
+    (
+        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
+        "لا يمكن قراءة الأقراص المشفّرة (FileVault وBitLocker) بدون كلمة المرور؛ ولا يجد البحث العميق عليها شيئًا أيضًا.",
+    ),
+    (
+        "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
+        "غالبًا ما تُخزَّن مقاطع الفيديو الطويلة من الكاميرات والهواتف على أجزاء: يعيد البحث العميق تجميعها.",
+    ),
+    ("Mac and Linux drives", "أقراص Mac وLinux"),
+    ("Putting videos stored in pieces back together", "جارٍ إعادة تجميع مقاطع الفيديو المخزّنة على أجزاء"),
     ("Back to the start screen", "العودة إلى شاشة البداية"),
     ("Checked: the file is complete, so it should open.", "تم التحقق: الملف كامل، لذا يُفترض أن يُفتح."),
     (
@@ -1159,6 +1195,24 @@ pub const SPANISH: &[(&str, &str)] = &[
         "Leer unidades requiere permisos de administrador. Las imágenes de disco funcionan sin ellos.",
     ),
     ("Restart with administrator rights", "Reiniciar con permisos de administrador"),
+    (
+        "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
+        "Los archivos eliminados se encuentran en las copias antiguas que guardan estos sistemas de archivos: puntos de control anteriores de APFS, entradas de catálogo antiguas de Mac OS Extended y el diario de ext3 y ext4.",
+    ),
+    (
+        "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+        "Las unidades de un Mac (APFS, Mac OS Extended) y de Linux (ext2, ext3, ext4) se leen con sus nombres y carpetas, como las unidades de Windows.",
+    ),
+    (
+        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
+        "Las unidades cifradas (FileVault, BitLocker) no se pueden leer sin su contraseña; la búsqueda profunda tampoco encuentra nada en ellas.",
+    ),
+    (
+        "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
+        "Los vídeos largos de cámaras y teléfonos a menudo se guardan en fragmentos: la búsqueda profunda los vuelve a unir.",
+    ),
+    ("Mac and Linux drives", "Unidades de Mac y Linux"),
+    ("Putting videos stored in pieces back together", "Uniendo los vídeos guardados en fragmentos"),
     ("Back to the start screen", "Volver a la pantalla de inicio"),
     (
         "Checked: the file is complete, so it should open.",
@@ -1728,6 +1782,24 @@ pub const FRENCH: &[(&str, &str)] = &[
         "La lecture des disques nécessite des droits d'administrateur. Les images disque fonctionnent sans eux.",
     ),
     ("Restart with administrator rights", "Redémarrer avec les droits d'administrateur"),
+    (
+        "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
+        "Les fichiers supprimés sont retrouvés dans les anciennes copies que conservent ces systèmes de fichiers : points de contrôle antérieurs d'APFS, anciennes entrées de catalogue de Mac OS Étendu et journal d'ext3 et ext4.",
+    ),
+    (
+        "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+        "Les disques d'un Mac (APFS, Mac OS Étendu) et de Linux (ext2, ext3, ext4) sont lus avec leurs noms et dossiers, comme les disques Windows.",
+    ),
+    (
+        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
+        "Les disques chiffrés (FileVault, BitLocker) ne peuvent pas être lus sans leur mot de passe ; la recherche approfondie n'y trouve rien non plus.",
+    ),
+    (
+        "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
+        "Les longues vidéos des appareils photo et téléphones sont souvent enregistrées en morceaux : la recherche approfondie les reconstitue.",
+    ),
+    ("Mac and Linux drives", "Disques Mac et Linux"),
+    ("Putting videos stored in pieces back together", "Reconstitution des vidéos enregistrées en morceaux"),
     ("Back to the start screen", "Retour à l'écran d'accueil"),
     (
         "Checked: the file is complete, so it should open.",
@@ -2309,6 +2381,24 @@ pub const RUSSIAN: &[(&str, &str)] = &[
         "Для чтения дисков нужны права администратора. Образы дисков работают и без них.",
     ),
     ("Restart with administrator rights", "Перезапустить с правами администратора"),
+    (
+        "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
+        "Удалённые файлы находятся в старых копиях, которые хранят эти файловые системы: в прежних контрольных точках APFS, старых записях каталога Mac OS Extended и журнале ext3 и ext4.",
+    ),
+    (
+        "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+        "Диски Mac (APFS, Mac OS Extended) и Linux (ext2, ext3, ext4) читаются с именами и папками, как диски Windows.",
+    ),
+    (
+        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
+        "Зашифрованные диски (FileVault, BitLocker) нельзя прочитать без пароля; глубокий поиск на них тоже ничего не находит.",
+    ),
+    (
+        "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
+        "Длинные видео с камер и телефонов часто хранятся по частям: глубокий поиск собирает их обратно.",
+    ),
+    ("Mac and Linux drives", "Диски Mac и Linux"),
+    ("Putting videos stored in pieces back together", "Сборка видео, сохранённых по частям"),
     ("Back to the start screen", "Вернуться на начальный экран"),
     ("Checked: the file is complete, so it should open.", "Проверено: файл цел, поэтому должен открыться."),
     (
@@ -2872,6 +2962,24 @@ pub const CHINESE: &[(&str, &str)] = &[
         "读取驱动器需要管理员权限。磁盘映像无需管理员权限。",
     ),
     ("Restart with administrator rights", "以管理员权限重新启动"),
+    (
+        "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
+        "已删除的文件可在这些文件系统保留的旧副本中找到：APFS 的较早检查点、Mac OS 扩展格式的旧目录条目，以及 ext3 和 ext4 的日志。",
+    ),
+    (
+        "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+        "来自 Mac（APFS、Mac OS 扩展格式）和 Linux（ext2、ext3、ext4）的驱动器会像 Windows 驱动器一样带着名称和文件夹被读取。",
+    ),
+    (
+        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
+        "加密的驱动器（FileVault、BitLocker）没有密码无法读取；深度搜索在其上也找不到任何内容。",
+    ),
+    (
+        "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
+        "相机和手机拍摄的长视频常被分段存储：深度搜索会把它们重新拼合。",
+    ),
+    ("Mac and Linux drives", "Mac 和 Linux 驱动器"),
+    ("Putting videos stored in pieces back together", "正在拼合分段存储的视频"),
     ("Back to the start screen", "返回开始屏幕"),
     ("Checked: the file is complete, so it should open.", "已检查：文件完整，应能正常打开。"),
     (
@@ -3381,6 +3489,24 @@ pub const TURKISH: &[(&str, &str)] = &[
         "Sürücüleri okumak yönetici hakları gerektirir. Disk görüntüleri bu haklar olmadan da çalışır.",
     ),
     ("Restart with administrator rights", "Yönetici haklarıyla yeniden başlat"),
+    (
+        "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
+        "Silinen dosyalar, bu dosya sistemlerinin sakladığı eski kopyalarda bulunur: APFS'nin önceki denetim noktaları, Mac OS Genişletilmiş'in eski katalog kayıtları ve ext3 ile ext4'ün günlüğü.",
+    ),
+    (
+        "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+        "Mac (APFS, Mac OS Genişletilmiş) ve Linux (ext2, ext3, ext4) sürücüleri, Windows sürücüleri gibi adları ve klasörleriyle okunur.",
+    ),
+    (
+        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
+        "Şifreli sürücüler (FileVault, BitLocker) parolaları olmadan okunamaz; derin arama da üzerlerinde bir şey bulamaz.",
+    ),
+    (
+        "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
+        "Kameralardan ve telefonlardan gelen uzun videolar genellikle parçalar hâlinde saklanır: derin arama onları yeniden birleştirir.",
+    ),
+    ("Mac and Linux drives", "Mac ve Linux sürücüleri"),
+    ("Putting videos stored in pieces back together", "Parçalar hâlinde saklanan videolar birleştiriliyor"),
     ("Back to the start screen", "Başlangıç ekranına dön"),
     ("Checked: the file is complete, so it should open.", "Denetlendi: dosya eksiksiz, bu yüzden açılması gerekir."),
     (
