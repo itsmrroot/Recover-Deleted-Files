@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.svg" alt="Windows Deleted Files Recovery — Powered by Bashar Salmo" width="100%">
+<img src="assets/banner.svg" alt="Deleted Files Recovery — Powered by Bashar Salmo" width="100%">
 
 <br>
 

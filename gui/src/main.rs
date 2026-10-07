@@ -1,4 +1,4 @@
-//! Desktop app for Windows Deleted Files Recovery — Powered by Bashar Salmo.
+//! Desktop app for Deleted Files Recovery — Powered by Bashar Salmo.
 
 // No console window behind the app in release builds on Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -35,7 +35,7 @@ fn main() -> eframe::Result {
     }
     #[allow(unused_mut)]
     let mut viewport = egui::ViewportBuilder::default()
-        .with_title("Windows Deleted Files Recovery")
+        .with_title("Deleted Files Recovery")
         .with_app_id("wdfr")
         .with_inner_size(app::DEFAULT_SIZE)
         .with_min_inner_size(app::MIN_SIZE)
@@ -59,5 +59,7 @@ fn main() -> eframe::Result {
         centered: true,
         ..Default::default()
     };
+    // The name settings are stored under: kept from the app's first name so
+    // that nobody loses their settings.
     eframe::run_native("Windows Deleted Files Recovery", options, Box::new(|cc| Ok(Box::new(app::App::new(cc)))))
 }

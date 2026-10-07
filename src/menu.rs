@@ -25,7 +25,7 @@ pub fn banner() {
     println!("  {}", style(&line).cyan());
     println!(
         "    {}  {}",
-        style("Windows Deleted Files Recovery").bold(),
+        style("Deleted Files Recovery").bold(),
         style(concat!("v", env!("CARGO_PKG_VERSION"))).dim()
     );
     println!("    Recover deleted photos, videos, documents and more");

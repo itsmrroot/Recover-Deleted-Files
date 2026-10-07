@@ -10,8 +10,8 @@ fn main() {
     let mut res = winresource::WindowsResource::new();
     res.set_icon("assets/wdfr.ico")
         .set_manifest_file("assets/wdfr.manifest")
-        .set("ProductName", "Windows Deleted Files Recovery")
-        .set("FileDescription", "Windows Deleted Files Recovery")
+        .set("ProductName", "Deleted Files Recovery")
+        .set("FileDescription", "Deleted Files Recovery")
         .set("CompanyName", "Bashar Salmo")
         .set("LegalCopyright", "© 2026 Bashar Salmo. Powered by Bashar Salmo.")
         .set("OriginalFilename", "wdfr-gui.exe");

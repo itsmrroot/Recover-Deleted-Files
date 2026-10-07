@@ -269,7 +269,7 @@ pub fn about(ui: &mut Ui, p: &Palette, logo: &egui::TextureHandle, updater: &mut
                 ui.add_space(10.0);
                 ui.vertical(|ui| {
                     ui.add_space(6.0);
-                    ui.label(theme::semibold("Windows Deleted Files Recovery", 24.0).color(p.text));
+                    ui.label(theme::semibold("Deleted Files Recovery", 24.0).color(p.text));
                     ui.label(RichText::new(trf("Version {version}", &[("version", &env!("CARGO_PKG_VERSION"))])).color(p.weak));
                     ui.add_space(4.0);
                     theme::pill(ui, p, POWERED_BY, p.accent);

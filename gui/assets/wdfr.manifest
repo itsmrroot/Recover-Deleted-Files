@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity type="win32" name="BasharSalmo.WindowsDeletedFilesRecovery" version="0.2.1.0"/>
-  <description>Windows Deleted Files Recovery - Powered by Bashar Salmo</description>
+  <description>Deleted Files Recovery - Powered by Bashar Salmo</description>
   <!-- Reading raw drives requires administrator rights: ask for them up front. -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
