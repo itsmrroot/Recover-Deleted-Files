@@ -33,6 +33,8 @@ pub struct Partition {
     /// GPT partition name (empty for MBR).
     pub name: String,
     pub fs: Option<FsKind>,
+    /// Read from this device instead of the disk (a Windows shadow copy).
+    pub device: Option<String>,
 }
 
 impl Partition {
@@ -41,11 +43,30 @@ impl Partition {
     }
 
     pub fn source(&self, disk: &Source) -> Source {
-        if self.start == 0 && self.len == disk.size() {
+        if let Some(dev) = &self.device {
+            return match crate::source::DiskSource::open(dev) {
+                Ok(d) => Arc::new(d),
+                Err(e) => {
+                    log::warn!("{dev}: {e:#}");
+                    Arc::new(crate::source::MemSource(Vec::new()))
+                }
+            };
+        }
+        let raw: Source = if self.start == 0 && self.len == disk.size() {
             disk.clone()
         } else {
             Arc::new(SubSource::new(disk.clone(), self.start, self.len))
-        }
+        };
+        // A BitLocker volume is read decrypted once its key is known.
+        crate::bitlocker::open(&raw).unwrap_or(raw)
+    }
+
+    /// Whether this is a BitLocker volume that no key given so far opens.
+    pub fn locked(&self, disk: &Source) -> bool {
+        self.device.is_none()
+            && self.scheme != Scheme::Found
+            && self.fs.is_none()
+            && crate::bitlocker::is_bitlocker(&SubSource::new(disk.clone(), self.start, self.len))
     }
 
     /// Directory-friendly label, e.g. `partition2_NTFS`.
@@ -67,22 +88,26 @@ impl Partition {
 /// partition with no file system (it can still be carved).
 pub fn discover(disk: &Source) -> Vec<Partition> {
     let size = disk.size();
-    if let Some(kind) = fs::detect(disk.as_ref()) {
-        return vec![Partition {
+    let bitlocker = crate::bitlocker::is_bitlocker(disk.as_ref());
+    if bitlocker || fs::detect(disk.as_ref()).is_some() {
+        let mut p = Partition {
             index: 1,
             start: 0,
             len: size,
             scheme: Scheme::None,
-            kind: "volume".into(),
+            kind: if bitlocker { "BitLocker".into() } else { "volume".into() },
             name: String::new(),
-            fs: Some(kind),
-        }];
+            fs: None,
+            device: None,
+        };
+        p.fs = fs::detect(p.source(disk).as_ref());
+        return vec![p];
     }
     let mut parts = parse_gpt(disk.as_ref()).or_else(|| parse_mbr(disk.as_ref())).unwrap_or_default();
     parts.retain(|p| p.len > 0 && p.start < size);
     for p in &mut parts {
         p.len = p.len.min(size - p.start);
-        p.fs = fs::detect(&SubSource::new(disk.clone(), p.start, p.len));
+        p.fs = fs::detect(p.source(disk).as_ref());
     }
     if parts.is_empty() {
         parts.push(Partition {
@@ -93,6 +118,7 @@ pub fn discover(disk: &Source) -> Vec<Partition> {
             kind: "raw".into(),
             name: String::new(),
             fs: None,
+            device: None,
         });
     }
     parts
@@ -155,7 +181,16 @@ fn parse_mbr(src: &dyn ReadAt) -> Option<Vec<Partition>> {
 }
 
 fn mbr_partition(index: usize, start: u64, len: u64, ty: u8) -> Partition {
-    Partition { index, start, len, scheme: Scheme::Mbr, kind: format!("0x{ty:02X}"), name: String::new(), fs: None }
+    Partition {
+        index,
+        start,
+        len,
+        scheme: Scheme::Mbr,
+        kind: format!("0x{ty:02X}"),
+        name: String::new(),
+        fs: None,
+        device: None,
+    }
 }
 
 fn parse_gpt(src: &dyn ReadAt) -> Option<Vec<Partition>> {
@@ -189,6 +224,7 @@ fn parse_gpt(src: &dyn ReadAt) -> Option<Vec<Partition>> {
                 kind: gpt_type_name(&e[0..16]),
                 name: utf16le(&e[56..128]),
                 fs: None,
+                device: None,
             });
         }
         return Some(out);

@@ -154,6 +154,12 @@ pub struct Results {
     verified_only: bool,
     /// Row of each found file.
     index: std::collections::HashMap<RowRef, usize>,
+    /// Save into a password-protected ZIP: the password, typed twice.
+    encrypt: bool,
+    password: String,
+    password_again: String,
+    /// The outcome of the last photo repair: (photo, message, success).
+    repaired: Option<(RowRef, String, bool)>,
 }
 
 /// The name of a category slot, in logical order (compose, then `visual`).
@@ -312,6 +318,10 @@ impl Results {
             damaged: 0,
             verified_only: false,
             index: std::collections::HashMap::new(),
+            encrypt: false,
+            password: String::new(),
+            password_again: String::new(),
+            repaired: None,
         };
         res.index = res.rows.iter().enumerate().map(|(i, r)| (r.r, i)).collect();
         let mut years: Vec<i32> = res.rows.iter().filter_map(|r| r.modified.map(|m| m.year())).collect();
@@ -350,6 +360,9 @@ impl Results {
         new.sort = self.sort;
         new.focus = self.focus;
         new.verified_only = self.verified_only;
+        new.encrypt = self.encrypt;
+        new.password = std::mem::take(&mut self.password);
+        new.password_again = std::mem::take(&mut self.password_again);
         new.dirty = true;
         *self = new;
     }
@@ -977,6 +990,29 @@ impl Results {
                     kv(tr("Duplicate of"), d.clone());
                 }
             });
+            // Damaged photos can often be repaired.
+            let row = &self.rows[i];
+            let damaged = row.verdict == Some(Verdict::Damaged) || matches!(row.status, Status::Partial(_));
+            if matches!(row.ext.as_str(), "jpg" | "jpeg") && damaged {
+                ui.add_space(8.0);
+                if ui
+                    .button(icon_label(icon::BANDAIDS, "Repair this photo…"))
+                    .on_hover_text(tr("Closes a photo whose end is missing, or gives it the header of a good photo taken with the same camera."))
+                    .clicked()
+                {
+                    match self.repair(r) {
+                        Some(Ok(())) => self.repaired = Some((r, String::new(), true)),
+                        Some(Err(e)) => self.repaired = Some((r, e, false)),
+                        None => {} // cancelled
+                    }
+                }
+                if let Some((at, msg, ok)) = &self.repaired
+                    && *at == r
+                {
+                    let text = if *ok { tr("The repaired photo was saved.") } else { msg.as_str() };
+                    ui.label(RichText::new(text).color(if *ok { p.success } else { p.danger }).size(12.5));
+                }
+            }
             ui.add_space(8.0);
             let sel = self.selected[i];
             let label = if sel {
@@ -1036,13 +1072,66 @@ impl Results {
                 ui.add_space(4.0);
                 ui.label(RichText::new(e.message()).color(p.danger));
             }
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.checkbox(&mut self.encrypt, icon_label(icon::LOCK, "Protect with a password"))
+                    .on_hover_text(tr("Saves everything into one ZIP file encrypted with AES-256, instead of a folder. It opens with the password in 7-Zip, WinRAR or Keka."));
+                if self.encrypt {
+                    ui.add(password_field(&mut self.password, tr("Password")));
+                    ui.add(password_field(&mut self.password_again, tr("Repeat the password")));
+                    if !self.password_again.is_empty() && self.password != self.password_again {
+                        ui.label(RichText::new(tr("The passwords are not the same.")).color(p.danger));
+                    }
+                }
+            });
         });
         go
     }
 
+    /// Repairs the photo `r` and saves the result where the user chooses.
+    /// `None` if the user cancelled.
+    fn repair(&self, r: RowRef) -> Option<Result<(), String>> {
+        let item = r.item(&self.found);
+        let Ok(Some(data)) = recover::read_item(&self.session, item, 256 << 20) else {
+            return Some(Err(trl("The photo could not be read.").into()));
+        };
+        let mut fixed = wdfr::repair::repair_jpeg(&data, None);
+        if fixed.is_none() && !data.starts_with(&[0xFF, 0xD8]) {
+            // The header is gone: one from the same camera is needed.
+            let path = rfd::FileDialog::new()
+                .set_title(tr("Choose a good photo taken with the same camera"))
+                .add_filter("JPEG", &["jpg", "jpeg", "JPG", "JPEG"])
+                .pick_file()?;
+            let Ok(reference) = std::fs::read(&path) else {
+                return Some(Err(trl("The photo could not be read.").into()));
+            };
+            fixed = wdfr::repair::repair_jpeg(&data, Some(&reference));
+        }
+        let Some(fixed) = fixed.filter(|f| image::load_from_memory(&f.bytes).is_ok()) else {
+            return Some(Err(trl("This photo could not be repaired.").into()));
+        };
+        let name = item.name();
+        let stem = name.rsplit_once('.').map_or(name.as_str(), |(s, _)| s);
+        let out = rfd::FileDialog::new()
+            .set_title(tr("Save the repaired photo"))
+            .set_file_name(format!("{stem} (repaired).jpg"))
+            .save_file()?;
+        Some(
+            std::fs::write(&out, &fixed.bytes)
+                .map_err(|e| format!("{}: {e}", trl("The repaired photo could not be saved."))),
+        )
+    }
+
+    /// The password to protect the saved files with, if one was chosen and
+    /// typed the same twice.
+    pub fn password(&self) -> Option<String> {
+        (self.encrypt && !self.password.is_empty() && self.password == self.password_again)
+            .then(|| self.password.clone())
+    }
+
     /// Returns true when clicked (see `recover_button_width`).
     fn recover_button(&self, ui: &mut Ui, p: &Palette, n: usize) -> bool {
-        let ok = n > 0 && self.dest_error.is_none() && !self.scanning;
+        let ok = n > 0 && self.dest_error.is_none() && !self.scanning && (!self.encrypt || self.password().is_some());
         let text = format!("{}  {}", icon::DOWNLOAD_SIMPLE, trn(n as u64, "Recover 1 file", "Recover {n} files"));
         theme::primary_button(ui, p, &text, ok).clicked()
     }
@@ -1086,6 +1175,10 @@ impl Results {
             );
         });
     }
+}
+
+fn password_field<'a>(text: &'a mut String, hint: &str) -> egui::TextEdit<'a> {
+    egui::TextEdit::singleline(text).password(true).hint_text(hint.to_string()).desired_width(170.0)
 }
 
 /// The width of the Recover button, which depends on the language.

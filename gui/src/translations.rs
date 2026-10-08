@@ -52,16 +52,112 @@ pub const GERMAN: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "Mit Administratorrechten neu starten"),
     (
+        "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
+        "Ein beschädigtes APFS-Laufwerk, das der Mac nicht mehr öffnet, wird aus den Resten seiner Dateitabellen wiederhergestellt.",
+    ),
+    (
+        "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+        "Ein beschädigtes JPEG-Foto lässt sich oft reparieren: Wählen Sie es aus und klicken Sie auf „Dieses Foto reparieren…“. Fehlt sein Anfang, wird ein gutes Foto derselben Kamera benötigt.",
+    ),
+    (
+        "A drive locked with BitLocker shows \"BitLocker · locked\". Select it, enter its 48-digit recovery key or its password and click Unlock.",
+        "Ein mit BitLocker gesperrtes Laufwerk zeigt „BitLocker · gesperrt“. Wählen Sie es aus, geben Sie den 48-stelligen Wiederherstellungsschlüssel oder das Passwort ein und klicken Sie auf Entsperren.",
+    ),
+    ("BitLocker drives", "BitLocker-Laufwerke"),
+    ("BitLocker · locked", "BitLocker · gesperrt"),
+    (
+        "Choose a good photo taken with the same camera",
+        "Wählen Sie ein gutes Foto, das mit derselben Kamera aufgenommen wurde",
+    ),
+    (
+        "Closes a photo whose end is missing, or gives it the header of a good photo taken with the same camera.",
+        "Schließt ein Foto, dessen Ende fehlt, oder gibt ihm den Kopf eines guten Fotos derselben Kamera.",
+    ),
+    (
+        "Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either.",
+        "Mit FileVault verschlüsselte Laufwerke können nicht gelesen werden; auch die Tiefensuche findet darauf nichts.",
+    ),
+    (
+        "Faster to look through: only files that were in this folder, or below it, are listed.",
+        "Schneller durchzusehen: Nur Dateien, die in diesem Ordner oder darunter lagen, werden aufgelistet.",
+    ),
+    (
+        "It opens with the password in 7-Zip, WinRAR or Keka. Keep the password safe: without it the files cannot be opened.",
+        "Sie lässt sich mit dem Passwort in 7-Zip, WinRAR oder Keka öffnen. Bewahren Sie das Passwort gut auf: Ohne es lassen sich die Dateien nicht öffnen.",
+    ),
+    ("Keeping recovered files private", "Wiederhergestellte Dateien schützen"),
+    (
+        "Mac: deleted files are also found in APFS snapshots, such as the ones Time Machine makes.",
+        "Mac: Gelöschte Dateien werden auch in APFS-Snapshots gefunden, etwa in denen von Time Machine.",
+    ),
+    ("Older copies of your files", "Ältere Kopien Ihrer Dateien"),
+    ("Only in this folder:", "Nur in diesem Ordner:"),
+    ("Password", "Passwort"),
+    ("Protect with a password", "Mit einem Passwort schützen"),
+    ("Reading the Windows Previous Versions copies", "Die Windows-Kopien „Vorherige Versionen“ werden gelesen"),
+    ("Recovery key or password", "Wiederherstellungsschlüssel oder Passwort"),
+    ("Repair this photo…", "Dieses Foto reparieren…"),
+    ("Repeat the password", "Passwort wiederholen"),
+    ("Save the repaired photo", "Das reparierte Foto speichern"),
+    (
+        "Saves everything into one ZIP file encrypted with AES-256, instead of a folder. It opens with the password in 7-Zip, WinRAR or Keka.",
+        "Speichert alles in einer mit AES-256 verschlüsselten ZIP-Datei statt in einem Ordner. Sie lässt sich mit dem Passwort in 7-Zip, WinRAR oder Keka öffnen.",
+    ),
+    (
+        "The drive is read decrypted; nothing on it is changed, and the key is not stored.",
+        "Das Laufwerk wird entschlüsselt gelesen; nichts darauf wird verändert, und der Schlüssel wird nicht gespeichert.",
+    ),
+    ("The passwords are not the same.", "Die Passwörter stimmen nicht überein."),
+    ("The photo could not be read.", "Das Foto konnte nicht gelesen werden."),
+    (
+        "The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "Der Wiederherstellungsschlüssel steht in Ihrem Microsoft-Konto (aka.ms/myrecoverykey), auf einem Ausdruck oder auf einem USB-Stick.",
+    ),
+    ("The repaired photo could not be saved.", "Das reparierte Foto konnte nicht gespeichert werden."),
+    ("The repaired photo was saved.", "Das reparierte Foto wurde gespeichert."),
+    (
+        "These files are marked with the date of the copy they come from.",
+        "Diese Dateien sind mit dem Datum der Kopie gekennzeichnet, aus der sie stammen.",
+    ),
+    (
+        "This drive is locked with BitLocker. Enter its 48-digit recovery key or its password to find its deleted files. The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "Dieses Laufwerk ist mit BitLocker gesperrt. Geben Sie den 48-stelligen Wiederherstellungsschlüssel oder das Passwort ein, um die gelöschten Dateien zu finden. Der Wiederherstellungsschlüssel steht in Ihrem Microsoft-Konto (aka.ms/myrecoverykey), auf einem Ausdruck oder auf einem USB-Stick.",
+    ),
+    ("This photo could not be repaired.", "Dieses Foto konnte nicht repariert werden."),
+    (
+        "This recovery key or password does not open the drive.",
+        "Dieser Wiederherstellungsschlüssel oder dieses Passwort öffnet das Laufwerk nicht.",
+    ),
+    (
+        "Tick \"Protect with a password\" before clicking Recover: everything is saved into one ZIP file encrypted with AES-256, and nothing is written unencrypted.",
+        "Setzen Sie vor dem Klick auf Wiederherstellen ein Häkchen bei „Mit einem Passwort schützen“: Alles wird in einer mit AES-256 verschlüsselten ZIP-Datei gespeichert, nichts wird unverschlüsselt geschrieben.",
+    ),
+    (
+        "To look in one folder only, type it in \"Only in this folder\" before the scan: for example Users/Ann/Pictures.",
+        "Um nur in einem Ordner zu suchen, geben Sie ihn vor dem Scan bei „Nur in diesem Ordner“ ein: zum Beispiel Users/Ann/Pictures.",
+    ),
+    ("Unlock", "Entsperren"),
+    (
+        "Unlocked. The drive is read decrypted; nothing on it is changed.",
+        "Entsperrt. Das Laufwerk wird entschlüsselt gelesen; nichts darauf wird verändert.",
+    ),
+    ("Unlocking…", "Wird entsperrt…"),
+    (
+        "Windows reads a BitLocker drive it has already unlocked like any other drive. A locked one may only appear with \"Show whole disks\" turned on in Settings.",
+        "Ein BitLocker-Laufwerk, das Windows bereits entsperrt hat, wird wie jedes andere gelesen. Ein gesperrtes erscheint unter Umständen nur, wenn „Ganze Datenträger anzeigen“ in den Einstellungen eingeschaltet ist.",
+    ),
+    (
+        "Windows: files kept in the Previous Versions copies (System Restore points) are found too, even when their space on the drive has been reused.",
+        "Windows: Dateien aus den Kopien „Vorherige Versionen“ (Systemwiederherstellungspunkte) werden ebenfalls gefunden, auch wenn ihr Platz auf dem Laufwerk wiederverwendet wurde.",
+    ),
+    ("everywhere (for example Users/Ann/Pictures)", "überall (zum Beispiel Users/Ann/Pictures)"),
+    (
         "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
         "Gelöschte Dateien werden in den älteren Kopien gefunden, die diese Dateisysteme aufbewahren: frühere Prüfpunkte von APFS, alte Katalogeinträge von Mac OS Extended und das Journal von ext3 und ext4.",
     ),
     (
         "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
         "Laufwerke von einem Mac (APFS, Mac OS Extended) und von Linux (ext2, ext3, ext4) werden wie Windows-Laufwerke mit ihren Namen und Ordnern gelesen.",
-    ),
-    (
-        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
-        "Verschlüsselte Laufwerke (FileVault, BitLocker) lassen sich ohne ihr Passwort nicht lesen; auch die Tiefensuche findet darauf nichts.",
     ),
     (
         "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
@@ -645,16 +741,106 @@ pub const ARABIC: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "إعادة التشغيل بصلاحيات المسؤول"),
     (
+        "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
+        "يُعاد بناء قرص APFS التالف الذي لم يعد جهاز Mac يفتحه مما تبقى من جداول ملفاته.",
+    ),
+    (
+        "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+        "غالبًا يمكن إصلاح صورة JPEG تالفة: حدّدها وانقر على \"إصلاح هذه الصورة…\". إذا ضاعت بدايتها، فستحتاج إلى صورة سليمة من الكاميرا نفسها.",
+    ),
+    (
+        "A drive locked with BitLocker shows \"BitLocker · locked\". Select it, enter its 48-digit recovery key or its password and click Unlock.",
+        "يظهر القرص المقفل بـ BitLocker بعبارة \"BitLocker · مقفل\". حدّده، وأدخل مفتاح الاسترداد المكوّن من 48 رقمًا أو كلمة المرور، ثم انقر على فتح القفل.",
+    ),
+    ("BitLocker drives", "أقراص BitLocker"),
+    ("BitLocker · locked", "BitLocker · مقفل"),
+    ("Choose a good photo taken with the same camera", "اختر صورة سليمة التُقطت بالكاميرا نفسها"),
+    (
+        "Closes a photo whose end is missing, or gives it the header of a good photo taken with the same camera.",
+        "يُغلق صورة ينقصها آخرها، أو يمنحها ترويسة صورة سليمة التُقطت بالكاميرا نفسها.",
+    ),
+    (
+        "Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either.",
+        "لا يمكن قراءة الأقراص المشفّرة بـ FileVault؛ ولا يجد البحث العميق عليها شيئًا أيضًا.",
+    ),
+    (
+        "Faster to look through: only files that were in this folder, or below it, are listed.",
+        "أسرع في التصفّح: تُعرض فقط الملفات التي كانت في هذا المجلد أو ما تحته.",
+    ),
+    (
+        "It opens with the password in 7-Zip, WinRAR or Keka. Keep the password safe: without it the files cannot be opened.",
+        "يُفتح بكلمة المرور في 7-Zip أو WinRAR أو Keka. احتفظ بكلمة المرور في مكان آمن: لا يمكن فتح الملفات بدونها.",
+    ),
+    ("Keeping recovered files private", "الحفاظ على خصوصية الملفات المستعادة"),
+    (
+        "Mac: deleted files are also found in APFS snapshots, such as the ones Time Machine makes.",
+        "Mac: يُعثر على الملفات المحذوفة أيضًا في لقطات APFS، مثل التي ينشئها Time Machine.",
+    ),
+    ("Older copies of your files", "نسخ أقدم من ملفاتك"),
+    ("Only in this folder:", "في هذا المجلد فقط:"),
+    ("Password", "كلمة المرور"),
+    ("Protect with a password", "الحماية بكلمة مرور"),
+    ("Reading the Windows Previous Versions copies", "قراءة نسخ \"الإصدارات السابقة\" في Windows"),
+    ("Recovery key or password", "مفتاح الاسترداد أو كلمة المرور"),
+    ("Repair this photo…", "إصلاح هذه الصورة…"),
+    ("Repeat the password", "أعد كتابة كلمة المرور"),
+    ("Save the repaired photo", "حفظ الصورة المُصلحة"),
+    (
+        "Saves everything into one ZIP file encrypted with AES-256, instead of a folder. It opens with the password in 7-Zip, WinRAR or Keka.",
+        "يحفظ كل شيء في ملف ZIP واحد مشفّر بـ AES-256 بدلًا من مجلد. يُفتح بكلمة المرور في 7-Zip أو WinRAR أو Keka.",
+    ),
+    (
+        "The drive is read decrypted; nothing on it is changed, and the key is not stored.",
+        "يُقرأ القرص بعد فك تشفيره؛ لا يتغيّر عليه شيء، ولا يُحفظ المفتاح.",
+    ),
+    ("The passwords are not the same.", "كلمتا المرور غير متطابقتين."),
+    ("The photo could not be read.", "تعذّرت قراءة الصورة."),
+    (
+        "The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "مفتاح الاسترداد موجود في حساب Microsoft الخاص بك (aka.ms/myrecoverykey)، أو على نسخة مطبوعة، أو على ذاكرة USB.",
+    ),
+    ("The repaired photo could not be saved.", "تعذّر حفظ الصورة المُصلحة."),
+    ("The repaired photo was saved.", "حُفظت الصورة المُصلحة."),
+    (
+        "These files are marked with the date of the copy they come from.",
+        "تُميَّز هذه الملفات بتاريخ النسخة التي جاءت منها.",
+    ),
+    (
+        "This drive is locked with BitLocker. Enter its 48-digit recovery key or its password to find its deleted files. The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "هذا القرص مقفل بـ BitLocker. أدخل مفتاح الاسترداد المكوّن من 48 رقمًا أو كلمة المرور للعثور على ملفاته المحذوفة. مفتاح الاسترداد موجود في حساب Microsoft الخاص بك (aka.ms/myrecoverykey)، أو على نسخة مطبوعة، أو على ذاكرة USB.",
+    ),
+    ("This photo could not be repaired.", "تعذّر إصلاح هذه الصورة."),
+    ("This recovery key or password does not open the drive.", "مفتاح الاسترداد أو كلمة المرور هذه لا تفتح القرص."),
+    (
+        "Tick \"Protect with a password\" before clicking Recover: everything is saved into one ZIP file encrypted with AES-256, and nothing is written unencrypted.",
+        "حدّد \"الحماية بكلمة مرور\" قبل النقر على استعادة: يُحفظ كل شيء في ملف ZIP واحد مشفّر بـ AES-256، ولا يُكتب أي شيء دون تشفير.",
+    ),
+    (
+        "To look in one folder only, type it in \"Only in this folder\" before the scan: for example Users/Ann/Pictures.",
+        "للبحث في مجلد واحد فقط، اكتبه في \"في هذا المجلد فقط\" قبل الفحص: مثلًا Users/Ann/Pictures.",
+    ),
+    ("Unlock", "فتح القفل"),
+    (
+        "Unlocked. The drive is read decrypted; nothing on it is changed.",
+        "تم فتح القفل. يُقرأ القرص بعد فك تشفيره؛ لا يتغيّر عليه شيء.",
+    ),
+    ("Unlocking…", "جارٍ فتح القفل…"),
+    (
+        "Windows reads a BitLocker drive it has already unlocked like any other drive. A locked one may only appear with \"Show whole disks\" turned on in Settings.",
+        "يقرأ Windows قرص BitLocker الذي فتح قفله مسبقًا مثل أي قرص آخر. أما القرص المقفل فقد لا يظهر إلا بعد تشغيل \"عرض الأقراص كاملة\" في الإعدادات.",
+    ),
+    (
+        "Windows: files kept in the Previous Versions copies (System Restore points) are found too, even when their space on the drive has been reused.",
+        "Windows: يُعثر أيضًا على الملفات المحفوظة في نسخ \"الإصدارات السابقة\" (نقاط استعادة النظام)، حتى لو أُعيد استخدام مساحتها على القرص.",
+    ),
+    ("everywhere (for example Users/Ann/Pictures)", "في كل مكان (مثلًا Users/Ann/Pictures)"),
+    (
         "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
         "يُعثر على الملفات المحذوفة في النسخ الأقدم التي تحتفظ بها أنظمة الملفات هذه: نقاط التحقق السابقة في APFS، وإدخالات الفهرس القديمة في Mac OS Extended، وسجل ext3 وext4.",
     ),
     (
         "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
         "تُقرأ أقراص Mac (APFS وMac OS Extended) وأقراص Linux (ext2 وext3 وext4) بأسمائها ومجلداتها، مثل أقراص Windows.",
-    ),
-    (
-        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
-        "لا يمكن قراءة الأقراص المشفّرة (FileVault وBitLocker) بدون كلمة المرور؛ ولا يجد البحث العميق عليها شيئًا أيضًا.",
     ),
     (
         "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
@@ -1196,16 +1382,109 @@ pub const SPANISH: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "Reiniciar con permisos de administrador"),
     (
+        "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
+        "Una unidad APFS dañada que el Mac ya no abre se reconstruye con lo que queda de sus tablas de archivos.",
+    ),
+    (
+        "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+        "Una foto JPEG dañada a menudo se puede reparar: selecciónala y haz clic en «Reparar esta foto…». Si falta su principio, se necesita una foto buena de la misma cámara.",
+    ),
+    (
+        "A drive locked with BitLocker shows \"BitLocker · locked\". Select it, enter its 48-digit recovery key or its password and click Unlock.",
+        "Una unidad bloqueada con BitLocker muestra «BitLocker · bloqueada». Selecciónala, introduce su clave de recuperación de 48 dígitos o su contraseña y haz clic en Desbloquear.",
+    ),
+    ("BitLocker drives", "Unidades BitLocker"),
+    ("BitLocker · locked", "BitLocker · bloqueada"),
+    ("Choose a good photo taken with the same camera", "Elige una foto buena tomada con la misma cámara"),
+    (
+        "Closes a photo whose end is missing, or gives it the header of a good photo taken with the same camera.",
+        "Cierra una foto a la que le falta el final, o le pone la cabecera de una foto buena tomada con la misma cámara.",
+    ),
+    (
+        "Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either.",
+        "Las unidades cifradas con FileVault no se pueden leer; la búsqueda profunda tampoco encuentra nada en ellas.",
+    ),
+    (
+        "Faster to look through: only files that were in this folder, or below it, are listed.",
+        "Más rápido de revisar: solo se muestran los archivos que estaban en esta carpeta o dentro de ella.",
+    ),
+    (
+        "It opens with the password in 7-Zip, WinRAR or Keka. Keep the password safe: without it the files cannot be opened.",
+        "Se abre con la contraseña en 7-Zip, WinRAR o Keka. Guarda bien la contraseña: sin ella no se pueden abrir los archivos.",
+    ),
+    ("Keeping recovered files private", "Mantener privados los archivos recuperados"),
+    (
+        "Mac: deleted files are also found in APFS snapshots, such as the ones Time Machine makes.",
+        "Mac: los archivos eliminados también se encuentran en las instantáneas de APFS, como las que crea Time Machine.",
+    ),
+    ("Older copies of your files", "Copias antiguas de tus archivos"),
+    ("Only in this folder:", "Solo en esta carpeta:"),
+    ("Password", "Contraseña"),
+    ("Protect with a password", "Proteger con contraseña"),
+    ("Reading the Windows Previous Versions copies", "Leyendo las copias de «Versiones anteriores» de Windows"),
+    ("Recovery key or password", "Clave de recuperación o contraseña"),
+    ("Repair this photo…", "Reparar esta foto…"),
+    ("Repeat the password", "Repite la contraseña"),
+    ("Save the repaired photo", "Guardar la foto reparada"),
+    (
+        "Saves everything into one ZIP file encrypted with AES-256, instead of a folder. It opens with the password in 7-Zip, WinRAR or Keka.",
+        "Guarda todo en un único archivo ZIP cifrado con AES-256, en lugar de una carpeta. Se abre con la contraseña en 7-Zip, WinRAR o Keka.",
+    ),
+    (
+        "The drive is read decrypted; nothing on it is changed, and the key is not stored.",
+        "La unidad se lee descifrada; no se cambia nada en ella y la clave no se guarda.",
+    ),
+    ("The passwords are not the same.", "Las contraseñas no coinciden."),
+    ("The photo could not be read.", "No se pudo leer la foto."),
+    (
+        "The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "La clave de recuperación está en tu cuenta Microsoft (aka.ms/myrecoverykey), en una copia impresa o en una memoria USB.",
+    ),
+    ("The repaired photo could not be saved.", "No se pudo guardar la foto reparada."),
+    ("The repaired photo was saved.", "Se guardó la foto reparada."),
+    (
+        "These files are marked with the date of the copy they come from.",
+        "Estos archivos llevan la fecha de la copia de la que proceden.",
+    ),
+    (
+        "This drive is locked with BitLocker. Enter its 48-digit recovery key or its password to find its deleted files. The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "Esta unidad está bloqueada con BitLocker. Introduce su clave de recuperación de 48 dígitos o su contraseña para encontrar sus archivos eliminados. La clave de recuperación está en tu cuenta Microsoft (aka.ms/myrecoverykey), en una copia impresa o en una memoria USB.",
+    ),
+    ("This photo could not be repaired.", "No se pudo reparar esta foto."),
+    (
+        "This recovery key or password does not open the drive.",
+        "Esta clave de recuperación o contraseña no abre la unidad.",
+    ),
+    (
+        "Tick \"Protect with a password\" before clicking Recover: everything is saved into one ZIP file encrypted with AES-256, and nothing is written unencrypted.",
+        "Marca «Proteger con contraseña» antes de hacer clic en Recuperar: todo se guarda en un único archivo ZIP cifrado con AES-256 y no se escribe nada sin cifrar.",
+    ),
+    (
+        "To look in one folder only, type it in \"Only in this folder\" before the scan: for example Users/Ann/Pictures.",
+        "Para buscar solo en una carpeta, escríbela en «Solo en esta carpeta» antes del análisis: por ejemplo Users/Ann/Pictures.",
+    ),
+    ("Unlock", "Desbloquear"),
+    (
+        "Unlocked. The drive is read decrypted; nothing on it is changed.",
+        "Desbloqueada. La unidad se lee descifrada; no se cambia nada en ella.",
+    ),
+    ("Unlocking…", "Desbloqueando…"),
+    (
+        "Windows reads a BitLocker drive it has already unlocked like any other drive. A locked one may only appear with \"Show whole disks\" turned on in Settings.",
+        "Windows lee como cualquier otra una unidad BitLocker que ya ha desbloqueado. Una bloqueada puede aparecer solo con «Mostrar discos completos» activado en Ajustes.",
+    ),
+    (
+        "Windows: files kept in the Previous Versions copies (System Restore points) are found too, even when their space on the drive has been reused.",
+        "Windows: también se encuentran los archivos guardados en las copias de «Versiones anteriores» (puntos de restauración), aunque su espacio en la unidad se haya reutilizado.",
+    ),
+    ("everywhere (for example Users/Ann/Pictures)", "en todas partes (por ejemplo Users/Ann/Pictures)"),
+    (
         "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
         "Los archivos eliminados se encuentran en las copias antiguas que guardan estos sistemas de archivos: puntos de control anteriores de APFS, entradas de catálogo antiguas de Mac OS Extended y el diario de ext3 y ext4.",
     ),
     (
         "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
         "Las unidades de un Mac (APFS, Mac OS Extended) y de Linux (ext2, ext3, ext4) se leen con sus nombres y carpetas, como las unidades de Windows.",
-    ),
-    (
-        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
-        "Las unidades cifradas (FileVault, BitLocker) no se pueden leer sin su contraseña; la búsqueda profunda tampoco encuentra nada en ellas.",
     ),
     (
         "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
@@ -1783,16 +2062,109 @@ pub const FRENCH: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "Redémarrer avec les droits d'administrateur"),
     (
+        "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
+        "Un disque APFS endommagé que le Mac n'ouvre plus est reconstruit à partir de ce qui reste de ses tables de fichiers.",
+    ),
+    (
+        "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+        "Une photo JPEG endommagée peut souvent être réparée : sélectionnez-la et cliquez sur « Réparer cette photo… ». Si son début a disparu, il faut une bonne photo prise avec le même appareil.",
+    ),
+    (
+        "A drive locked with BitLocker shows \"BitLocker · locked\". Select it, enter its 48-digit recovery key or its password and click Unlock.",
+        "Un disque verrouillé par BitLocker affiche « BitLocker · verrouillé ». Sélectionnez-le, saisissez sa clé de récupération à 48 chiffres ou son mot de passe et cliquez sur Déverrouiller.",
+    ),
+    ("BitLocker drives", "Disques BitLocker"),
+    ("BitLocker · locked", "BitLocker · verrouillé"),
+    ("Choose a good photo taken with the same camera", "Choisissez une bonne photo prise avec le même appareil"),
+    (
+        "Closes a photo whose end is missing, or gives it the header of a good photo taken with the same camera.",
+        "Termine une photo dont la fin manque, ou lui donne l'en-tête d'une bonne photo prise avec le même appareil.",
+    ),
+    (
+        "Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either.",
+        "Les disques chiffrés avec FileVault ne peuvent pas être lus ; la recherche approfondie n'y trouve rien non plus.",
+    ),
+    (
+        "Faster to look through: only files that were in this folder, or below it, are listed.",
+        "Plus rapide à parcourir : seuls les fichiers qui étaient dans ce dossier, ou en dessous, sont listés.",
+    ),
+    (
+        "It opens with the password in 7-Zip, WinRAR or Keka. Keep the password safe: without it the files cannot be opened.",
+        "Il s'ouvre avec le mot de passe dans 7-Zip, WinRAR ou Keka. Conservez bien le mot de passe : sans lui, les fichiers ne peuvent pas être ouverts.",
+    ),
+    ("Keeping recovered files private", "Garder les fichiers récupérés privés"),
+    (
+        "Mac: deleted files are also found in APFS snapshots, such as the ones Time Machine makes.",
+        "Mac : les fichiers supprimés sont aussi retrouvés dans les instantanés APFS, comme ceux que crée Time Machine.",
+    ),
+    ("Older copies of your files", "Anciennes copies de vos fichiers"),
+    ("Only in this folder:", "Seulement dans ce dossier :"),
+    ("Password", "Mot de passe"),
+    ("Protect with a password", "Protéger par un mot de passe"),
+    ("Reading the Windows Previous Versions copies", "Lecture des copies « Versions précédentes » de Windows"),
+    ("Recovery key or password", "Clé de récupération ou mot de passe"),
+    ("Repair this photo…", "Réparer cette photo…"),
+    ("Repeat the password", "Répétez le mot de passe"),
+    ("Save the repaired photo", "Enregistrer la photo réparée"),
+    (
+        "Saves everything into one ZIP file encrypted with AES-256, instead of a folder. It opens with the password in 7-Zip, WinRAR or Keka.",
+        "Enregistre tout dans un seul fichier ZIP chiffré en AES-256, au lieu d'un dossier. Il s'ouvre avec le mot de passe dans 7-Zip, WinRAR ou Keka.",
+    ),
+    (
+        "The drive is read decrypted; nothing on it is changed, and the key is not stored.",
+        "Le disque est lu déchiffré ; rien n'y est modifié, et la clé n'est pas conservée.",
+    ),
+    ("The passwords are not the same.", "Les mots de passe ne sont pas identiques."),
+    ("The photo could not be read.", "La photo n'a pas pu être lue."),
+    (
+        "The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "La clé de récupération se trouve dans votre compte Microsoft (aka.ms/myrecoverykey), sur une copie imprimée ou sur une clé USB.",
+    ),
+    ("The repaired photo could not be saved.", "La photo réparée n'a pas pu être enregistrée."),
+    ("The repaired photo was saved.", "La photo réparée a été enregistrée."),
+    (
+        "These files are marked with the date of the copy they come from.",
+        "Ces fichiers portent la date de la copie dont ils proviennent.",
+    ),
+    (
+        "This drive is locked with BitLocker. Enter its 48-digit recovery key or its password to find its deleted files. The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "Ce disque est verrouillé par BitLocker. Saisissez sa clé de récupération à 48 chiffres ou son mot de passe pour retrouver ses fichiers supprimés. La clé de récupération se trouve dans votre compte Microsoft (aka.ms/myrecoverykey), sur une copie imprimée ou sur une clé USB.",
+    ),
+    ("This photo could not be repaired.", "Cette photo n'a pas pu être réparée."),
+    (
+        "This recovery key or password does not open the drive.",
+        "Cette clé de récupération ou ce mot de passe n'ouvre pas le disque.",
+    ),
+    (
+        "Tick \"Protect with a password\" before clicking Recover: everything is saved into one ZIP file encrypted with AES-256, and nothing is written unencrypted.",
+        "Cochez « Protéger par un mot de passe » avant de cliquer sur Récupérer : tout est enregistré dans un seul fichier ZIP chiffré en AES-256, et rien n'est écrit en clair.",
+    ),
+    (
+        "To look in one folder only, type it in \"Only in this folder\" before the scan: for example Users/Ann/Pictures.",
+        "Pour chercher dans un seul dossier, saisissez-le dans « Seulement dans ce dossier » avant l'analyse : par exemple Users/Ann/Pictures.",
+    ),
+    ("Unlock", "Déverrouiller"),
+    (
+        "Unlocked. The drive is read decrypted; nothing on it is changed.",
+        "Déverrouillé. Le disque est lu déchiffré ; rien n'y est modifié.",
+    ),
+    ("Unlocking…", "Déverrouillage…"),
+    (
+        "Windows reads a BitLocker drive it has already unlocked like any other drive. A locked one may only appear with \"Show whole disks\" turned on in Settings.",
+        "Windows lit un disque BitLocker qu'il a déjà déverrouillé comme n'importe quel autre. Un disque verrouillé peut n'apparaître qu'avec « Afficher les disques entiers » activé dans les Paramètres.",
+    ),
+    (
+        "Windows: files kept in the Previous Versions copies (System Restore points) are found too, even when their space on the drive has been reused.",
+        "Windows : les fichiers conservés dans les copies « Versions précédentes » (points de restauration) sont aussi retrouvés, même si leur place sur le disque a été réutilisée.",
+    ),
+    ("everywhere (for example Users/Ann/Pictures)", "partout (par exemple Users/Ann/Pictures)"),
+    (
         "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
         "Les fichiers supprimés sont retrouvés dans les anciennes copies que conservent ces systèmes de fichiers : points de contrôle antérieurs d'APFS, anciennes entrées de catalogue de Mac OS Étendu et journal d'ext3 et ext4.",
     ),
     (
         "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
         "Les disques d'un Mac (APFS, Mac OS Étendu) et de Linux (ext2, ext3, ext4) sont lus avec leurs noms et dossiers, comme les disques Windows.",
-    ),
-    (
-        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
-        "Les disques chiffrés (FileVault, BitLocker) ne peuvent pas être lus sans leur mot de passe ; la recherche approfondie n'y trouve rien non plus.",
     ),
     (
         "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
@@ -2382,16 +2754,109 @@ pub const RUSSIAN: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "Перезапустить с правами администратора"),
     (
+        "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
+        "Повреждённый диск APFS, который Mac больше не открывает, восстанавливается из остатков его файловых таблиц.",
+    ),
+    (
+        "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+        "Повреждённое фото JPEG часто можно исправить: выберите его и нажмите «Исправить это фото…». Если его начало утрачено, понадобится хорошее фото с той же камеры.",
+    ),
+    (
+        "A drive locked with BitLocker shows \"BitLocker · locked\". Select it, enter its 48-digit recovery key or its password and click Unlock.",
+        "Диск, заблокированный BitLocker, отмечен «BitLocker · заблокирован». Выберите его, введите 48-значный ключ восстановления или пароль и нажмите «Разблокировать».",
+    ),
+    ("BitLocker drives", "Диски BitLocker"),
+    ("BitLocker · locked", "BitLocker · заблокирован"),
+    ("Choose a good photo taken with the same camera", "Выберите хорошее фото, снятое той же камерой"),
+    (
+        "Closes a photo whose end is missing, or gives it the header of a good photo taken with the same camera.",
+        "Завершает фото, у которого нет конца, или даёт ему заголовок хорошего фото, снятого той же камерой.",
+    ),
+    (
+        "Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either.",
+        "Диски, зашифрованные FileVault, прочитать нельзя; глубокий поиск тоже ничего на них не находит.",
+    ),
+    (
+        "Faster to look through: only files that were in this folder, or below it, are listed.",
+        "Проще просматривать: показываются только файлы, которые были в этой папке или ниже.",
+    ),
+    (
+        "It opens with the password in 7-Zip, WinRAR or Keka. Keep the password safe: without it the files cannot be opened.",
+        "Он открывается с паролем в 7-Zip, WinRAR или Keka. Храните пароль надёжно: без него файлы не открыть.",
+    ),
+    ("Keeping recovered files private", "Защита восстановленных файлов"),
+    (
+        "Mac: deleted files are also found in APFS snapshots, such as the ones Time Machine makes.",
+        "Mac: удалённые файлы находятся и в снимках APFS, например в тех, что создаёт Time Machine.",
+    ),
+    ("Older copies of your files", "Старые копии ваших файлов"),
+    ("Only in this folder:", "Только в этой папке:"),
+    ("Password", "Пароль"),
+    ("Protect with a password", "Защитить паролем"),
+    ("Reading the Windows Previous Versions copies", "Чтение копий «Предыдущие версии» Windows"),
+    ("Recovery key or password", "Ключ восстановления или пароль"),
+    ("Repair this photo…", "Исправить это фото…"),
+    ("Repeat the password", "Повторите пароль"),
+    ("Save the repaired photo", "Сохранить исправленное фото"),
+    (
+        "Saves everything into one ZIP file encrypted with AES-256, instead of a folder. It opens with the password in 7-Zip, WinRAR or Keka.",
+        "Сохраняет всё в один ZIP-файл, зашифрованный AES-256, вместо папки. Он открывается с паролем в 7-Zip, WinRAR или Keka.",
+    ),
+    (
+        "The drive is read decrypted; nothing on it is changed, and the key is not stored.",
+        "Диск читается в расшифрованном виде; на нём ничего не меняется, а ключ не сохраняется.",
+    ),
+    ("The passwords are not the same.", "Пароли не совпадают."),
+    ("The photo could not be read.", "Не удалось прочитать фото."),
+    (
+        "The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "Ключ восстановления находится в вашей учётной записи Microsoft (aka.ms/myrecoverykey), на распечатке или на USB-флешке.",
+    ),
+    ("The repaired photo could not be saved.", "Не удалось сохранить исправленное фото."),
+    ("The repaired photo was saved.", "Исправленное фото сохранено."),
+    (
+        "These files are marked with the date of the copy they come from.",
+        "Эти файлы отмечены датой копии, из которой они взяты.",
+    ),
+    (
+        "This drive is locked with BitLocker. Enter its 48-digit recovery key or its password to find its deleted files. The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "Этот диск заблокирован BitLocker. Введите 48-значный ключ восстановления или пароль, чтобы найти удалённые файлы. Ключ восстановления находится в вашей учётной записи Microsoft (aka.ms/myrecoverykey), на распечатке или на USB-флешке.",
+    ),
+    ("This photo could not be repaired.", "Не удалось исправить это фото."),
+    (
+        "This recovery key or password does not open the drive.",
+        "Этот ключ восстановления или пароль не открывает диск.",
+    ),
+    (
+        "Tick \"Protect with a password\" before clicking Recover: everything is saved into one ZIP file encrypted with AES-256, and nothing is written unencrypted.",
+        "Отметьте «Защитить паролем» перед нажатием «Восстановить»: всё сохраняется в один ZIP-файл, зашифрованный AES-256, и ничего не записывается в открытом виде.",
+    ),
+    (
+        "To look in one folder only, type it in \"Only in this folder\" before the scan: for example Users/Ann/Pictures.",
+        "Чтобы искать только в одной папке, введите её в поле «Только в этой папке» перед сканированием: например Users/Ann/Pictures.",
+    ),
+    ("Unlock", "Разблокировать"),
+    (
+        "Unlocked. The drive is read decrypted; nothing on it is changed.",
+        "Разблокировано. Диск читается в расшифрованном виде; на нём ничего не меняется.",
+    ),
+    ("Unlocking…", "Разблокировка…"),
+    (
+        "Windows reads a BitLocker drive it has already unlocked like any other drive. A locked one may only appear with \"Show whole disks\" turned on in Settings.",
+        "Диск BitLocker, который Windows уже разблокировала, читается как любой другой. Заблокированный может появиться, только если в настройках включено «Показывать диски целиком».",
+    ),
+    (
+        "Windows: files kept in the Previous Versions copies (System Restore points) are found too, even when their space on the drive has been reused.",
+        "Windows: находятся и файлы из копий «Предыдущие версии» (точек восстановления системы), даже если их место на диске уже занято.",
+    ),
+    ("everywhere (for example Users/Ann/Pictures)", "везде (например Users/Ann/Pictures)"),
+    (
         "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
         "Удалённые файлы находятся в старых копиях, которые хранят эти файловые системы: в прежних контрольных точках APFS, старых записях каталога Mac OS Extended и журнале ext3 и ext4.",
     ),
     (
         "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
         "Диски Mac (APFS, Mac OS Extended) и Linux (ext2, ext3, ext4) читаются с именами и папками, как диски Windows.",
-    ),
-    (
-        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
-        "Зашифрованные диски (FileVault, BitLocker) нельзя прочитать без пароля; глубокий поиск на них тоже ничего не находит.",
     ),
     (
         "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
@@ -2963,16 +3428,103 @@ pub const CHINESE: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "以管理员权限重新启动"),
     (
+        "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
+        "Mac 已无法打开的损坏 APFS 驱动器，会根据其文件表的残余部分重建。",
+    ),
+    (
+        "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+        "损坏的 JPEG 照片通常可以修复：选中它并点击“修复此照片…”。如果开头已丢失，需要一张同一相机拍摄的完好照片。",
+    ),
+    (
+        "A drive locked with BitLocker shows \"BitLocker · locked\". Select it, enter its 48-digit recovery key or its password and click Unlock.",
+        "被 BitLocker 锁定的驱动器显示为“BitLocker · 已锁定”。选中它，输入 48 位恢复密钥或密码，然后点击“解锁”。",
+    ),
+    ("BitLocker drives", "BitLocker 驱动器"),
+    ("BitLocker · locked", "BitLocker · 已锁定"),
+    ("Choose a good photo taken with the same camera", "选择一张同一相机拍摄的完好照片"),
+    (
+        "Closes a photo whose end is missing, or gives it the header of a good photo taken with the same camera.",
+        "为缺少结尾的照片补上结尾，或为其换上同一相机拍摄的完好照片的文件头。",
+    ),
+    (
+        "Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either.",
+        "使用 FileVault 加密的驱动器无法读取；深度搜索也找不到任何内容。",
+    ),
+    (
+        "Faster to look through: only files that were in this folder, or below it, are listed.",
+        "更易浏览：只列出原本位于此文件夹或其子文件夹中的文件。",
+    ),
+    (
+        "It opens with the password in 7-Zip, WinRAR or Keka. Keep the password safe: without it the files cannot be opened.",
+        "可在 7-Zip、WinRAR 或 Keka 中用密码打开。请妥善保管密码：没有它就无法打开这些文件。",
+    ),
+    ("Keeping recovered files private", "保护恢复的文件"),
+    (
+        "Mac: deleted files are also found in APFS snapshots, such as the ones Time Machine makes.",
+        "Mac：已删除的文件也会在 APFS 快照中找到，例如 Time Machine 创建的快照。",
+    ),
+    ("Older copies of your files", "文件的旧副本"),
+    ("Only in this folder:", "仅在此文件夹中："),
+    ("Password", "密码"),
+    ("Protect with a password", "用密码保护"),
+    ("Reading the Windows Previous Versions copies", "正在读取 Windows“以前的版本”副本"),
+    ("Recovery key or password", "恢复密钥或密码"),
+    ("Repair this photo…", "修复此照片…"),
+    ("Repeat the password", "再次输入密码"),
+    ("Save the repaired photo", "保存修复后的照片"),
+    (
+        "Saves everything into one ZIP file encrypted with AES-256, instead of a folder. It opens with the password in 7-Zip, WinRAR or Keka.",
+        "将所有内容保存到一个用 AES-256 加密的 ZIP 文件中，而不是文件夹。可在 7-Zip、WinRAR 或 Keka 中用密码打开。",
+    ),
+    (
+        "The drive is read decrypted; nothing on it is changed, and the key is not stored.",
+        "驱动器以解密方式读取；不会更改其上的任何内容，也不会保存密钥。",
+    ),
+    ("The passwords are not the same.", "两次输入的密码不一致。"),
+    ("The photo could not be read.", "无法读取该照片。"),
+    (
+        "The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "恢复密钥位于你的 Microsoft 账户（aka.ms/myrecoverykey）、打印件或 U 盘中。",
+    ),
+    ("The repaired photo could not be saved.", "无法保存修复后的照片。"),
+    ("The repaired photo was saved.", "修复后的照片已保存。"),
+    ("These files are marked with the date of the copy they come from.", "这些文件会标注其来源副本的日期。"),
+    (
+        "This drive is locked with BitLocker. Enter its 48-digit recovery key or its password to find its deleted files. The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "此驱动器已被 BitLocker 锁定。输入 48 位恢复密钥或密码即可查找其中已删除的文件。恢复密钥位于你的 Microsoft 账户（aka.ms/myrecoverykey）、打印件或 U 盘中。",
+    ),
+    ("This photo could not be repaired.", "无法修复此照片。"),
+    ("This recovery key or password does not open the drive.", "此恢复密钥或密码无法打开该驱动器。"),
+    (
+        "Tick \"Protect with a password\" before clicking Recover: everything is saved into one ZIP file encrypted with AES-256, and nothing is written unencrypted.",
+        "点击“恢复”前勾选“用密码保护”：所有内容都会保存到一个用 AES-256 加密的 ZIP 文件中，不会写入任何未加密的内容。",
+    ),
+    (
+        "To look in one folder only, type it in \"Only in this folder\" before the scan: for example Users/Ann/Pictures.",
+        "如只想在一个文件夹中查找，请在扫描前将其填入“仅在此文件夹中”：例如 Users/Ann/Pictures。",
+    ),
+    ("Unlock", "解锁"),
+    (
+        "Unlocked. The drive is read decrypted; nothing on it is changed.",
+        "已解锁。驱动器以解密方式读取；不会更改其上的任何内容。",
+    ),
+    ("Unlocking…", "正在解锁…"),
+    (
+        "Windows reads a BitLocker drive it has already unlocked like any other drive. A locked one may only appear with \"Show whole disks\" turned on in Settings.",
+        "Windows 已解锁的 BitLocker 驱动器可像其他驱动器一样读取。已锁定的驱动器可能需要在设置中打开“显示整个磁盘”才会出现。",
+    ),
+    (
+        "Windows: files kept in the Previous Versions copies (System Restore points) are found too, even when their space on the drive has been reused.",
+        "Windows：保存在“以前的版本”副本（系统还原点）中的文件也会被找到，即使它们在驱动器上的空间已被重新使用。",
+    ),
+    ("everywhere (for example Users/Ann/Pictures)", "所有位置（例如 Users/Ann/Pictures）"),
+    (
         "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
         "已删除的文件可在这些文件系统保留的旧副本中找到：APFS 的较早检查点、Mac OS 扩展格式的旧目录条目，以及 ext3 和 ext4 的日志。",
     ),
     (
         "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
         "来自 Mac（APFS、Mac OS 扩展格式）和 Linux（ext2、ext3、ext4）的驱动器会像 Windows 驱动器一样带着名称和文件夹被读取。",
-    ),
-    (
-        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
-        "加密的驱动器（FileVault、BitLocker）没有密码无法读取；深度搜索在其上也找不到任何内容。",
     ),
     (
         "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",
@@ -3490,16 +4042,106 @@ pub const TURKISH: &[(&str, &str)] = &[
     ),
     ("Restart with administrator rights", "Yönetici haklarıyla yeniden başlat"),
     (
+        "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
+        "Mac'in artık açamadığı hasarlı bir APFS sürücüsü, dosya tablolarından kalanlarla yeniden oluşturulur.",
+    ),
+    (
+        "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+        "Hasarlı bir JPEG fotoğraf çoğu zaman onarılabilir: seçin ve \"Bu fotoğrafı onar…\" düğmesine tıklayın. Başlangıcı kaybolmuşsa aynı kamerayla çekilmiş sağlam bir fotoğraf gerekir.",
+    ),
+    (
+        "A drive locked with BitLocker shows \"BitLocker · locked\". Select it, enter its 48-digit recovery key or its password and click Unlock.",
+        "BitLocker ile kilitli bir sürücü \"BitLocker · kilitli\" olarak görünür. Seçin, 48 haneli kurtarma anahtarını veya parolasını girin ve Kilidi aç'a tıklayın.",
+    ),
+    ("BitLocker drives", "BitLocker sürücüleri"),
+    ("BitLocker · locked", "BitLocker · kilitli"),
+    ("Choose a good photo taken with the same camera", "Aynı kamerayla çekilmiş sağlam bir fotoğraf seçin"),
+    (
+        "Closes a photo whose end is missing, or gives it the header of a good photo taken with the same camera.",
+        "Sonu eksik bir fotoğrafı kapatır ya da ona aynı kamerayla çekilmiş sağlam bir fotoğrafın başlığını verir.",
+    ),
+    (
+        "Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either.",
+        "FileVault ile şifrelenmiş sürücüler okunamaz; derin arama da üzerlerinde bir şey bulamaz.",
+    ),
+    (
+        "Faster to look through: only files that were in this folder, or below it, are listed.",
+        "Göz atması daha hızlı: yalnızca bu klasörde veya altında olan dosyalar listelenir.",
+    ),
+    (
+        "It opens with the password in 7-Zip, WinRAR or Keka. Keep the password safe: without it the files cannot be opened.",
+        "Parolayla 7-Zip, WinRAR veya Keka'da açılır. Parolayı güvenle saklayın: o olmadan dosyalar açılamaz.",
+    ),
+    ("Keeping recovered files private", "Kurtarılan dosyaları gizli tutmak"),
+    (
+        "Mac: deleted files are also found in APFS snapshots, such as the ones Time Machine makes.",
+        "Mac: silinen dosyalar, Time Machine'in oluşturdukları gibi APFS anlık görüntülerinde de bulunur.",
+    ),
+    ("Older copies of your files", "Dosyalarınızın eski kopyaları"),
+    ("Only in this folder:", "Yalnızca bu klasörde:"),
+    ("Password", "Parola"),
+    ("Protect with a password", "Parolayla koru"),
+    ("Reading the Windows Previous Versions copies", "Windows \"Önceki Sürümler\" kopyaları okunuyor"),
+    ("Recovery key or password", "Kurtarma anahtarı veya parola"),
+    ("Repair this photo…", "Bu fotoğrafı onar…"),
+    ("Repeat the password", "Parolayı tekrarlayın"),
+    ("Save the repaired photo", "Onarılan fotoğrafı kaydet"),
+    (
+        "Saves everything into one ZIP file encrypted with AES-256, instead of a folder. It opens with the password in 7-Zip, WinRAR or Keka.",
+        "Her şeyi bir klasör yerine AES-256 ile şifrelenmiş tek bir ZIP dosyasına kaydeder. Parolayla 7-Zip, WinRAR veya Keka'da açılır.",
+    ),
+    (
+        "The drive is read decrypted; nothing on it is changed, and the key is not stored.",
+        "Sürücü şifresi çözülerek okunur; üzerinde hiçbir şey değiştirilmez ve anahtar saklanmaz.",
+    ),
+    ("The passwords are not the same.", "Parolalar aynı değil."),
+    ("The photo could not be read.", "Fotoğraf okunamadı."),
+    (
+        "The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "Kurtarma anahtarı Microsoft hesabınızda (aka.ms/myrecoverykey), bir çıktıda veya bir USB bellekte bulunur.",
+    ),
+    ("The repaired photo could not be saved.", "Onarılan fotoğraf kaydedilemedi."),
+    ("The repaired photo was saved.", "Onarılan fotoğraf kaydedildi."),
+    (
+        "These files are marked with the date of the copy they come from.",
+        "Bu dosyalar, geldikleri kopyanın tarihiyle işaretlenir.",
+    ),
+    (
+        "This drive is locked with BitLocker. Enter its 48-digit recovery key or its password to find its deleted files. The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+        "Bu sürücü BitLocker ile kilitli. Silinen dosyalarını bulmak için 48 haneli kurtarma anahtarını veya parolasını girin. Kurtarma anahtarı Microsoft hesabınızda (aka.ms/myrecoverykey), bir çıktıda veya bir USB bellekte bulunur.",
+    ),
+    ("This photo could not be repaired.", "Bu fotoğraf onarılamadı."),
+    ("This recovery key or password does not open the drive.", "Bu kurtarma anahtarı veya parola sürücüyü açmıyor."),
+    (
+        "Tick \"Protect with a password\" before clicking Recover: everything is saved into one ZIP file encrypted with AES-256, and nothing is written unencrypted.",
+        "Kurtar'a tıklamadan önce \"Parolayla koru\" seçeneğini işaretleyin: her şey AES-256 ile şifrelenmiş tek bir ZIP dosyasına kaydedilir ve hiçbir şey şifresiz yazılmaz.",
+    ),
+    (
+        "To look in one folder only, type it in \"Only in this folder\" before the scan: for example Users/Ann/Pictures.",
+        "Yalnızca bir klasörde aramak için taramadan önce onu \"Yalnızca bu klasörde\" alanına yazın: örneğin Users/Ann/Pictures.",
+    ),
+    ("Unlock", "Kilidi aç"),
+    (
+        "Unlocked. The drive is read decrypted; nothing on it is changed.",
+        "Kilit açıldı. Sürücü şifresi çözülerek okunur; üzerinde hiçbir şey değiştirilmez.",
+    ),
+    ("Unlocking…", "Kilit açılıyor…"),
+    (
+        "Windows reads a BitLocker drive it has already unlocked like any other drive. A locked one may only appear with \"Show whole disks\" turned on in Settings.",
+        "Windows'un zaten kilidini açtığı bir BitLocker sürücüsü diğer sürücüler gibi okunur. Kilitli olan, ancak Ayarlar'da \"Tüm diskleri göster\" açıkken görünebilir.",
+    ),
+    (
+        "Windows: files kept in the Previous Versions copies (System Restore points) are found too, even when their space on the drive has been reused.",
+        "Windows: \"Önceki Sürümler\" kopyalarında (sistem geri yükleme noktaları) saklanan dosyalar da, sürücüdeki yerleri yeniden kullanılmış olsa bile bulunur.",
+    ),
+    ("everywhere (for example Users/Ann/Pictures)", "her yerde (örneğin Users/Ann/Pictures)"),
+    (
         "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
         "Silinen dosyalar, bu dosya sistemlerinin sakladığı eski kopyalarda bulunur: APFS'nin önceki denetim noktaları, Mac OS Genişletilmiş'in eski katalog kayıtları ve ext3 ile ext4'ün günlüğü.",
     ),
     (
         "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
         "Mac (APFS, Mac OS Genişletilmiş) ve Linux (ext2, ext3, ext4) sürücüleri, Windows sürücüleri gibi adları ve klasörleriyle okunur.",
-    ),
-    (
-        "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
-        "Şifreli sürücüler (FileVault, BitLocker) parolaları olmadan okunamaz; derin arama da üzerlerinde bir şey bulamaz.",
     ),
     (
         "Long videos from cameras and phones are often stored in pieces: the deep search puts them back together.",

@@ -40,6 +40,7 @@ fn task_label(task: &str) -> String {
         "Rebuilding lost partitions" => tr("Looking for lost partitions and old file tables").into(),
         "Rebuilding fragmented videos" => tr("Putting videos stored in pieces back together").into(),
         "Retrying damaged areas" => tr("Retrying damaged areas").into(),
+        "Reading previous versions" => tr("Reading the Windows Previous Versions copies").into(),
         "Starting..." => tr("Starting…").into(),
         other => other.into(),
     }

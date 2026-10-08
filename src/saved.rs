@@ -47,6 +47,9 @@ struct SavedPartition {
     len: u64,
     kind: String,
     fs: Option<FsKind>,
+    /// A Windows shadow copy's device.
+    #[serde(default)]
+    device: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -154,7 +157,14 @@ pub fn save(path: &Path, session: &Session, found: &Found) -> Result<()> {
         found_partitions: session
             .found_partitions()
             .into_iter()
-            .map(|p| SavedPartition { index: p.index, start: p.start, len: p.len, kind: p.kind, fs: p.fs })
+            .map(|p| SavedPartition {
+                index: p.index,
+                start: p.start,
+                len: p.len,
+                kind: p.kind,
+                fs: p.fs,
+                device: p.device,
+            })
             .collect(),
     };
     // Written next to the target and renamed, so a failure never leaves a
@@ -208,7 +218,10 @@ impl SavedScan {
             });
         }
         for p in self.found_partitions {
-            ensure!(p.start < session.disk.size(), "the saved scan refers to a partition that does not exist");
+            ensure!(
+                p.device.is_some() || p.start < session.disk.size(),
+                "the saved scan refers to a partition that does not exist"
+            );
             session.add_found(Partition {
                 index: p.index,
                 start: p.start,
@@ -217,6 +230,7 @@ impl SavedScan {
                 kind: p.kind,
                 name: String::new(),
                 fs: p.fs,
+                device: p.device,
             });
         }
         let parts = session.partitions.len() + session.found_partitions().len();

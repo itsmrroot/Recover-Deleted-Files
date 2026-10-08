@@ -127,6 +127,42 @@ fully decoded. Show only verified files with one click.
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+### 🔓 BitLocker drives
+A drive locked with **BitLocker** opens with its 48-digit **recovery key** or
+its password — XTS, CBC and Windows 7's Elephant, USB sticks (To Go) too. It is
+decrypted as it is read: nothing on it changes.
+
+</td>
+<td valign="top">
+
+### 🕰️ Older copies
+Files in Windows **Previous Versions** (System Restore points) and in **APFS
+snapshots** (Time Machine) come back even after their space was reused. A
+damaged APFS drive is rebuilt from what is left of its file tables.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🔐 Private by choice
+Tick **Protect with a password** and everything is saved into one **AES-256
+encrypted ZIP** — nothing is written unencrypted. It opens in 7-Zip, WinRAR
+or Keka.
+
+</td>
+<td valign="top">
+
+### 🩹 Photo repair & folder scans
+**Repair** a damaged JPEG: close a cut-off photo, or give it the header of a good
+photo from the same camera. Look **only in one folder** (e.g.
+`Users/Ann/Pictures`) for a short list.
+
+</td>
+</tr>
 </table>
 
 ## 🚀 Quick start
@@ -402,6 +438,18 @@ wdfr recover E: -o D:\Recovered --after 2024-01-01 --before 2024-12-31
 # Also write identical copies (skipped by default)
 wdfr recover E: -o D:\Recovered --keep-duplicates
 
+# Only files that were in one folder (or below it)
+wdfr scan E: --folder "Users/Ann/Pictures"
+
+# A drive locked with BitLocker: give its recovery key (or password)
+wdfr recover \\.\PhysicalDrive1 -o D:\Recovered --bitlocker-key 123456-123456-...
+
+# Save everything into one AES-256 encrypted ZIP, D:\Recovered.zip
+wdfr recover E: -o D:\Recovered --password "correct horse battery staple"
+
+# Repair a damaged photo (with a good one from the same camera if its start is gone)
+wdfr repair f00001a2b3000.jpg --reference good.jpg -o repaired.jpg
+
 # Machine-readable listing
 wdfr scan E: --json > deleted.json
 
@@ -472,9 +520,15 @@ are also decoded. Complete files are marked **Verified**, broken or cut-short on
 | **NTFS** | The MFT record (name, parent, timestamps, data run list) until it is reused | Scans every MFT record (applying update-sequence fixups), rebuilds paths from parent references with sequence-number checks, follows `$ATTRIBUTE_LIST` extension records, decompresses LZNT1-compressed files, handles sparse files, resident (tiny) files and alternate data streams |
 | **FAT12/16/32** | The directory entry, minus its first character; the cluster chain is erased | Reconstructs long file names (recovering the lost first character from the LFN checksum), walks into deleted folders (verifying each claimed folder cluster through its `..` back-pointer), and assigns clusters to files around other files to undo common fragmentation; restores the high word of FAT32 start clusters that Windows clears |
 | **exFAT** | The whole entry set, with the "in use" bit cleared | Recovers exact names and sizes; uses the `NoFatChain` flag or the FAT chain when it survives, contiguous allocation otherwise |
-| **APFS** | Nothing is changed in place: older checkpoints still describe the file tree as it was | Reads every checkpoint in the container's ring; files in an earlier tree but not the newest one are the deleted files, with names, folders and extents (encrypted volumes cannot be read) |
+| **APFS** | Nothing is changed in place: older checkpoints and snapshots still describe the file tree as it was | Reads every checkpoint in the container's ring and every snapshot; files in an earlier tree but not the newest one are the deleted files, with names, folders and extents. When the container's own structures are damaged, the file tree is rebuilt from every checksummed leaf node left on the disk (encrypted volumes cannot be read) |
 | **Mac OS Extended (HFS+)** | Old copies of catalog records, in freed catalog nodes and in the journal | Parses every catalog leaf node (live, freed and journaled); file records the live tree no longer has are the deleted files; follows the extents overflow file |
 | **ext2/3/4** | The name in its directory (until the kernel wipes it) and older inode copies in the journal | Walks directories, reads deleted names from the gaps between entries, and takes a deleted file's block list from the newest journal copy of its inode (as extundelete does) |
+
+**BitLocker** volumes are read through a decrypting layer: the volume master key is unwrapped (AES-CCM) with the
+recovery key or password (BitLocker's SHA-256 key stretching), or directly when BitLocker is suspended; then each
+sector is decrypted with AES-XTS, AES-CBC or AES-CBC + Elephant diffuser, with the moved boot sectors and the metadata
+areas mapped as cryptsetup does. On Windows, each **shadow copy** of the drive is opened as a volume of its own; files
+it has that the drive no longer has are listed with the date of the copy.
 
 Carving parsers: JPEG marker segments and entropy-coded scans, PNG chunks, MP4/MOV box trees, Matroska EBML elements,
 RIFF chunks (incl. AVI OpenDML), ASF headers, transport-stream packets, MP3 frames, Ogg pages, ZIP central directories
@@ -511,6 +565,9 @@ the public [Digital Forensics Tool Testing](https://dftt.sourceforge.net/) image
 | ext3 / ext4 made and deleted by Linux | **All** deleted files byte-identical, with names and folders (from the journal) |
 | APFS / Mac OS Extended made and deleted by macOS | **All** deleted files byte-identical, with names and folders |
 | A video in 13 pieces, the last before the first on the disk | Put back together **byte-identical** |
+| cryptsetup's BitLocker test volumes (XTS, CBC, Elephant, To Go, 4K sectors, suspended) | Decrypted **byte-identical** to cryptsetup |
+| An APFS drive with its first blocks wiped | All files back with names and folders |
+| A JPEG whose header was overwritten, given another photo from the same camera | Repaired **byte-identical** |
 
 ## ❓ FAQ
 
@@ -561,8 +618,11 @@ folders. A full format (which overwrites the drive) or a drive that was used a l
 <details>
 <summary><b>Does it work with BitLocker or EFS?</b></summary>
 
-For BitLocker, recover from the *unlocked* volume (e.g. `E:`), not the physical disk. EFS-encrypted files are recovered
-as ciphertext and flagged in the report.
+Yes. A BitLocker drive that Windows has unlocked (e.g. `E:`) is read like any other. A locked one — or one from
+another computer, or on a Mac or Linux — opens with its 48-digit recovery key or its password: select it and click
+**Unlock** in the app, or use `--bitlocker-key` on the command line. A suspended one opens without a key. Nothing
+is written to the drive and the key is not stored. EFS-encrypted files are recovered as ciphertext and flagged in
+the report.
 
 </details>
 

@@ -72,3 +72,22 @@ fn a_lost_hfs_plus_volume_is_found_through_its_alternate_header() {
     let (session, found) = common::scan_lost(common::load_sectors("hfsplus.sectors"), 2048);
     assert_eq!(common::found_content(&session, &found, "Docs/note.txt"), b"hello hfs\n");
 }
+
+#[test]
+fn a_damaged_apfs_container_is_rebuilt_from_its_file_tree_nodes() {
+    // The container superblock and the whole checkpoint area wiped, as
+    // after a drive was pulled out at the wrong moment.
+    let mut img = common::load_sectors("apfs.sectors");
+    img[..10 * 4096].fill(0);
+    // Keep the magic so the container is still recognised.
+    img[32..36].copy_from_slice(b"NXSB");
+    img[36..40].copy_from_slice(&4096u32.to_le_bytes());
+    let blocks = (img.len() / 4096) as u64;
+    img[40..48].copy_from_slice(&blocks.to_le_bytes());
+    let src: Source = Arc::new(MemSource(img));
+    let vol = fs::open(src).unwrap();
+    let files = vol.scan_deleted(&mut |_, _| {}).unwrap();
+    let note = files.iter().find(|f| f.path == "Docs/note.txt").expect("note.txt");
+    assert_eq!(content(vol.as_ref(), note), b"hello apfs\n");
+    check(vol.as_ref(), &files, "Photos/Holiday/beach.jpg", BEACH);
+}

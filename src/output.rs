@@ -94,26 +94,47 @@ pub struct ReportRow {
     pub unreadable_bytes: u64,
 }
 
-pub struct Report {
-    w: csv::Writer<BufWriter<File>>,
-    path: PathBuf,
+pub enum Report {
+    File(csv::Writer<BufWriter<File>>, PathBuf),
+    /// Kept in memory, to be written into a password-protected ZIP.
+    Memory(csv::Writer<Vec<u8>>),
 }
 
 impl Report {
     pub fn create(dir: &Path) -> Result<Self> {
         let path = unique_path(dir.join("report.csv"));
         let f = File::create(&path).with_context(|| format!("creating {}", path.display()))?;
-        Ok(Self { w: csv::Writer::from_writer(BufWriter::new(f)), path })
+        Ok(Report::File(csv::Writer::from_writer(BufWriter::new(f)), path))
+    }
+
+    pub fn in_memory() -> Self {
+        Report::Memory(csv::Writer::from_writer(Vec::new()))
     }
 
     pub fn add(&mut self, row: &ReportRow) -> Result<()> {
-        self.w.serialize(row)?;
+        match self {
+            Report::File(w, _) => w.serialize(row)?,
+            Report::Memory(w) => w.serialize(row)?,
+        }
         Ok(())
     }
 
-    pub fn finish(mut self) -> Result<PathBuf> {
-        self.w.flush()?;
-        Ok(self.path)
+    /// Finishes the report: a file's path, or the in-memory report written
+    /// to `into`.
+    pub fn finish(self, into: Option<&mut dyn std::io::Write>) -> Result<Option<PathBuf>> {
+        match self {
+            Report::File(mut w, path) => {
+                w.flush()?;
+                Ok(Some(path))
+            }
+            Report::Memory(w) => {
+                let bytes = w.into_inner().map_err(|e| anyhow::anyhow!("writing the report: {e}"))?;
+                if let Some(out) = into {
+                    out.write_all(&bytes)?;
+                }
+                Ok(None)
+            }
+        }
     }
 }
 

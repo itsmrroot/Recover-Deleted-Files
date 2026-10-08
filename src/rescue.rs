@@ -252,6 +252,7 @@ impl Finder {
                     kind: "lost partition".into(),
                     name: String::new(),
                     fs: Some(vol.kind()),
+                    device: None,
                 },
                 files,
             });
@@ -291,6 +292,7 @@ impl Finder {
                     kind: "old file table".into(),
                     name: String::new(),
                     fs: Some(FsKind::Ntfs),
+                    device: None,
                 },
                 files,
             });

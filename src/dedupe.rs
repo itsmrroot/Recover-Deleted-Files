@@ -283,6 +283,7 @@ mod tests {
                 kind: "0x07".into(),
                 name: String::new(),
                 fs: None,
+                device: None,
             }],
         )
     }

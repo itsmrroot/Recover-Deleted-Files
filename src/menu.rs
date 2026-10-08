@@ -141,12 +141,53 @@ fn describe(path: &str) -> String {
     let Ok(d) = DiskSource::open(path) else { return String::new() };
     let disk: Source = std::sync::Arc::new(d);
     let parts = partition::discover(&disk);
-    let fs: Vec<String> = parts.iter().map(|p| p.fs.map_or_else(|| "unknown".into(), |f| f.to_string())).collect();
+    let fs: Vec<String> = parts
+        .iter()
+        .map(|p| match p.fs {
+            Some(f) => f.to_string(),
+            None if p.locked(&disk) => "BitLocker (locked)".into(),
+            None => "unknown".into(),
+        })
+        .collect();
     match fs.len() {
         0 => String::new(),
         1 => fs[0].clone(),
         n => format!("{n} partitions: {}", fs.join(", ")),
     }
+}
+
+/// Opens `source`, asking for the recovery key of each partition that
+/// BitLocker keeps locked (Enter skips it).
+fn open_session(theme: &ColorfulTheme, source: &str) -> Result<Session> {
+    let mut session = Session::open(source)?;
+    let locked: Vec<_> = session.partitions.iter().filter(|p| p.locked(&session.disk)).cloned().collect();
+    for p in locked {
+        println!(
+            "\n  {} partition {} ({}) is locked with BitLocker. Its files can only be found with its 48-digit recovery key or its password.",
+            style("Locked:").yellow().bold(),
+            p.index,
+            format_size(p.len)
+        );
+        loop {
+            let key: String = Input::with_theme(theme)
+                .with_prompt("Recovery key or password (Enter to skip)")
+                .allow_empty(true)
+                .interact_text()?;
+            if key.trim().is_empty() {
+                break;
+            }
+            let raw: Source = std::sync::Arc::new(wdfr::source::SubSource::new(session.disk.clone(), p.start, p.len));
+            match wdfr::bitlocker::add_key(raw, key.trim()) {
+                Ok(()) => {
+                    println!("  {} the partition is unlocked.", style("Done:").green().bold());
+                    session = Session::open(source)?;
+                    break;
+                }
+                Err(e) => println!("  {} {e}", style("Not unlocked:").red().bold()),
+            }
+        }
+    }
+    Ok(session)
 }
 
 /// Lets the user pick one partition when there are several. Returns
@@ -157,7 +198,11 @@ fn pick_partition(theme: &ColorfulTheme, s: &Session) -> Result<Option<Option<us
     }
     let mut items = vec!["All partitions (recommended)".to_string()];
     for p in &s.partitions {
-        let fs = p.fs.map_or_else(|| "unknown file system".into(), |f| f.to_string());
+        let fs = match p.fs {
+            Some(f) => f.to_string(),
+            None if p.locked(&s.disk) => "locked with BitLocker".into(),
+            None => "unknown file system".into(),
+        };
         let name = if p.name.is_empty() { p.kind.clone() } else { format!("{} \"{}\"", p.kind, p.name) };
         items.push(format!("Partition {}  {:>10}  {fs}  ({name})", p.index, format_size(p.len)));
     }
@@ -283,7 +328,7 @@ fn recover_wizard(theme: &ColorfulTheme, preset: Option<(String, Option<usize>)>
         Some(p) => p,
         None => {
             let Some(source) = pick_source(theme)? else { return Ok(()) };
-            let session = Session::open(&source)?;
+            let session = open_session(theme, &source)?;
             let Some(part) = pick_partition(theme, &session)? else { return Ok(()) };
             (session.path.clone(), part)
         }
@@ -327,6 +372,7 @@ fn recover_wizard(theme: &ColorfulTheme, preset: Option<(String, Option<usize>)>
             restore_dates: true,
             write_report: true,
             allow_same_volume: false,
+            password: None,
         },
         include_overwritten: false,
         keep_duplicates: false,
@@ -347,7 +393,7 @@ fn recover_wizard(theme: &ColorfulTheme, preset: Option<(String, Option<usize>)>
 fn preview(theme: &ColorfulTheme) -> Result<()> {
     header("Preview deleted files");
     let Some(source) = pick_source(theme)? else { return Ok(()) };
-    let session = Session::open(&source)?;
+    let session = open_session(theme, &source)?;
     let Some(part) = pick_partition(theme, &session)? else { return Ok(()) };
     let Some((filter, _)) = pick_types(theme)? else { return Ok(()) };
     crate::cmd_scan(&session.path, part, &filter, false, false)?;

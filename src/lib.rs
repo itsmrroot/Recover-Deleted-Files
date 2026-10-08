@@ -12,6 +12,7 @@
 //!   signatures and computes their exact length from the format structure.
 //! * [`recover`] — orchestration: filtering, extraction and reporting.
 
+pub mod bitlocker;
 pub mod bytes;
 pub mod carve;
 pub mod dedupe;
@@ -25,8 +26,10 @@ pub mod partition;
 pub mod progress;
 pub mod ranges;
 pub mod recover;
+pub mod repair;
 pub mod rescue;
 pub mod saved;
+pub mod shadow;
 pub mod source;
 pub mod units;
 pub mod verify;

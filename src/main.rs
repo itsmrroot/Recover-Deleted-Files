@@ -31,6 +31,11 @@ struct Cli {
     #[arg(short, long, global = true, action = clap::ArgAction::Count)]
     verbose: u8,
 
+    /// The recovery key (48 digits) or password of a BitLocker drive, to
+    /// read it decrypted. Can be given more than once.
+    #[arg(long, global = true, value_name = "KEY")]
+    bitlocker_key: Vec<String>,
+
     /// Leave out to start the interactive menu.
     #[command(subcommand)]
     command: Option<Command>,
@@ -114,6 +119,10 @@ enum Command {
         /// Allow writing to the volume being recovered (dangerous).
         #[arg(long)]
         allow_same_volume: bool,
+        /// Save everything into one ZIP, "<output>.zip", protected with this
+        /// password (AES-256; opens in 7-Zip, WinRAR, Keka).
+        #[arg(long)]
+        password: Option<String>,
         /// No progress bars.
         #[arg(short, long)]
         quiet: bool,
@@ -133,6 +142,18 @@ enum Command {
         /// No progress bars.
         #[arg(short, long)]
         quiet: bool,
+    },
+    /// Repair a damaged JPEG photo: close a missing end, or give it the
+    /// header of a good photo from the same camera (--reference).
+    Repair {
+        /// The damaged photo.
+        photo: PathBuf,
+        /// A good photo taken with the same camera and settings.
+        #[arg(long)]
+        reference: Option<PathBuf>,
+        /// Where to write the repaired photo.
+        #[arg(short, long)]
+        output: PathBuf,
     },
     /// List the file formats the carver understands.
     Formats,
@@ -164,12 +185,20 @@ struct FilterArgs {
     /// date are left out.
     #[arg(long, value_parser = parse_date)]
     before: Option<chrono::NaiveDate>,
+    /// Only files in this folder or below it (e.g. "Users/Ann/Pictures").
+    /// Files found by their content have no folder and are left out.
+    #[arg(long)]
+    folder: Option<String>,
 }
 
 impl FilterArgs {
     fn build(&self) -> Result<Filter> {
-        Ok(Filter::new(&self.types, &self.category, self.name.as_deref(), self.min_size, self.max_size)?
-            .with_dates(self.after, self.before))
+        let f = Filter::new(&self.types, &self.category, self.name.as_deref(), self.min_size, self.max_size)?
+            .with_dates(self.after, self.before);
+        Ok(match &self.folder {
+            Some(d) => f.with_folder(d),
+            None => f,
+        })
     }
 }
 
@@ -186,6 +215,9 @@ fn main() -> ExitCode {
     };
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(level)).format_timestamp(None).init();
     install_ctrlc_handler();
+    for key in &cli.bitlocker_key {
+        wdfr::bitlocker::remember_key(key);
+    }
     let result = match cli.command {
         Some(cmd) => run(cmd),
         // No arguments: guided menu when a person is at the keyboard.
@@ -208,6 +240,7 @@ fn run(cmd: Command) -> Result<ExitCode> {
     match cmd {
         Command::Devices => cmd_devices(),
         Command::Formats => cmd_formats(),
+        Command::Repair { photo, reference, output } => cmd_repair(&photo, reference.as_deref(), &output),
         Command::Image { source, output, allow_same_volume, quiet } => {
             cmd_image(&source, &output, allow_same_volume, quiet)
         }
@@ -227,6 +260,7 @@ fn run(cmd: Command) -> Result<ExitCode> {
             deep,
             max_carve_size,
             allow_same_volume,
+            password,
             quiet,
         } => {
             let opts = Options {
@@ -244,6 +278,7 @@ fn run(cmd: Command) -> Result<ExitCode> {
                     restore_dates: true,
                     write_report: true,
                     allow_same_volume,
+                    password,
                 },
                 include_overwritten,
                 keep_duplicates,
@@ -284,6 +319,16 @@ fn cmd_formats() -> Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
+/// Says which partitions BitLocker keeps closed (their files cannot be found).
+fn warn_locked(s: &Session) {
+    for p in s.partitions.iter().filter(|p| p.locked(&s.disk)) {
+        eprintln!(
+            "Partition {} is locked with BitLocker: give its recovery key or password with --bitlocker-key.",
+            p.index
+        );
+    }
+}
+
 fn cmd_info(source: &str) -> Result<ExitCode> {
     let s = Session::open(source)?;
     println!("Source: {} ({})", s.path, format_size(s.disk.size()));
@@ -294,6 +339,7 @@ fn cmd_info(source: &str) -> Result<ExitCode> {
                 Ok(v) => v.describe(),
                 Err(e) => format!("unreadable: {e:#}"),
             },
+            None if p.locked(&s.disk) => "locked with BitLocker: give its recovery key with --bitlocker-key".into(),
             None => "no supported file system (carving only)".into(),
         };
         let kind = if p.name.is_empty() { p.kind.clone() } else { format!("{} \"{}\"", p.kind, p.name) };
@@ -323,6 +369,7 @@ fn cmd_scan(
     json: bool,
 ) -> Result<ExitCode> {
     let s = Session::open(source)?;
+    warn_locked(&s);
     let mut all = Vec::new();
     for p in s.selected(partition)? {
         match recover::scan_partition(&s, p, filter, &CliProgress::new(json))? {
@@ -400,8 +447,35 @@ fn cmd_image(source: &str, output: &std::path::Path, allow_same_volume: bool, qu
     Ok(ExitCode::SUCCESS)
 }
 
+fn cmd_repair(photo: &std::path::Path, reference: Option<&std::path::Path>, out: &std::path::Path) -> Result<ExitCode> {
+    use anyhow::Context;
+    let damaged = std::fs::read(photo).with_context(|| format!("reading {}", photo.display()))?;
+    let reference =
+        reference.map(|r| std::fs::read(r).with_context(|| format!("reading {}", r.display()))).transpose()?;
+    let Some(r) = wdfr::repair::repair_jpeg(&damaged, reference.as_deref()) else {
+        anyhow::bail!(if reference.is_some() || damaged.starts_with(&[0xFF, 0xD8]) {
+            "nothing to repair in this photo"
+        } else {
+            "the photo's header is gone: give a good photo from the same camera with --reference"
+        });
+    };
+    std::fs::write(out, &r.bytes).with_context(|| format!("writing {}", out.display()))?;
+    for f in &r.fixes {
+        println!(
+            "{}",
+            match f {
+                wdfr::repair::Fix::ClosedEnd => "Closed the missing end of the picture.",
+                wdfr::repair::Fix::NewHeader => "Used the header of the reference photo.",
+            }
+        );
+    }
+    println!("Written to {}", out.display());
+    Ok(ExitCode::SUCCESS)
+}
+
 fn cmd_recover(source: &str, opts: &Options, quiet: bool) -> Result<ExitCode> {
     let s = Session::open(source)?;
+    warn_locked(&s);
     if !quiet {
         eprintln!("wdfr {} - {}", env!("CARGO_PKG_VERSION"), menu::POWERED_BY);
         eprintln!("Source: {} ({})", s.path, format_size(s.disk.size()));
@@ -434,6 +508,9 @@ fn cmd_recover(source: &str, opts: &Options, quiet: bool) -> Result<ExitCode> {
     }
     if sum.failures > 0 {
         println!("Failed to write:            {} files (see messages above)", sum.failures);
+    }
+    if let Some(a) = &sum.archive {
+        println!("Saved in (password-protected): {}", a.display());
     }
     if let Some(r) = &sum.report {
         println!("Report:                     {}", r.display());

@@ -58,7 +58,7 @@ fn scan_opts() -> ScanOptions {
 }
 
 fn save_opts(out: PathBuf, layout: Layout) -> SaveOptions {
-    SaveOptions { out, layout, restore_dates: true, write_report: true, allow_same_volume: false }
+    SaveOptions { out, layout, restore_dates: true, write_report: true, allow_same_volume: false, password: None }
 }
 
 #[test]
@@ -150,4 +150,37 @@ fn saved_scans_reopen_identically_and_only_on_the_same_source() {
     // Not a saved scan at all.
     std::fs::write(tmp.0.join("junk.wdfrscan"), b"hello").unwrap();
     assert!(wdfr::saved::load(&tmp.0.join("junk.wdfrscan")).is_err());
+}
+
+#[test]
+fn files_can_be_saved_into_a_password_protected_zip() {
+    use std::io::Read;
+    let tmp = TempDir::new("zip");
+    let (path, photo, orphan) = image(&tmp.0);
+    let session = Session::open(path.to_str().unwrap()).unwrap();
+    let never = AtomicBool::new(false);
+    let found = recover::scan(&session, &scan_opts(), &Silent, &never).unwrap();
+    let items: Vec<Item> = found.fs.iter().map(Item::Fs).chain(found.carved.iter().map(Item::Carved)).collect();
+
+    let out = tmp.0.join("Recovered");
+    let opts = SaveOptions { password: Some("correct horse".into()), ..save_opts(out.clone(), Layout::Original) };
+    let sum = recover::save(&session, &items, &opts, &Silent, &never).unwrap();
+    assert_eq!((sum.fs_files, sum.carved_files, sum.failures), (2 - 1, 1, 0));
+    // Nothing unencrypted: no folder, only the ZIP.
+    assert!(!out.exists());
+    let zip_path = sum.archive.unwrap();
+    assert_eq!(zip_path, tmp.0.join("Recovered.zip"));
+
+    let mut zip = zip::ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();
+    let mut read = |name: &str, password: &str| -> Option<Vec<u8>> {
+        let mut f = zip.by_name_decrypt(name, password.as_bytes()).ok()?;
+        let mut v = Vec::new();
+        f.read_to_end(&mut v).ok()?;
+        Some(v)
+    };
+    assert_eq!(read("volume_FAT16/Holiday.jpg", "correct horse").unwrap(), photo);
+    let carved = format!("carved/images/{}", recover::carved_name(&found.carved[0]));
+    assert_eq!(read(&carved, "correct horse").unwrap(), orphan);
+    assert!(String::from_utf8(read("report.csv", "correct horse").unwrap()).unwrap().contains("Holiday.jpg"));
+    assert_eq!(read("volume_FAT16/Holiday.jpg", "wrong"), None);
 }

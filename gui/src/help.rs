@@ -83,8 +83,36 @@ fn guides() -> Vec<Guide> {
                     "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
                 ),
                 trl(
-                    "Encrypted drives (FileVault, BitLocker) cannot be read without their password; the deep search finds nothing on them either.",
+                    "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
                 ),
+                trl("Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either."),
+            ],
+        },
+        Guide {
+            icon: icon::LOCK_KEY,
+            title: tr("BitLocker drives"),
+            steps: vec![
+                trl(
+                    "A drive locked with BitLocker shows \"BitLocker · locked\". Select it, enter its 48-digit recovery key or its password and click Unlock.",
+                ),
+                trl(
+                    "The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+                ),
+                trl(
+                    "Windows reads a BitLocker drive it has already unlocked like any other drive. A locked one may only appear with \"Show whole disks\" turned on in Settings.",
+                ),
+                trl("The drive is read decrypted; nothing on it is changed, and the key is not stored."),
+            ],
+        },
+        Guide {
+            icon: icon::CLOCK_COUNTER_CLOCKWISE,
+            title: tr("Older copies of your files"),
+            steps: vec![
+                trl(
+                    "Windows: files kept in the Previous Versions copies (System Restore points) are found too, even when their space on the drive has been reused.",
+                ),
+                trl("Mac: deleted files are also found in APFS snapshots, such as the ones Time Machine makes."),
+                trl("These files are marked with the date of the copy they come from."),
             ],
         },
         Guide {
@@ -100,6 +128,24 @@ fn guides() -> Vec<Guide> {
                     "The status shows how likely a file is to open. Files marked \"Overwritten\" or \"Erased by the drive\" usually cannot be recovered.",
                 ),
                 trl("Exact duplicates are hidden, so every file is recovered only once."),
+                trl(
+                    "To look in one folder only, type it in \"Only in this folder\" before the scan: for example Users/Ann/Pictures.",
+                ),
+                trl(
+                    "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+                ),
+            ],
+        },
+        Guide {
+            icon: icon::LOCK,
+            title: tr("Keeping recovered files private"),
+            steps: vec![
+                trl(
+                    "Tick \"Protect with a password\" before clicking Recover: everything is saved into one ZIP file encrypted with AES-256, and nothing is written unencrypted.",
+                ),
+                trl(
+                    "It opens with the password in 7-Zip, WinRAR or Keka. Keep the password safe: without it the files cannot be opened.",
+                ),
             ],
         },
         Guide {

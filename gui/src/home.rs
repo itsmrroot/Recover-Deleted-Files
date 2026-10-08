@@ -7,7 +7,7 @@ use egui_phosphor::regular as icon;
 use wdfr::carve::Category;
 use wdfr::devices::{self, Device, DeviceKind};
 use wdfr::recover::Method;
-use wdfr::source::{DiskSource, Source};
+use wdfr::source::{DiskSource, Source, SubSource};
 use wdfr::units::format_size;
 
 use crate::elevate;
@@ -33,12 +33,42 @@ fn describe(path: &str, os_fs: Option<&str>) -> String {
         Some(fs) => trf("{fs} · deep search only", &[("fs", &fs)]),
         None => tr("Unknown").to_string(),
     };
-    let fs: Vec<String> = parts.iter().map(|p| p.fs.map_or_else(unknown, |f| f.to_string())).collect();
+    let fs: Vec<String> = parts
+        .iter()
+        .map(|p| match p.fs {
+            Some(f) => f.to_string(),
+            None if p.locked(&disk) => tr("BitLocker · locked").to_string(),
+            None => unknown(),
+        })
+        .collect();
     match fs.len() {
         0 => String::new(),
         1 => fs[0].clone(),
         n => trf("{n} partitions: {list}", &[("n", &n), ("list", &fs.join(", "))]),
     }
+}
+
+/// Where the partitions of `path` that BitLocker keeps locked are.
+fn locked_partitions(path: &str) -> Vec<(u64, u64)> {
+    let Ok(d) = DiskSource::open(path) else { return Vec::new() };
+    let disk: Source = Arc::new(d);
+    let parts = wdfr::partition::discover(&disk);
+    parts.iter().filter(|p| p.locked(&disk)).map(|p| (p.start, p.len)).collect()
+}
+
+/// Tries a recovery key or password on the locked partitions of `path`.
+/// True if it opened one (it is then used whenever the drive is read).
+fn unlock(path: &str, key: &str) -> anyhow::Result<bool> {
+    let disk: Source = Arc::new(DiskSource::open(path)?);
+    let mut opened = false;
+    for (start, len) in locked_partitions(path) {
+        let raw: Source = Arc::new(SubSource::new(disk.clone(), start, len));
+        match wdfr::bitlocker::add_key(raw, key) {
+            Ok(()) => opened = true,
+            Err(e) => log::info!("BitLocker at {start:#x}: {e:#}"),
+        }
+    }
+    Ok(opened)
 }
 
 pub fn discover() -> Vec<DriveInfo> {
@@ -69,10 +99,20 @@ pub struct Home {
     pub images: Vec<String>,
     pub categories: Vec<Category>,
     pub method: Method,
+    /// Only files in this folder (empty: everywhere).
+    pub folder: String,
     /// A restart with administrator rights is waiting for the password.
     pub restarting: bool,
     elevate: bool,
     open_scan: Option<std::path::PathBuf>,
+    /// The source the BitLocker state below is for, and its locked partitions.
+    bitlocker: Option<(String, Vec<(u64, u64)>)>,
+    bitlocker_key: String,
+    unlock_job: Option<Job<bool>>,
+    /// The last key tried did not open the drive.
+    unlock_failed: bool,
+    /// The source a key has just opened.
+    unlocked: Option<String>,
 }
 
 impl Home {
@@ -84,9 +124,15 @@ impl Home {
             images: Vec::new(),
             categories: s.categories.clone(),
             method: s.method,
+            folder: String::new(),
             restarting: false,
             elevate: false,
             open_scan: None,
+            bitlocker: None,
+            bitlocker_key: String::new(),
+            unlock_job: None,
+            unlock_failed: false,
+            unlocked: None,
         };
         h.refresh(ctx);
         h
@@ -323,6 +369,7 @@ impl Home {
             if let Some(c) = clicked {
                 self.selected = Some(c);
             }
+            self.bitlocker_box(ui, p);
             ui.add_space(6.0);
             ui.label(
                 RichText::new(icon_label(icon::INFO, "Tip: you can also drag a disk image file onto this window."))
@@ -330,6 +377,90 @@ impl Home {
                     .size(12.5),
             );
         });
+    }
+
+    /// Tries `key` on the selected drive, in the background.
+    pub fn try_unlock(&mut self, ctx: &egui::Context, key: String) {
+        let Some(path) = self.selected.clone() else { return };
+        self.bitlocker_key = key.clone();
+        self.unlock_failed = false;
+        self.unlock_job = Some(Job::spawn(ctx, move |_, _| unlock(&path, &key)));
+    }
+
+    /// Asks for the recovery key when the selected drive is locked with
+    /// BitLocker.
+    fn bitlocker_box(&mut self, ui: &mut Ui, p: &Palette) {
+        let Some(sel) = self.selected.clone() else { return };
+        if self.bitlocker.as_ref().is_none_or(|(path, _)| *path != sel) {
+            self.bitlocker = Some((sel.clone(), locked_partitions(&sel)));
+            self.bitlocker_key.clear();
+            self.unlock_failed = false;
+        }
+        if let Some(r) = self.unlock_job.as_ref().and_then(Job::poll) {
+            self.unlock_job = None;
+            if matches!(r, Ok(true)) {
+                self.unlocked = Some(sel.clone());
+                self.bitlocker = Some((sel.clone(), locked_partitions(&sel)));
+                self.bitlocker_key.clear();
+                self.refresh(ui.ctx());
+            } else {
+                self.unlock_failed = true;
+            }
+        }
+        if self.bitlocker.as_ref().is_none_or(|(_, locked)| locked.is_empty()) {
+            if self.unlocked.as_ref() == Some(&sel) {
+                ui.add_space(4.0);
+                theme::notice(
+                    ui,
+                    p,
+                    p.success,
+                    icon::LOCK_KEY_OPEN,
+                    trl("Unlocked. The drive is read decrypted; nothing on it is changed."),
+                );
+                ui.add_space(4.0);
+            }
+            return;
+        }
+        ui.add_space(4.0);
+        theme::notice(
+            ui,
+            p,
+            p.warning,
+            icon::LOCK,
+            trl(
+                "This drive is locked with BitLocker. Enter its 48-digit recovery key or its password to find its deleted files. The recovery key is in your Microsoft account (aka.ms/myrecoverykey), on a printout or on a USB stick.",
+            ),
+        );
+        ui.add_space(8.0);
+        let busy = self.unlock_job.is_some();
+        ui.horizontal(|ui| {
+            let field = ui.add_enabled(
+                !busy,
+                egui::TextEdit::singleline(&mut self.bitlocker_key)
+                    .hint_text(tr("Recovery key or password"))
+                    .desired_width(420.0),
+            );
+            if field.changed() {
+                self.unlock_failed = false;
+            }
+            let enter = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            let ready = !busy && !self.bitlocker_key.trim().is_empty();
+            if (theme::primary_button(ui, p, &icon_label(icon::LOCK_KEY_OPEN, "Unlock"), ready).clicked() || enter)
+                && ready
+            {
+                let key = self.bitlocker_key.trim().to_string();
+                self.try_unlock(ui.ctx(), key);
+            }
+            if busy {
+                ui.spinner();
+                ui.label(RichText::new(tr("Unlocking…")).color(p.weak));
+            }
+        });
+        if self.unlock_failed && !busy {
+            ui.add_space(4.0);
+            ui.label(RichText::new(tr("This recovery key or password does not open the drive.")).color(p.danger));
+        }
+        ui.add_space(4.0);
     }
 
     fn types_card(&mut self, ui: &mut Ui, p: &Palette) {
@@ -360,6 +491,18 @@ impl Home {
                         }
                     }
                 }
+            });
+            ui.add_space(10.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new(icon_label(icon::FOLDER, "Only in this folder:")).color(p.weak));
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.folder)
+                        .hint_text(tr("everywhere (for example Users/Ann/Pictures)"))
+                        .desired_width(320.0),
+                )
+                .on_hover_text(tr(
+                    "Faster to look through: only files that were in this folder, or below it, are listed.",
+                ));
             });
         });
     }

@@ -200,7 +200,7 @@ impl App {
         let s = &self.settings;
         let method = method_override.unwrap_or(self.home.method);
         let filter = match Filter::new(&[], &self.home.categories, None, s.min_size_kb * 1024, None) {
-            Ok(f) => f,
+            Ok(f) => f.with_folder(&self.home.folder),
             Err(e) => {
                 self.error = Some(format!("{e:#}"));
                 return;
@@ -240,6 +240,7 @@ impl App {
             restore_dates: s.restore_dates,
             write_report: s.write_report,
             allow_same_volume: s.allow_same_volume,
+            password: res.password(),
         };
         let job = Job::spawn(ctx, move |progress, cancel| {
             let items: Vec<_> = refs.iter().map(|r| r.item(&found)).collect();
@@ -458,10 +459,12 @@ impl App {
             self.save = None;
             match result {
                 Ok(sum) => {
+                    // A password-protected save is one ZIP instead of a folder.
+                    let out = sum.archive.clone().unwrap_or(out);
                     // When running as root, the files belong to the real user.
                     elevate::give_back(&out);
                     if self.settings.open_folder_when_done && !sum.cancelled && sum.fs_files + sum.carved_files > 0 {
-                        open_path(&out);
+                        open_path(if out.is_file() { out.parent().unwrap_or(&out) } else { &out });
                     }
                     self.done = Some((sum, out));
                     self.page = Page::Done;
@@ -666,7 +669,9 @@ impl App {
             Page::Done => {
                 if let Some((sum, out)) = &self.done {
                     match views::done(ui, p, sum, out) {
-                        DoneAction::OpenFolder => open_path(out),
+                        DoneAction::OpenFolder => {
+                            open_path(if out.is_file() { out.parent().unwrap_or(out) } else { out })
+                        }
                         DoneAction::OpenReport => {
                             if let Some(r) = &sum.report {
                                 open_path(r);
@@ -1120,6 +1125,26 @@ impl App {
                 2 if self.page == Page::Imaged && frames > 10 => {
                     shoot("phase2-imaged", ctx, self.tour.as_mut().unwrap())
                 }
+                3 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                _ => {}
+            }
+            return;
+        }
+        // WDFR_TOUR_BITLOCKER: a locked BitLocker image, a wrong key, the
+        // right one ("anaconda", cryptsetup's test images).
+        if std::env::var_os("WDFR_TOUR_BITLOCKER").is_some() {
+            match step {
+                0 if frames == 1 => {
+                    if let Some(l) = self.tour.as_ref().and_then(|t| t.language) {
+                        self.settings.language = l;
+                    }
+                    self.home.add_image(image);
+                }
+                0 if frames > 20 => shoot("bitlocker-locked", ctx, self.tour.as_mut().unwrap()),
+                1 if frames == 1 => self.home.try_unlock(ctx, "not the password".into()),
+                1 if frames > 150 => shoot("bitlocker-wrong", ctx, self.tour.as_mut().unwrap()),
+                2 if frames == 1 => self.home.try_unlock(ctx, "anaconda".into()),
+                2 if frames > 150 => shoot("bitlocker-open", ctx, self.tour.as_mut().unwrap()),
                 3 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
                 _ => {}
             }

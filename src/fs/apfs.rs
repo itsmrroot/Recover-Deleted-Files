@@ -40,6 +40,10 @@ pub fn detect(b: &[u8]) -> bool {
 
 /// The Fletcher-64 checksum APFS puts at the start of every object.
 fn checksum_ok(b: &[u8]) -> bool {
+    le64(b, 0) == Some(fletcher64(b))
+}
+
+fn fletcher64(b: &[u8]) -> u64 {
     let (mut s1, mut s2) = (0u64, 0u64);
     for w in b[8..].as_chunks::<4>().0 {
         s1 = (s1 + u64::from(u32::from_le_bytes(*w))) % 0xFFFF_FFFF;
@@ -47,7 +51,7 @@ fn checksum_ok(b: &[u8]) -> bool {
     }
     let c1 = 0xFFFF_FFFF - (s1 + s2) % 0xFFFF_FFFF;
     let c2 = 0xFFFF_FFFF - (s1 + c1) % 0xFFFF_FFFF;
-    le64(b, 0) == Some(c2 << 32 | c1)
+    c2 << 32 | c1
 }
 
 fn obj_type(b: &[u8]) -> u32 {
@@ -68,6 +72,8 @@ struct Inode {
 /// What one version of a volume's file tree holds.
 #[derive(Default)]
 struct Tree {
+    /// Where this version comes from, for older ones ("from the snapshot ...").
+    origin: Option<String>,
     inodes: HashMap<u64, Inode>,
     /// file id -> (parent id, name)
     names: HashMap<u64, (u64, String)>,
@@ -78,6 +84,9 @@ struct Tree {
 struct Volume1 {
     name: String,
     encrypted: bool,
+    /// Rebuilt from loose file-tree nodes of a damaged container: every
+    /// file is listed, as the volume cannot be opened otherwise.
+    salvaged: bool,
     /// Newest version first.
     trees: Vec<Tree>,
 }
@@ -111,13 +120,18 @@ impl Apfs {
         if supers.is_empty() && checksum_ok(&first) {
             supers.insert(le64(&first, 16).unwrap_or(0), first);
         }
-        ensure!(!supers.is_empty(), "no valid APFS checkpoint");
         let mut by_index: BTreeMap<u32, Volume1> = BTreeMap::new();
         let mut cache = Cache::default();
         for (xid, nx) in supers.iter().rev() {
             fs.read_checkpoint(*xid, nx, &mut by_index, &mut cache);
         }
         fs.volumes = by_index.into_values().collect();
+        // A damaged container (no checkpoint, object map or volume that can
+        // be read, as when a drive was pulled out without ejecting): rebuild
+        // from the file-tree nodes themselves.
+        if fs.volumes.iter().all(|v| v.trees.is_empty() && !v.encrypted) {
+            fs.volumes = fs.salvage().into_iter().collect();
+        }
         ensure!(!fs.volumes.is_empty(), "no readable APFS volume");
         Ok(fs)
     }
@@ -149,7 +163,8 @@ impl Apfs {
             let name =
                 String::from_utf8_lossy(&name_raw[..name_raw.iter().position(|&c| c == 0).unwrap_or(0)]).into_owned();
             let encrypted = le64(&sb, 264).unwrap_or(0) & 1 == 0;
-            let vol = volumes.entry(index).or_insert_with(|| Volume1 { name, encrypted, trees: Vec::new() });
+            let vol =
+                volumes.entry(index).or_insert_with(|| Volume1 { name, encrypted, salvaged: false, trees: Vec::new() });
             if encrypted {
                 continue;
             }
@@ -164,10 +179,127 @@ impl Apfs {
             if let Some(root) = resolve(&vomap, le64(&sb, 136).unwrap_or(0), vol_xid) {
                 self.fs_node(root, &vomap, vol_xid, hashed, &mut tree, seen);
             }
+            let newest = vol.trees.is_empty();
             if !tree.inodes.is_empty() {
                 vol.trees.push(tree);
             }
+            // Snapshots (Time Machine keeps some on the drive itself): the
+            // file tree as it was when each was taken.
+            if newest {
+                for (snap_xid, name, snap_sb) in self.snapshots(le64(&sb, 152).unwrap_or(0)) {
+                    let Some(ssb) = self.object(snap_sb).filter(|b| b.get(32..36) == Some(APSB_MAGIC)) else {
+                        continue;
+                    };
+                    let mut snap = Tree { origin: Some(format!("from the snapshot {name}")), ..Tree::default() };
+                    let somap = self.omap(le64(&ssb, 128).unwrap_or(0), cache);
+                    let seen = cache.fs_nodes.entry(index).or_default();
+                    let root = le64(&ssb, 136).unwrap_or(0);
+                    let start = somap
+                        .as_ref()
+                        .and_then(|m| resolve(m, root, snap_xid))
+                        .or_else(|| resolve(&vomap, root, snap_xid));
+                    if let Some(start) = start {
+                        let map = somap.as_ref().unwrap_or(&vomap);
+                        self.fs_node(start, map, snap_xid, hashed, &mut snap, seen);
+                    }
+                    if !snap.inodes.is_empty() {
+                        vol.trees.push(snap);
+                    }
+                }
+            }
         }
+    }
+
+    /// The snapshots of a volume: (transaction, name, superblock block),
+    /// from its snapshot metadata tree.
+    fn snapshots(&self, tree: u64) -> Vec<(u64, String, u64)> {
+        let mut out = Vec::new();
+        let mut stack = vec![tree];
+        let mut seen = HashSet::new();
+        while let Some(b) = stack.pop() {
+            if b == 0 || !seen.insert(b) || seen.len() > 4096 {
+                continue;
+            }
+            let Some(node) = self.object(b) else { continue };
+            let leaf = le16(&node, 34) == Some(0);
+            for (k, v) in self.entries(&node, 0, 0) {
+                if !leaf {
+                    stack.extend(le64(v, 0));
+                    continue;
+                }
+                let Some(hdr) = le64(k, 0) else { continue };
+                // APFS_TYPE_SNAP_METADATA
+                if hdr >> 60 != 1 {
+                    continue;
+                }
+                let len = usize::from(le16(v, 48).unwrap_or(0));
+                let name = v.get(50..50 + len).map(|n| String::from_utf8_lossy(n).trim_end_matches('\0').to_string());
+                if let (Some(sb), Some(name)) = (le64(v, 8), name) {
+                    out.push((hdr & 0x0FFF_FFFF_FFFF_FFFF, name, sb));
+                }
+            }
+        }
+        out.sort_unstable_by_key(|a| std::cmp::Reverse(a.0));
+        out
+    }
+
+    /// For a damaged container: every file-tree leaf node on it, read
+    /// directly (their checksums prove them), newest records first.
+    fn salvage(&self) -> Option<Volume1> {
+        const CHUNK: usize = 256;
+        let block = self.block as usize;
+        let mut tree = Tree { origin: Some("rebuilt from a damaged container".into()), ..Tree::default() };
+        // Newest version of each record: (kind, id, logical) -> transaction.
+        let mut newest: HashMap<(u64, u64, u64), u64> = HashMap::new();
+        let mut buf = vec![0u8; block * CHUNK];
+        let mut b = 0u64;
+        while b < self.blocks {
+            let n = ((self.blocks - b) as usize).min(CHUNK);
+            crate::source::read_tolerant(self.src.as_ref(), b * self.block, &mut buf[..n * block]);
+            for node in buf[..n * block].chunks_exact(block) {
+                let ty = obj_type(node);
+                // File-tree (0xE) leaf nodes only.
+                if (ty != TYPE_BTREE && ty != TYPE_BTREE_NODE)
+                    || le32(node, 28) != Some(0xE)
+                    || le16(node, 34) != Some(0)
+                    || !checksum_ok(node)
+                {
+                    continue;
+                }
+                let xid = le64(node, 16).unwrap_or(0);
+                let mut part = Tree::default();
+                self.leaf(node, None, &mut part);
+                for (id, i) in part.inodes {
+                    if newest.get(&(J_INODE, id, 0)).is_none_or(|&x| xid > x) {
+                        newest.insert((J_INODE, id, 0), xid);
+                        tree.inodes.insert(id, i);
+                    }
+                }
+                for (id, n) in part.names {
+                    if newest.get(&(J_DIR_REC, id, 0)).is_none_or(|&x| xid > x) {
+                        newest.insert((J_DIR_REC, id, 0), xid);
+                        tree.names.insert(id, n);
+                    }
+                }
+                for (id, list) in part.extents {
+                    for e in list {
+                        if newest.get(&(J_FILE_EXTENT, id, e.0)).is_none_or(|&x| xid > x) {
+                            newest.insert((J_FILE_EXTENT, id, e.0), xid);
+                            let all = tree.extents.entry(id).or_default();
+                            all.retain(|x| x.0 != e.0);
+                            all.push(e);
+                        }
+                    }
+                }
+            }
+            b += n as u64;
+        }
+        (!tree.inodes.is_empty()).then(|| Volume1 {
+            name: String::new(),
+            encrypted: false,
+            salvaged: true,
+            trees: vec![tree],
+        })
     }
 
     /// An object map: virtual object id -> (transaction, block), newest
@@ -265,7 +397,12 @@ impl Apfs {
             }
             return;
         }
-        for (k, v) in self.entries(&node, 0, 0) {
+        self.leaf(&node, Some(hashed), tree);
+    }
+
+    /// Collects the records of a file-tree leaf node.
+    fn leaf(&self, node: &[u8], hashed: Option<bool>, tree: &mut Tree) {
+        for (k, v) in self.entries(node, 0, 0) {
             let Some(hdr) = le64(k, 0) else { continue };
             let (id, ty) = (hdr & 0x0FFF_FFFF_FFFF_FFFF, hdr >> 60);
             match ty {
@@ -275,9 +412,13 @@ impl Apfs {
                     }
                 }
                 J_DIR_REC => {
+                    // Hashed keys (case- or normalization-insensitive
+                    // volumes) or plain ones: told apart by their length when
+                    // the volume is not known.
+                    let hashed_len = (le32(k, 8).unwrap_or(0) & 0x3FF) as usize;
+                    let hashed = hashed.unwrap_or(k.len() == 12 + hashed_len);
                     let name = if hashed {
-                        let len = (le32(k, 8).unwrap_or(0) & 0x3FF) as usize;
-                        k.get(12..12 + len)
+                        k.get(12..12 + hashed_len)
                     } else {
                         let len = usize::from(le16(k, 8).unwrap_or(0));
                         k.get(10..10 + len)
@@ -439,7 +580,16 @@ impl Volume for Apfs {
                 if let FileData::Extents(e) = &data {
                     used.extend(e.iter().filter_map(|x| x.offset.map(|o| o..o + x.len)));
                 }
-                if live {
+                // A damaged container cannot be opened otherwise: all of it
+                // is worth recovering.
+                if live || vol.salvaged {
+                    let mut notes: Vec<&str> = Vec::new();
+                    if vol.salvaged {
+                        notes.push("rebuilt from a damaged container");
+                    }
+                    if inode.compressed {
+                        notes.push("compressed by macOS: may not open");
+                    }
                     out.push(DeletedFile {
                         id: *id,
                         path: path(*id),
@@ -447,7 +597,7 @@ impl Volume for Apfs {
                         created: apfs_time(inode.created),
                         modified: apfs_time(inode.modified),
                         condition: Condition::Recoverable,
-                        note: inode.compressed.then(|| "compressed by macOS: may not open".to_string()),
+                        note: (!notes.is_empty()).then(|| notes.join("; ")),
                         data,
                     });
                 }
@@ -484,7 +634,7 @@ impl Volume for Apfs {
                         created: apfs_time(inode.created),
                         modified: apfs_time(inode.modified),
                         condition,
-                        note: Some("from an earlier checkpoint".into()),
+                        note: Some(tree.origin.clone().unwrap_or_else(|| "from an earlier checkpoint".into())),
                         data,
                     });
                 }
@@ -495,5 +645,102 @@ impl Volume for Apfs {
 
     fn free_ranges(&self) -> Result<Vec<ByteRange>> {
         anyhow::bail!("the APFS space manager is not read: the whole container is searched")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+    use crate::source::MemSource;
+
+    const BLOCK: usize = 4096;
+
+    /// The APFS image made by macOS (`tests/data/apfs.sectors`).
+    fn fixture() -> Vec<u8> {
+        let raw = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/apfs.sectors")).unwrap();
+        let mut img = vec![0u8; u64::from_le_bytes(raw[8..16].try_into().unwrap()) as usize];
+        for s in raw[16..].as_chunks::<520>().0 {
+            let at = u64::from_le_bytes(s[..8].try_into().unwrap()) as usize;
+            img[at..at + 512].copy_from_slice(&s[8..]);
+        }
+        img
+    }
+
+    fn seal(b: &mut [u8]) {
+        let c = fletcher64(b);
+        b[..8].copy_from_slice(&c.to_le_bytes());
+    }
+
+    /// Valid objects of `ty` with `magic` at 32: (transaction, block).
+    fn objects(img: &[u8], ty: u32, magic: &[u8; 4]) -> Vec<(u64, usize)> {
+        let mut v: Vec<(u64, usize)> = img
+            .as_chunks::<BLOCK>()
+            .0
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| obj_type(&b[..]) == ty && &b[32..36] == magic && checksum_ok(&b[..]))
+            .map(|(i, b)| (le64(&b[..], 16).unwrap(), i))
+            .collect();
+        v.sort_unstable();
+        v
+    }
+
+    fn deleted(img: Vec<u8>) -> Vec<DeletedFile> {
+        let vol = Apfs::open(Arc::new(MemSource(img))).unwrap();
+        vol.scan_deleted(&mut |_, _| {}).unwrap()
+    }
+
+    #[test]
+    fn deleted_files_come_back_from_a_snapshot() {
+        let mut img = fixture();
+        // Only the newest checkpoint is left: the earlier ones, where the
+        // deleted photo still exists, are gone.
+        let supers = objects(&img, TYPE_NX_SUPERBLOCK, NX_MAGIC);
+        // (Block 0, the container superblock's first copy, stays.)
+        for &(_, b) in supers[..supers.len() - 1].iter().filter(|s| s.1 != 0) {
+            img[b * BLOCK..(b + 1) * BLOCK].fill(0);
+        }
+        assert!(deleted(img.clone()).is_empty());
+
+        // A snapshot taken while the photo existed: an older version of the
+        // volume superblock, named in a snapshot metadata tree.
+        let vols = objects(&img, TYPE_FS, APSB_MAGIC);
+        let (newest_xid, newest_sb) = *vols.last().unwrap();
+        let free = img.as_chunks::<BLOCK>().0.iter().rposition(|b| b.iter().all(|&x| x == 0)).unwrap();
+        let mut found = None;
+        for &(xid, older) in vols.iter().rev().skip(1) {
+            let mut try_img = img.clone();
+            let node = &mut try_img[free * BLOCK..(free + 1) * BLOCK];
+            node[8..16].copy_from_slice(&(free as u64).to_le_bytes()); // oid
+            node[16..24].copy_from_slice(&newest_xid.to_le_bytes());
+            node[24..28].copy_from_slice(&(0x4000_0000u32 | TYPE_BTREE).to_le_bytes()); // physical
+            node[28..32].copy_from_slice(&0x10u32.to_le_bytes()); // snapshot metadata tree
+            node[32..34].copy_from_slice(&(BTNODE_ROOT | 0x2).to_le_bytes()); // root, leaf
+            node[36..40].copy_from_slice(&1u32.to_le_bytes()); // one record
+            node[42..44].copy_from_slice(&8u16.to_le_bytes()); // table of contents: one entry
+            let mut value = vec![0u8; 50];
+            value[8..16].copy_from_slice(&(older as u64).to_le_bytes());
+            value[48..50].copy_from_slice(&5u16.to_le_bytes());
+            value.extend_from_slice(b"test\0");
+            let vlen = value.len();
+            node[56..64].copy_from_slice(&[0, 0, 8, 0, vlen as u8, 0, vlen as u8, 0]);
+            node[64..72].copy_from_slice(&(1u64 << 60 | xid).to_le_bytes());
+            let val_end = BLOCK - 40;
+            node[val_end - vlen..val_end].copy_from_slice(&value);
+            seal(node);
+            let sb = &mut try_img[newest_sb * BLOCK..(newest_sb + 1) * BLOCK];
+            sb[152..160].copy_from_slice(&(free as u64).to_le_bytes());
+            seal(sb);
+            let files = deleted(try_img);
+            if let Some(f) = files.iter().find(|f| f.path == "Photos/Holiday/beach.jpg") {
+                found = Some(f.clone());
+                break;
+            }
+        }
+        let f = found.expect("the photo, from the snapshot");
+        assert_eq!(f.note.as_deref(), Some("from the snapshot test"));
+        assert_eq!(f.size, 37349);
     }
 }

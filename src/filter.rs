@@ -22,6 +22,9 @@ pub struct Filter {
     pub after: Option<NaiveDate>,
     /// Only files dated on or before this day (inclusive).
     pub before: Option<NaiveDate>,
+    /// Only files in this folder or below it (lower case, `/`-separated,
+    /// ending with `/`).
+    pub folder: Option<String>,
 }
 
 impl Filter {
@@ -51,7 +54,22 @@ impl Filter {
             max_size,
             after: None,
             before: None,
+            folder: None,
         })
+    }
+
+    /// Restricts to files in `folder` or below it, e.g. `Users\Ann\Pictures`
+    /// or `C:/Users/Ann/Pictures` (the drive letter is ignored). Files found
+    /// by their content have no folder and are left out.
+    pub fn with_folder(mut self, folder: &str) -> Self {
+        let f = folder.trim().replace('\\', "/");
+        let f = match f.as_bytes() {
+            [d, b':', ..] if d.is_ascii_alphabetic() => &f[2..],
+            _ => &f[..],
+        };
+        let f = f.trim_matches('/').to_lowercase();
+        self.folder = (!f.is_empty()).then(|| format!("{f}/"));
+        self
     }
 
     /// Restricts to files dated between `after` and `before` (inclusive).
@@ -86,15 +104,16 @@ impl Filter {
             && self.type_ok(ext, carve::category_for_ext(ext))
             && self.name.as_ref().is_none_or(|(m, full)| m.is_match(if *full { f.path.as_str() } else { f.name() }))
             && self.date_ok(f.modified)
+            && self.folder.as_ref().is_none_or(|d| f.path.to_lowercase().starts_with(d.as_str()))
     }
 
     pub fn matches_carved(&self, c: &Carved) -> bool {
-        self.size_ok(c.len) && self.type_ok(c.ext, Some(c.category)) && self.date_ok(c.date)
+        self.folder.is_none() && self.size_ok(c.len) && self.type_ok(c.ext, Some(c.category)) && self.date_ok(c.date)
     }
 
-    /// Whether any output of `f` could pass the type filters.
+    /// Whether any output of `f` could pass the filters.
     pub fn wants_format(&self, f: &dyn Format) -> bool {
-        f.kinds().iter().any(|(ext, cat)| self.type_ok(ext, Some(*cat)))
+        self.folder.is_none() && f.kinds().iter().any(|(ext, cat)| self.type_ok(ext, Some(*cat)))
     }
 }
 
@@ -127,6 +146,16 @@ mod tests {
         let f = Filter::new(&["jpeg".into()], &[], Some("Users/*/Pictures/**"), 0, None).unwrap();
         assert!(f.matches_file(&file("Users/bob/Pictures/2024/a.jpg", 1)));
         assert!(!f.matches_file(&file("Users/bob/Desktop/a.jpg", 1)));
+    }
+
+    #[test]
+    fn filters_by_folder() {
+        let f = Filter::default().with_folder(r"C:\Users\Ann\Pictures\");
+        assert!(f.matches_file(&file("Users/ann/Pictures/2024/a.jpg", 1)));
+        assert!(f.matches_file(&file("Users/Ann/Pictures/a.jpg", 1)));
+        assert!(!f.matches_file(&file("Users/Ann/PicturesOld/a.jpg", 1)));
+        assert!(!f.matches_file(&file("Users/Bob/Pictures/a.jpg", 1)));
+        assert!(Filter::default().with_folder("  ").folder.is_none());
     }
 
     #[test]

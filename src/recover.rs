@@ -67,6 +67,9 @@ pub struct SaveOptions {
     pub restore_dates: bool,
     pub write_report: bool,
     pub allow_same_volume: bool,
+    /// Save everything into one ZIP protected with this password (AES-256)
+    /// instead of a folder: nothing is written unencrypted.
+    pub password: Option<String>,
 }
 
 /// Command-line recovery: scan, then save everything that passes.
@@ -90,6 +93,8 @@ pub struct Summary {
     pub failures: u64,
     pub cancelled: bool,
     pub report: Option<PathBuf>,
+    /// The password-protected ZIP everything went into, if one was asked for.
+    pub archive: Option<PathBuf>,
 }
 
 pub struct Session {
@@ -112,6 +117,7 @@ impl Session {
     }
 
     pub fn new(disk: Source, path: String, partitions: Vec<Partition>) -> Self {
+        let disk = crate::bitlocker::overlay(disk, &partitions);
         Self { disk, path, partitions, found: RwLock::new(Vec::new()) }
     }
 
@@ -391,6 +397,10 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
         }
     }
 
+    if opts.method != Method::Carve && !cancel.load(Ordering::Relaxed) {
+        previous_versions(session, opts, progress, cancel, &mut found);
+    }
+
     if opts.method != Method::Fs && !cancel.load(Ordering::Relaxed) {
         if opts.partition.is_none() {
             free.extend(partition::unpartitioned(session.disk.size(), &session.partitions));
@@ -429,6 +439,7 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
                     kind: "rebuilt videos".into(),
                     name: String::new(),
                     fs: None,
+                    device: None,
                 });
                 for v in rebuilt {
                     let file = rebuilt_file(v);
@@ -448,6 +459,79 @@ pub fn scan(session: &Session, opts: &ScanOptions, progress: &dyn Progress, canc
     }
     found.cancelled = cancel.load(Ordering::Relaxed);
     Ok(found)
+}
+
+/// Shadow copies read at most per scan (newest first).
+const MAX_SHADOW_COPIES: usize = 8;
+
+/// Files deleted since a Windows shadow copy ("Previous Versions") of the
+/// drive was taken: complete in the copy, whatever happened on the drive.
+fn previous_versions(
+    session: &Session,
+    opts: &ScanOptions,
+    progress: &dyn Progress,
+    cancel: &AtomicBool,
+    found: &mut Found,
+) {
+    let copies = crate::shadow::list(&session.path);
+    if copies.is_empty() {
+        return;
+    }
+    // What the drive has now.
+    let Some(current) = session.partitions.first().and_then(|p| fs::open(p.source(&session.disk)).ok()) else {
+        return;
+    };
+    let existing: std::collections::HashSet<String> = current
+        .scan_files(true, &mut |_, _| {})
+        .map(|files| files.into_iter().map(|f| f.path.to_lowercase()).collect())
+        .unwrap_or_default();
+    progress.begin("Reading previous versions", copies.len().min(MAX_SHADOW_COPIES) as u64, Unit::Items);
+    let mut seen = std::collections::HashSet::new();
+    for (k, copy) in copies.iter().take(MAX_SHADOW_COPIES).enumerate() {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        let Ok(src) = DiskSource::open(&copy.device) else { continue };
+        let Ok(vol) = fs::open(Arc::new(src)) else { continue };
+        let Ok(files) = vol.scan_files(true, &mut |_, _| {}) else { continue };
+        let date = copy.created.map(|d| d.format("%Y-%m-%d %H:%M").to_string()).unwrap_or_default();
+        let mut pos = None;
+        for mut file in files {
+            let key = file.path.to_lowercase();
+            if system_path(&key) || existing.contains(&key) || !opts.filter.matches_file(&file) || !seen.insert(key) {
+                continue;
+            }
+            let pos = *pos.get_or_insert_with(|| {
+                session.add_found(Partition {
+                    index: session.found_partitions().len() + 1,
+                    start: 0,
+                    len: vol.source().size(),
+                    scheme: partition::Scheme::Found,
+                    kind: format!("previous version {date}"),
+                    name: String::new(),
+                    fs: Some(vol.kind()),
+                    device: Some(copy.device.clone()),
+                })
+            });
+            file.note = Some(format!("from the Previous Versions copy of {date}"));
+            progress.found(file_category(&file));
+            let f = FsFound { partition: pos, file };
+            progress.file_found(&f);
+            found.fs.push(f);
+        }
+        progress.set(k as u64 + 1, copies.len().min(MAX_SHADOW_COPIES) as u64);
+    }
+    progress.end();
+}
+
+/// Windows' own files, which come and go all the time: not worth listing
+/// from a shadow copy.
+fn system_path(lower: &str) -> bool {
+    let top = lower.split('/').next().unwrap_or("");
+    matches!(top, "windows" | "program files" | "program files (x86)" | "programdata" | "system volume information")
+        || lower.split('/').any(|c| c.starts_with('$'))
+        || lower.contains("/appdata/local/temp/")
+        || lower.contains("/appdata/local/microsoft/")
 }
 
 /// A rebuilt video as a found file (its pieces are its extents on the disk).
@@ -530,9 +614,31 @@ pub fn save(
     if !opts.allow_same_volume {
         output::ensure_not_on_source(&session.path, &opts.out)?;
     }
-    std::fs::create_dir_all(&opts.out).with_context(|| format!("creating {}", opts.out.display()))?;
-    let mut report = if opts.write_report { Some(Report::create(&opts.out)?) } else { None };
     let mut sum = Summary::default();
+    let mut dest = match &opts.password {
+        Some(password) => {
+            let path = output::unique_path(archive_path(&opts.out));
+            if let Some(dir) = path.parent() {
+                std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+            }
+            let file = std::fs::File::create(&path).with_context(|| format!("creating {}", path.display()))?;
+            sum.archive = Some(path);
+            Dest::Zip {
+                zip: Box::new(zip::ZipWriter::new(BufWriter::with_capacity(1 << 20, file))),
+                password,
+                names: std::collections::HashSet::new(),
+            }
+        }
+        None => {
+            std::fs::create_dir_all(&opts.out).with_context(|| format!("creating {}", opts.out.display()))?;
+            Dest::Folder
+        }
+    };
+    let mut report = match (opts.write_report, &dest) {
+        (false, _) => None,
+        (true, Dest::Folder) => Some(Report::create(&opts.out)?),
+        (true, Dest::Zip { .. }) => Some(Report::in_memory()),
+    };
     let mut sources: HashMap<usize, (Partition, Source)> = HashMap::new();
 
     progress.begin("Recovering files", items.iter().map(Item::size).sum(), Unit::Bytes);
@@ -552,7 +658,7 @@ pub fn save(
                     sum.failures += 1;
                     continue;
                 };
-                save_fs(&src, &p, f, opts).map(|(path, st)| {
+                save_fs(&src, &p, f, opts, &mut dest).map(|(path, st)| {
                     sum.fs_files += 1;
                     sum.fs_bytes += st.written;
                     sum.unreadable_bytes += st.unreadable;
@@ -560,7 +666,7 @@ pub fn save(
                         method: "filesystem",
                         partition: p.label(),
                         original_path: f.file.path.clone(),
-                        recovered_path: rel(&opts.out, &path),
+                        recovered_path: path,
                         size: f.file.size,
                         disk_offset: f
                             .file
@@ -575,7 +681,7 @@ pub fn save(
                     }
                 })
             }
-            Item::Carved(c) => save_carved(session.disk.as_ref(), c, opts).map(|(path, unreadable)| {
+            Item::Carved(c) => save_carved(session.disk.as_ref(), c, opts, &mut dest).map(|(path, unreadable)| {
                 sum.carved_files += 1;
                 sum.carved_bytes += c.len;
                 sum.unreadable_bytes += unreadable;
@@ -583,7 +689,7 @@ pub fn save(
                     method: "carved",
                     partition: partition_of(&session.partitions, c.offset),
                     original_path: String::new(),
-                    recovered_path: rel(&opts.out, &path),
+                    recovered_path: path,
                     size: c.len,
                     disk_offset: format!("{:#x}", c.offset),
                     condition: "carved".into(),
@@ -608,7 +714,18 @@ pub fn save(
     }
     progress.end();
     sum.cancelled = cancel.load(Ordering::Relaxed);
-    sum.report = report.map(Report::finish).transpose()?;
+    match dest {
+        Dest::Folder => sum.report = report.map(|r| r.finish(None)).transpose()?.flatten(),
+        Dest::Zip { mut zip, password, mut names } => {
+            if let Some(r) = report {
+                // The report goes inside, encrypted like the files.
+                let name = unique_entry(&mut names, PathBuf::from("report.csv"));
+                zip.start_file(name, entry_options(password, 0, None))?;
+                r.finish(Some(&mut zip))?;
+            }
+            zip.finish()?.into_inner().map_err(|e| e.into_error())?.sync_all()?;
+        }
+    }
     Ok(sum)
 }
 
@@ -665,32 +782,124 @@ fn category_dir(c: Option<Category>) -> &'static str {
     c.map_or("other", Category::dir_name)
 }
 
-fn save_fs(vol: &Source, p: &Partition, f: &FsFound, opts: &SaveOptions) -> Result<(PathBuf, fs::ExtractStats)> {
+/// Where recovered files are written.
+enum Dest<'a> {
+    /// Files in the output folder.
+    Folder,
+    /// One password-protected ZIP (AES-256): nothing is written unencrypted.
+    Zip {
+        zip: Box<zip::ZipWriter<BufWriter<std::fs::File>>>,
+        password: &'a str,
+        names: std::collections::HashSet<String>,
+    },
+}
+
+impl Dest<'_> {
+    /// Writes one file at `target` (relative to the output folder; `fallback`
+    /// if that path cannot be created), its content written by `fill`.
+    /// Returns where it went (relative) and what `fill` returned.
+    fn write<T>(
+        &mut self,
+        opts: &SaveOptions,
+        target: PathBuf,
+        fallback: PathBuf,
+        modified: Option<chrono::NaiveDateTime>,
+        size: u64,
+        fill: impl FnOnce(&mut dyn Write) -> Result<T>,
+    ) -> Result<(String, T)> {
+        let modified = modified.filter(|_| opts.restore_dates);
+        match self {
+            Dest::Folder => {
+                // Deep or exotic paths can still fail on some systems; fall
+                // back to a flat name rather than losing the file.
+                let (path, out) = output::create_unique(opts.out.join(&target))
+                    .or_else(|_| output::create_unique(opts.out.join(fallback)))?;
+                let mut w = BufWriter::with_capacity(1 << 20, out);
+                let t = fill(&mut w).with_context(|| format!("writing {}", path.display()))?;
+                let out = w.into_inner().map_err(|e| e.into_error())?;
+                if let Some(m) = modified {
+                    set_modified(&out, m);
+                }
+                Ok((rel(&opts.out, &path), t))
+            }
+            Dest::Zip { zip, password, names } => {
+                let name = unique_entry(names, target);
+                zip.start_file(name.clone(), entry_options(password, size, modified))?;
+                let t = fill(zip).with_context(|| format!("writing {name}"))?;
+                Ok((name, t))
+            }
+        }
+    }
+}
+
+/// The ZIP that a password-protected save writes, next to `out`.
+pub fn archive_path(out: &Path) -> PathBuf {
+    let mut name = out.as_os_str().to_owned();
+    name.push(".zip");
+    PathBuf::from(name)
+}
+
+/// A name for `path` inside the ZIP, made unique ("name (1).ext").
+fn unique_entry(names: &mut std::collections::HashSet<String>, path: PathBuf) -> String {
+    let joined = path.iter().map(|c| c.to_string_lossy().into_owned()).collect::<Vec<_>>().join("/");
+    let (stem, ext) = match joined.rsplit_once('.') {
+        Some((s, e)) if !e.contains('/') => (s.to_string(), format!(".{e}")),
+        _ => (joined.clone(), String::new()),
+    };
+    let name = std::iter::once(joined)
+        .chain((1..).map(|i| format!("{stem} ({i}){ext}")))
+        .find(|n| !names.contains(&n.to_lowercase()))
+        .unwrap_or_default();
+    names.insert(name.to_lowercase());
+    name
+}
+
+fn entry_options(
+    password: &str,
+    size: u64,
+    modified: Option<chrono::NaiveDateTime>,
+) -> zip::write::FileOptions<'_, ()> {
+    use chrono::{Datelike, Timelike};
+    let mut o = zip::write::FileOptions::default()
+        // Photos and videos do not compress; storing keeps it fast.
+        .compression_method(zip::CompressionMethod::Stored)
+        .large_file(size >= u64::from(u32::MAX))
+        .with_aes_encryption(zip::AesMode::Aes256, password);
+    if let Some(t) = modified
+        && let Ok(dt) = zip::DateTime::from_date_and_time(
+            u16::try_from(t.year()).unwrap_or(1980),
+            t.month() as u8,
+            t.day() as u8,
+            t.hour() as u8,
+            t.minute() as u8,
+            t.second() as u8,
+        )
+    {
+        o = o.last_modified_time(dt);
+    }
+    o
+}
+
+fn save_fs(
+    vol: &Source,
+    p: &Partition,
+    f: &FsFound,
+    opts: &SaveOptions,
+    dest: &mut Dest,
+) -> Result<(String, fs::ExtractStats)> {
     let file = &f.file;
     let (target, fallback_dir) = match opts.layout {
         Layout::Original => {
-            let base = opts.out.join(p.label());
+            let base = PathBuf::from(p.label());
             (base.join(output::safe_relative_path(&file.path)), base.join("_flat"))
         }
         Layout::ByType => {
-            let dir = opts.out.join(category_dir(file_category(file)));
+            let dir = PathBuf::from(category_dir(file_category(file)));
             (dir.join(output::sanitize_component(file.name())), dir)
         }
     };
-    // Deep or exotic paths can still fail on some systems; fall back to a
-    // flat name rather than losing the file.
-    let (path, out) = output::create_unique(target).or_else(|_| {
-        output::create_unique(fallback_dir.join(format!("{}_{}", file.id, output::sanitize_component(file.name()))))
-    })?;
-    let mut w = BufWriter::with_capacity(1 << 20, out);
-    let st = fs::extract(vol.as_ref(), file, &mut w).with_context(|| format!("writing {}", path.display()))?;
-    let out = w.into_inner().map_err(|e| e.into_error())?;
-    if opts.restore_dates
-        && let Some(m) = file.modified
-    {
-        set_modified(&out, m);
-    }
-    Ok((path, st))
+    let fallback = fallback_dir.join(format!("{}_{}", file.id, output::sanitize_component(file.name())));
+    dest.write(opts, target, fallback, file.modified, file.size, |w| Ok(fs::extract(vol.as_ref(), file, w)?))
 }
 
 fn set_modified(file: &std::fs::File, t: chrono::NaiveDateTime) {
@@ -698,22 +907,13 @@ fn set_modified(file: &std::fs::File, t: chrono::NaiveDateTime) {
     let _ = file.set_modified(t);
 }
 
-fn save_carved(disk: &dyn ReadAt, c: &Carved, opts: &SaveOptions) -> Result<(PathBuf, u64)> {
+fn save_carved(disk: &dyn ReadAt, c: &Carved, opts: &SaveOptions, dest: &mut Dest) -> Result<(String, u64)> {
     let dir = match opts.layout {
-        Layout::Original => opts.out.join("carved").join(c.category.dir_name()),
-        Layout::ByType => opts.out.join(c.category.dir_name()),
+        Layout::Original => PathBuf::from("carved").join(c.category.dir_name()),
+        Layout::ByType => PathBuf::from(c.category.dir_name()),
     };
-    let (path, file) = output::create_unique(dir.join(carved_name(c)))?;
-    let mut w = BufWriter::with_capacity(1 << 20, file);
-    let unreadable = copy_range(disk, c.offset, c.len, &mut w)?;
-    w.flush()?;
-    if opts.restore_dates
-        && let Some(d) = c.date
-    {
-        let file = w.into_inner().map_err(|e| e.into_error())?;
-        set_modified(&file, d);
-    }
-    Ok((path, unreadable))
+    let target = dir.join(carved_name(c));
+    dest.write(opts, target.clone(), target, c.date, c.len, |w| copy_range(disk, c.offset, c.len, w))
 }
 
 fn copy_range(src: &dyn ReadAt, offset: u64, len: u64, out: &mut dyn Write) -> Result<u64> {
