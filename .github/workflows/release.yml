@@ -7,8 +7,9 @@ on:
 # The source is private. Downloads, release notes and the README are
 # published to the public release repository, with RELEASE_TOKEN (a token
 # that can write to it); the in-app update check reads releases from there.
+# Every release is also kept in this (private) repository.
 permissions:
-  contents: read
+  contents: write
 
 env:
   PUBLIC_REPO: itsmrroot/Recover-Deleted-Files--Release
@@ -44,6 +45,12 @@ jobs:
           git log -1 --format=%B "$GITHUB_SHA" > notes.md
           gh release view "$GITHUB_REF_NAME" -R "$PUBLIC_REPO" >/dev/null 2>&1 ||
             gh release create "$GITHUB_REF_NAME" -R "$PUBLIC_REPO" --target main --title "$GITHUB_REF_NAME" --notes-file notes.md
+      - name: Create the release here too
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md
 
   build:
     name: ${{ matrix.target }}
@@ -100,6 +107,9 @@ jobs:
           repository: ${{ env.PUBLIC_REPO }}
           token: ${{ secrets.RELEASE_TOKEN }}
           files: ${{ env.ASSET }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ASSET }}
 
       # Installers (configured in gui/Cargo.toml). They run after the archive is
       # published, so a failing installer never holds back the plain download.
@@ -148,4 +158,8 @@ jobs:
         with:
           repository: ${{ env.PUBLIC_REPO }}
           token: ${{ secrets.RELEASE_TOKEN }}
+          files: installers/*
+      - if: matrix.installer
+        uses: softprops/action-gh-release@v2
+        with:
           files: installers/*
