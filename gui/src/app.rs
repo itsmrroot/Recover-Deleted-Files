@@ -68,6 +68,9 @@ const SETTINGS_KEY: &str = "settings";
 
 /// The window size on first start, in points.
 pub const DEFAULT_SIZE: [f32; 2] = [1240.0, 800.0];
+/// Windows and Linux programs usually open filling the screen; on a Mac
+/// the window opens at [`DEFAULT_SIZE`].
+pub const OPEN_MAXIMIZED: bool = !cfg!(target_os = "macos");
 /// The smallest window in which every screen still works, e.g. on a
 /// 1024 × 768 screen or in a small virtual machine window.
 pub const MIN_SIZE: [f32; 2] = [800.0, 540.0];
@@ -254,7 +257,8 @@ impl App {
     /// first-start size (or one saved on a bigger screen) is taller than,
     /// for example, a 1366 × 768 laptop screen or a small VM window.
     fn fit_to_screen(&mut self, ctx: &egui::Context) {
-        if self.fitted {
+        // A maximized window fits by itself.
+        if self.fitted || (OPEN_MAXIMIZED && ctx.input(|i| i.viewport().maximized) != Some(false)) {
             return;
         }
         let (monitor, inner) = ctx.input(|i| (i.viewport().monitor_size, i.viewport().inner_rect));
@@ -521,6 +525,17 @@ impl App {
                 } else {
                     ui.label(RichText::new(format!("v{}", env!("CARGO_PKG_VERSION"))).color(white.gamma_multiply(0.7)));
                 }
+                ui.add_space(14.0);
+                let active = self.page == Page::Settings;
+                let text = RichText::new(format!("{}  {}", icon::GEAR_SIX, tr("Settings"))).size(15.0).color(white);
+                let button = egui::Button::new(text)
+                    .fill(if active { Color32::from_white_alpha(38) } else { Color32::TRANSPARENT })
+                    .stroke(Stroke::new(1.0, Color32::from_white_alpha(if active { 90 } else { 50 })))
+                    .corner_radius(CornerRadius::same(8))
+                    .min_size(Vec2::new(0.0, 32.0));
+                if ui.add(button).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                    self.page = Page::Settings;
+                }
             });
         });
     }
@@ -601,6 +616,16 @@ impl App {
     }
 
     fn content(&mut self, ui: &mut Ui, p: &Palette) {
+        // The start screen, results, settings, help and about scroll by
+        // themselves; the rest scrolls here when the window is small.
+        if matches!(self.page, Page::Home | Page::Results | Page::Settings | Page::Help | Page::About) {
+            self.page_content(ui, p);
+        } else {
+            egui::ScrollArea::vertical().id_salt("page").auto_shrink(false).show(ui, |ui| self.page_content(ui, p));
+        }
+    }
+
+    fn page_content(&mut self, ui: &mut Ui, p: &Palette) {
         let ctx = ui.ctx().clone();
         match self.page {
             Page::Home => match self.home.page(ui, p, &self.settings) {

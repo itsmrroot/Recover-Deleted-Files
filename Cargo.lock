@@ -1103,6 +1103,7 @@ dependencies = [
  "egui-wgpu",
  "egui-winit",
  "egui_glow",
+ "glow",
  "glutin",
  "glutin-winit",
  "image",
@@ -4369,7 +4370,7 @@ dependencies = [
 
 [[package]]
 name = "wdfr"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "aes",
  "anyhow",
@@ -4394,7 +4395,7 @@ dependencies = [
 
 [[package]]
 name = "wdfr-gui"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "chrono",

@@ -30,7 +30,7 @@ use crate::i18n::{icon_label, tr, trf, trl, trlf};
 use crate::jobs::Job;
 use crate::theme::{self, Palette};
 
-const LATEST: &str = "https://api.github.com/repos/itsmrroot/Recover-Deleted-Files/releases/latest";
+const LATEST: &str = "https://api.github.com/repos/itsmrroot/Recover-Deleted-Files--Release/releases/latest";
 
 /// The version of this program.
 pub fn current() -> &'static str {

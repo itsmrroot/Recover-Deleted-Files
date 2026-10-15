@@ -4,12 +4,50 @@ on:
   push:
     tags: ["v*"]
 
+# The source is private. Downloads, release notes and the README are
+# published to the public release repository, with RELEASE_TOKEN (a token
+# that can write to it); the in-app update check reads releases from there.
 permissions:
-  contents: write
+  contents: read
+
+env:
+  PUBLIC_REPO: itsmrroot/Recover-Deleted-Files--Release
 
 jobs:
+  page:
+    name: Public page and release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Update the public README
+        env:
+          TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${TOKEN}@github.com/${PUBLIC_REPO}.git" public
+          rm -rf public/assets public/gui
+          mkdir -p public/assets public/gui/assets/fonts
+          cp LICENSE public/
+          cp assets/banner.svg assets/how-it-works.svg assets/app-*.png public/assets/
+          cp gui/assets/fonts/OFL.txt gui/assets/fonts/OFL-NotoSansSC.txt public/gui/assets/fonts/
+          # Without the parts about the (private) source code.
+          python3 -c "import re; s = open('README.md').read(); open('public/README.md', 'w').write(re.sub(r'<!-- private:start -->.*?<!-- private:end -->\n*', '', s, flags=re.S))"
+          cd public
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -q -m "Deleted Files Recovery ${GITHUB_REF_NAME}"
+          git push -q origin HEAD:main
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          git log -1 --format=%B "$GITHUB_SHA" > notes.md
+          gh release view "$GITHUB_REF_NAME" -R "$PUBLIC_REPO" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" -R "$PUBLIC_REPO" --target main --title "$GITHUB_REF_NAME" --notes-file notes.md
+
   build:
     name: ${{ matrix.target }}
+    needs: page
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -59,6 +97,8 @@ jobs:
           fi
       - uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ env.PUBLIC_REPO }}
+          token: ${{ secrets.RELEASE_TOKEN }}
           files: ${{ env.ASSET }}
 
       # Installers (configured in gui/Cargo.toml). They run after the archive is
@@ -106,4 +146,6 @@ jobs:
       - if: matrix.installer
         uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ env.PUBLIC_REPO }}
+          token: ${{ secrets.RELEASE_TOKEN }}
           files: installers/*

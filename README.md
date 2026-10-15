@@ -4,12 +4,11 @@
 
 <br>
 
-[![CI](https://github.com/itsmrroot/Recover-Deleted-Files/actions/workflows/ci.yml/badge.svg)](https://github.com/itsmrroot/Recover-Deleted-Files/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/itsmrroot/Recover-Deleted-Files?color=0b5cad)](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/itsmrroot/Recover-Deleted-Files/total?color=16a34a)](https://github.com/itsmrroot/Recover-Deleted-Files/releases)
+[![Latest release](https://img.shields.io/github/v/release/itsmrroot/Recover-Deleted-Files--Release?color=0b5cad)](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/itsmrroot/Recover-Deleted-Files--Release/total?color=16a34a)](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-6b7280)](#-install)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![License: MIT](https://img.shields.io/github/license/itsmrroot/Recover-Deleted-Files?color=a78bfa)](LICENSE)
+[![License: MIT](https://img.shields.io/github/license/itsmrroot/Recover-Deleted-Files--Release?color=a78bfa)](LICENSE)
 
 **Bring back deleted photos, videos, music and documents —<br>from hard drives, USB sticks, SD cards and disk images.**
 
@@ -227,7 +226,7 @@ Click your system to see which file to download and how to install it:
 </div>
 
 Every installer contains the desktop app **and** the command line (`wdfr`). All files are also on the
-**[latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest)** page.
+**[latest release](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest)** page.
 
 > [!IMPORTANT]
 > Download and install the app on a **different drive** than the one you want to recover, so that nothing
@@ -239,8 +238,8 @@ Every installer contains the desktop app **and** the command line (`wdfr`). All 
 
 | Your PC | Download |
 |---|---|
-| **Most PCs** (Intel or AMD) | **[wdfr-windows-x64-setup.exe](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-windows-x64-setup.exe)** |
-| ARM laptops (Snapdragon, Surface Pro X) | [wdfr-windows-arm64-setup.exe](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-windows-arm64-setup.exe) |
+| **Most PCs** (Intel or AMD) | **[wdfr-windows-x64-setup.exe](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-windows-x64-setup.exe)** |
+| ARM laptops (Snapdragon, Surface Pro X) | [wdfr-windows-arm64-setup.exe](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-windows-arm64-setup.exe) |
 
 <sub>Not sure? **Settings → System → About → System type** says *x64-based* or *ARM-based*.</sub>
 
@@ -262,8 +261,8 @@ administrator rights (needed to read drives).
 
 | Your Mac | Download |
 |---|---|
-| **Apple Silicon** (M1, M2, M3, M4 and newer) | **[wdfr-macos-apple-silicon.dmg](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-macos-apple-silicon.dmg)** |
-| Intel | [wdfr-macos-intel.dmg](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-macos-intel.dmg) |
+| **Apple Silicon** (M1, M2, M3, M4 and newer) | **[wdfr-macos-apple-silicon.dmg](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-macos-apple-silicon.dmg)** |
+| Intel | [wdfr-macos-intel.dmg](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-macos-intel.dmg) |
 
 <sub>Not sure? **Apple menu  → About This Mac** shows *Chip: Apple M…* or *Processor: Intel*.</sub>
 
@@ -300,9 +299,9 @@ Disk images work without either step.
 
 | Your distribution | Intel / AMD (`x86_64`) | ARM (`aarch64`) |
 |---|---|---|
-| **Ubuntu, Debian, Mint, Pop!_OS** | **[wdfr-linux-x86_64.deb](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-x86_64.deb)** | [wdfr-linux-arm64.deb](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-arm64.deb) |
-| **Fedora, openSUSE, RHEL** | [wdfr-linux-x86_64.rpm](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-x86_64.rpm) | [wdfr-linux-arm64.rpm](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-arm64.rpm) |
-| **Any other** (AppImage) | [wdfr-linux-x86_64.AppImage](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-x86_64.AppImage) | [wdfr-linux-arm64.AppImage](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest/download/wdfr-linux-arm64.AppImage) |
+| **Ubuntu, Debian, Mint, Pop!_OS** | **[wdfr-linux-x86_64.deb](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-linux-x86_64.deb)** | [wdfr-linux-arm64.deb](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-linux-arm64.deb) |
+| **Fedora, openSUSE, RHEL** | [wdfr-linux-x86_64.rpm](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-linux-x86_64.rpm) | [wdfr-linux-arm64.rpm](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-linux-arm64.rpm) |
+| **Any other** (AppImage) | [wdfr-linux-x86_64.AppImage](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-linux-x86_64.AppImage) | [wdfr-linux-arm64.AppImage](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest/download/wdfr-linux-arm64.AppImage) |
 
 <sub>Not sure? Run `uname -m` in a terminal: `x86_64` is Intel/AMD, `aarch64` is ARM (Raspberry Pi 4/5 with
 a 64-bit system, ARM servers, Linux virtual machines on Apple Silicon Macs). The app needs Ubuntu 22.04,
@@ -364,7 +363,7 @@ the AppImage.</sub>
 ### 💻 Command line only
 
 The command line runs on any Linux, with no dependencies, and is also included in every installer and
-portable download. Download it from the [latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest):
+portable download. Download it from the [latest release](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest):
 
 | Your computer | File |
 |---|---|
@@ -379,7 +378,7 @@ sudo ./wdfr-*/wdfr          # step-by-step menu; see "Command line" below for al
 ### 📦 Portable (no installation)
 
 Unpack and run, nothing is installed. All files are on the
-[latest release](https://github.com/itsmrroot/Recover-Deleted-Files/releases/latest) page:
+[latest release](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases/latest) page:
 
 | Your computer | File | Contains |
 |---|---|---|
@@ -634,6 +633,7 @@ records survive (see *How it works*). Other file systems are supported by the de
 
 </details>
 
+<!-- private:start -->
 ## 🛠️ Build from source
 
 Requires [Rust](https://rustup.rs) 1.88 or newer.
@@ -663,6 +663,8 @@ links the C runtime statically, so it runs on a bare Windows install.
 | `output` | Safe naming — recovered names are untrusted and can never escape the output folder |
 
 </details>
+
+<!-- private:end -->
 
 ---
 
