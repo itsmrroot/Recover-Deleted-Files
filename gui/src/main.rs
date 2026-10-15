@@ -10,6 +10,7 @@ mod home;
 mod i18n;
 mod jobs;
 mod logfile;
+mod menu;
 mod preview;
 mod results;
 mod settings;
@@ -36,6 +37,11 @@ fn main() -> eframe::Result {
         std::process::exit(code);
     }
     let log = logfile::init();
+    // macOS would add "Show Tab Bar" to the View menu: one window is enough.
+    #[cfg(target_os = "macos")]
+    if let Some(mtm) = objc2::MainThreadMarker::new() {
+        objc2_app_kit::NSWindow::setAllowsAutomaticWindowTabbing(false, mtm);
+    }
     #[allow(unused_mut)]
     let mut viewport = egui::ViewportBuilder::default()
         .with_title("Deleted Files Recovery")

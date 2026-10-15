@@ -1,6 +1,6 @@
 [package]
 name = "wdfr-gui"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2024"
 rust-version = "1.88"
 description = "Desktop app for Deleted Files Recovery"
@@ -24,13 +24,19 @@ skrifa = { version = "0.44", default-features = false, features = ["std"] }
 sys-locale = "0.3.2"
 unicode-bidi = "0.3.18"
 ureq = "3.4.2"
-wdfr = { version = "0.6.1", path = ".." }
+wdfr = { version = "0.6.2", path = ".." }
 
 [build-dependencies]
 winresource = "0.1.31"
 
 [target."cfg(unix)".dependencies]
 libc = "0.2.189"
+
+# The menu next to the Apple logo.
+[target."cfg(target_os = \"macos\")".dependencies]
+muda = { version = "0.21.2", default-features = false }
+objc2 = "0.6.4"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSResponder", "NSWindow"] }
 
 # Installers, built by `cargo packager --release -p wdfr-gui` (see
 # .github/workflows/release.yml): Windows setup (NSIS), macOS .app/.dmg,

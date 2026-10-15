@@ -14,6 +14,7 @@ use crate::help;
 use crate::home::{self, Home};
 use crate::i18n::{self, tr, trf, trl};
 use crate::jobs::Job;
+use crate::menu;
 use crate::preview::Previewer;
 use crate::results::{self, Results};
 use crate::settings::{self, Settings};
@@ -60,6 +61,8 @@ pub struct App {
     /// The "scan" job is reopening a saved scan.
     opening_saved: bool,
     updater: Updater,
+    #[cfg(target_os = "macos")]
+    native_menu: Option<crate::menu::NativeMenu>,
     #[cfg(debug_assertions)]
     tour: Option<tour::Tour>,
 }
@@ -130,6 +133,8 @@ impl App {
             live_refreshed: None,
             opening_saved: false,
             updater,
+            #[cfg(target_os = "macos")]
+            native_menu: crate::menu::NativeMenu::new(&cc.egui_ctx, lang),
             #[cfg(debug_assertions)]
             tour,
         }
@@ -276,6 +281,63 @@ impl App {
         ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(fitted));
         let corner = ((monitor - fitted) / 2.0).max(egui::Vec2::ZERO);
         ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(corner.to_pos2()));
+    }
+
+    /// What the menus offer at the moment.
+    fn menu_state(&self) -> menu::State {
+        menu::State { has_results: self.results.is_some(), busy: self.busy(), theme: self.settings.theme }
+    }
+
+    /// Carries out a command from the menu bar.
+    fn run_command(&mut self, ctx: &egui::Context, c: menu::Command) {
+        use menu::Command;
+        let scale = &mut self.settings.ui_scale;
+        match c {
+            Command::About => self.page = Page::About,
+            Command::CheckUpdates => {
+                self.page = Page::About;
+                self.updater.check(ctx, true);
+            }
+            Command::Settings => self.page = Page::Settings,
+            Command::NewScan => {
+                self.done = None;
+                self.page = Page::Home;
+            }
+            Command::OpenImage => {
+                if let Some(f) = rfd::FileDialog::new()
+                    .add_filter(trl("Disk images"), &["img", "dd", "raw", "bin", "iso", "dmg", "vhd", "001"])
+                    .add_filter(trl("All files"), &["*"])
+                    .pick_file()
+                {
+                    self.home.add_image(f.display().to_string());
+                    self.page = Page::Home;
+                }
+            }
+            Command::OpenSavedScan => {
+                if let Some(f) =
+                    rfd::FileDialog::new().add_filter(trl("Saved scans"), &[wdfr::saved::EXTENSION]).pick_file()
+                {
+                    self.open_saved_scan(ctx, f);
+                }
+            }
+            Command::SaveScan => self.save_scan(),
+            Command::ShowResults => self.page = Page::Results,
+            Command::Theme(t) => self.settings.theme = t,
+            Command::Bigger => *scale = ((*scale * 10.0).round() / 10.0 + 0.1).min(1.5),
+            Command::Smaller => *scale = ((*scale * 10.0).round() / 10.0 - 0.1).max(0.8),
+            Command::ActualSize => *scale = 1.0,
+            Command::FullScreen => {
+                let full = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
+            }
+            Command::Help => self.page = Page::Help,
+            Command::ProjectPage => ctx.open_url(egui::OpenUrl::new_tab(views::REPO)),
+            Command::ShowLog => match crate::logfile::path() {
+                Some(log) if log.exists() => reveal(&log),
+                _ => self.error = Some(tr("There is no log file yet.").to_string()),
+            },
+            Command::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+        }
     }
 
     fn start_restart(&mut self) {
@@ -820,6 +882,39 @@ impl eframe::App for App {
 
         let midnight = self.settings.theme == settings::ThemeChoice::Midnight;
         let p = Palette::new(ui.visuals().dark_mode, midnight, self.settings.accent);
+
+        // The menu bar: the Mac's own, or one at the top of the window.
+        let state = self.menu_state();
+        #[allow(unused_mut)]
+        let mut commands: Vec<menu::Command> = Vec::new();
+        #[cfg(target_os = "macos")]
+        if let Some(m) = &mut self.native_menu {
+            commands = m.update(i18n::current(), state);
+        }
+        // Development aid: the window's menu bar on a Mac too.
+        let window_bar =
+            !cfg!(target_os = "macos") || (cfg!(debug_assertions) && std::env::var_os("WDFR_MENUBAR").is_some());
+        if window_bar {
+            commands.extend(menu::shortcut(&ctx, &state));
+            egui::Panel::top("menubar")
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(
+                    Frame::new()
+                        .fill(p.sidebar)
+                        .stroke(Stroke::new(1.0, p.border))
+                        .inner_margin(Margin::symmetric(8, 3)),
+                )
+                .show(ui, |ui| {
+                    if let Some(c) = menu::bar(ui, &p, &state) {
+                        commands.push(c);
+                    }
+                });
+        }
+        for c in commands {
+            self.run_command(&ctx, c);
+        }
+
         if let Some(fill) = p.header {
             egui::Panel::top("header")
                 .exact_size(56.0)
@@ -933,6 +1028,24 @@ pub fn open_path(path: &Path) {
         "xdg-open"
     };
     let _ = std::process::Command::new(program).arg(path).spawn();
+}
+
+/// Shows `file` selected in Finder or Explorer (its folder on Linux).
+fn reveal(file: &Path) {
+    let mut cmd = if cfg!(windows) {
+        let mut c = std::process::Command::new("explorer");
+        c.arg(format!("/select,{}", file.display()));
+        c
+    } else if cfg!(target_os = "macos") {
+        let mut c = std::process::Command::new("open");
+        c.arg("-R").arg(file);
+        c
+    } else {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(file.parent().unwrap_or(file));
+        c
+    };
+    let _ = cmd.spawn();
 }
 
 /// Development aid (debug builds only): with `WDFR_TOUR_DIR` and

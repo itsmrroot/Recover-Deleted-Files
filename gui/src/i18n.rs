@@ -389,6 +389,7 @@ mod tests {
         include_str!("home.rs"),
         include_str!("i18n.rs"),
         include_str!("jobs.rs"),
+        include_str!("menu.rs"),
         include_str!("preview.rs"),
         include_str!("results.rs"),
         include_str!("settings.rs"),
