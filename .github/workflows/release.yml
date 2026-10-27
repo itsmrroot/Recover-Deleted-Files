@@ -113,12 +113,13 @@ jobs:
 
       # Installers (configured in gui/Cargo.toml). They run after the archive is
       # published, so a failing installer never holds back the plain download.
+      # Prebuilt where cargo-quickinstall has them (seconds instead of
+      # minutes of compiling); built from source otherwise.
       - name: Install packaging tools
         if: matrix.installer
-        shell: bash
-        run: |
-          cargo install --locked cargo-packager@0.11.8
-          if [[ "${{ matrix.installer }}" == linux ]]; then cargo install --locked cargo-generate-rpm@0.21.0; fi
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-packager@0.11.8${{ matrix.installer == 'linux' && ',cargo-generate-rpm@0.21.0' || '' }}
       - name: Build installers
         if: matrix.installer
         shell: bash

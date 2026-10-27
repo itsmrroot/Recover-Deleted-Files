@@ -48,8 +48,9 @@ opt-level = 3
 opt-level = 3
 
 [profile.release]
-lto = true
-codegen-units = 1
+# Thin LTO: about half the build time of full LTO, with the same speed
+# (byte-level deep search measured) for a somewhat larger program.
+lto = "thin"
 strip = true
 
 [workspace]
