@@ -227,6 +227,45 @@ impl ReadAt for SubSource {
     }
 }
 
+/// Sources one after another, each at its start offset.
+pub struct Concat {
+    extents: Vec<(u64, Source)>,
+    size: u64,
+}
+
+impl Concat {
+    /// `extents`: (start, source), in order, without gaps.
+    pub fn new(extents: Vec<(u64, Source)>) -> Self {
+        let size = extents.last().map_or(0, |(at, s)| at + s.size());
+        Self { extents, size }
+    }
+}
+
+impl ReadAt for Concat {
+    fn read_at(&self, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+        if offset >= self.size || buf.is_empty() {
+            return Ok(0);
+        }
+        let i = self.extents.partition_point(|(at, _)| *at <= offset).saturating_sub(1);
+        let (at, src) = &self.extents[i];
+        let within = offset - at;
+        if within >= src.size() {
+            // A gap between pieces reads as zeros.
+            let next = self.extents.get(i + 1).map_or(self.size, |e| e.0);
+            let n = (buf.len() as u64).min(next - offset) as usize;
+            buf[..n].fill(0);
+            return Ok(n);
+        }
+        let n = (buf.len() as u64).min(src.size() - within) as usize;
+        src.read_exact_at(within, &mut buf[..n])?;
+        Ok(n)
+    }
+
+    fn size(&self) -> u64 {
+        self.size
+    }
+}
+
 /// In-memory source; used by tests and handy for small images.
 pub struct MemSource(pub Vec<u8>);
 

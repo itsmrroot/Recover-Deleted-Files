@@ -84,7 +84,7 @@ impl Content {
                         }
                     }
                     // Compressed streams would have to be decompressed.
-                    FileData::Compressed { .. } | FileData::Lost => return None,
+                    FileData::Compressed { .. } | FileData::Packed(_) | FileData::Lost => return None,
                 }
                 pieces
             }

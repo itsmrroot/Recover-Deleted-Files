@@ -121,7 +121,58 @@ pub fn discover(disk: &Source) -> Vec<Partition> {
             device: None,
         });
     }
+    nested(disk, &mut parts);
     parts
+}
+
+/// Volumes inside partitions that hold a RAID 1 member or an LVM physical
+/// volume — Synology and QNAP drives, and many Linux installs. When such a
+/// volume is one piece of this disk, it is listed as a partition of its
+/// own, after the others. (Arrays striped over several disks need all of
+/// them: see [`crate::raid::open_spec`].)
+fn nested(disk: &Source, parts: &mut Vec<Partition>) {
+    let mut extra = Vec::new();
+    for p in parts.iter().filter(|p| p.fs.is_none() && p.device.is_none()) {
+        let src = p.source(disk);
+        let (base, len, kind, name) = match crate::raid::superblock(src.as_ref()) {
+            Some(sb) if sb.level == 1 || sb.disks == 1 => {
+                let name = sb.name.rsplit(':').next().unwrap_or_default().to_string();
+                (sb.data_offset, sb.data_size, format!("RAID {}", sb.level.max(0)), name)
+            }
+            Some(_) => continue,
+            None => (0, p.len, String::new(), String::new()),
+        };
+        let vol: Source = Arc::new(SubSource::new(src.clone(), base, len));
+        if base > 0 && fs::detect(vol.as_ref()).is_some() {
+            extra.push((p.start + base, len.min(p.len - base), kind, name, p.scheme));
+        } else if let Some(pv) = crate::lvm::pv(vol.as_ref()) {
+            for lv in crate::lvm::volumes(&[(vol.clone(), pv.clone())]) {
+                if let Some((at, l)) = crate::lvm::contiguous(&pv, &lv.name) {
+                    extra.push((p.start + base + at, l, "LVM".into(), format!("{}/{}", lv.vg, lv.name), p.scheme));
+                }
+            }
+        }
+    }
+    let mut index = parts.iter().map(|p| p.index).max().unwrap_or(0);
+    let size = disk.size();
+    for (start, len, kind, name, scheme) in extra {
+        if start >= size {
+            continue;
+        }
+        index += 1;
+        let mut p = Partition {
+            index,
+            start,
+            len: len.min(size - start),
+            scheme: if scheme == Scheme::None { Scheme::Mbr } else { scheme },
+            kind,
+            name,
+            fs: None,
+            device: None,
+        };
+        p.fs = fs::detect(p.source(disk).as_ref());
+        parts.push(p);
+    }
 }
 
 /// Disk regions not covered by any partition (deleted partitions often

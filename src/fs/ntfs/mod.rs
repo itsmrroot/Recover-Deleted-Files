@@ -201,7 +201,7 @@ impl Ntfs {
     fn condition(&self, data: &FileData, size: u64, bitmap: Option<&[u8]>) -> Condition {
         let extents = match data {
             FileData::Lost => return Condition::Overwritten,
-            FileData::Resident(_) => return Condition::Recoverable,
+            FileData::Resident(_) | FileData::Packed(_) => return Condition::Recoverable,
             FileData::Extents(e) | FileData::Compressed { extents: e, .. } => e,
         };
         let Some(bitmap) = bitmap else { return Condition::Recoverable };

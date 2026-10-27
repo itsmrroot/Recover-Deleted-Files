@@ -87,6 +87,14 @@ impl Boot {
                 let block = u64::from(le32(b, 36)?);
                 Some((le64(b, 40)? * block, vec![0], block))
             }
+            FsKind::Btrfs => {
+                // The superblock is 64 KiB into the volume.
+                Some((le64(b, 0x70)?, vec![0x10000], u64::from(le32(b, 0x90)?)))
+            }
+            FsKind::Xfs => {
+                let block = u64::from(crate::bytes::be32(b, 4)?);
+                Some((crate::bytes::be64(b, 8)? * block, vec![0], block))
+            }
             _ => {
                 let bps = u64::from(le16(b, 11)?);
                 let cluster = bps * u64::from(u8_at(b, 13)?);
@@ -481,9 +489,14 @@ fn add_note(f: &mut DeletedFile, note: &str) {
     });
 }
 
-/// The superblock of ext, HFS+ or APFS at the start of `s`, if it is one.
+/// The superblock of ext, HFS+, APFS, btrfs or XFS at the start of `s`,
+/// if it is one.
 fn superblock(s: &[u8]) -> Option<FsKind> {
-    if fs::ext::detect(s) {
+    if s.get(0x40..0x48) == Some(b"_BHRfS_M") {
+        Some(FsKind::Btrfs)
+    } else if fs::xfs::detect(s) {
+        Some(FsKind::Xfs)
+    } else if fs::ext::detect(s) {
         Some(FsKind::Ext)
     } else if fs::hfsplus::detect(s) {
         Some(FsKind::HfsPlus)

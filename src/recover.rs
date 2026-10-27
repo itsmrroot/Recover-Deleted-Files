@@ -105,20 +105,35 @@ pub struct Session {
     /// Partitions and old file tables found by a deep search (see
     /// [`crate::rescue`]). They are numbered after `partitions`.
     found: RwLock<Vec<Partition>>,
+    /// Reads of the drive that failed (see [`Session::read_errors`]).
+    read_errors: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl Session {
     pub fn open(path: &str) -> Result<Self> {
-        let d = DiskSource::open(path)?;
-        let path = d.path().to_string();
-        let disk: Source = Arc::new(d);
+        // Several drives combined (RAID): their volumes on one virtual disk.
+        if let Some(spec) = path.strip_prefix("raid:") {
+            let (disk, partitions) = crate::raid::open_spec(spec)?;
+            return Ok(Self::new(disk, path.to_string(), partitions));
+        }
+        // A drive, a plain image, or a virtual or forensic disk image.
+        let (disk, path) = crate::container::open(path)?;
         let partitions = partition::discover(&disk);
         Ok(Self::new(disk, path, partitions))
     }
 
     pub fn new(disk: Source, path: String, partitions: Vec<Partition>) -> Self {
         let disk = crate::bitlocker::overlay(disk, &partitions);
-        Self { disk, path, partitions, found: RwLock::new(Vec::new()) }
+        let read_errors = Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let disk: Source = Arc::new(CountErrors { inner: disk, errors: read_errors.clone() });
+        Self { disk, path, partitions, found: RwLock::new(Vec::new()), read_errors }
+    }
+
+    /// How many reads of the drive have failed so far. A drive that cannot
+    /// be read in places may be failing: it should be copied to an image
+    /// once, before it is read again.
+    pub fn read_errors(&self) -> u64 {
+        self.read_errors.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Partition number `i`, from the table or found by a deep search.
@@ -776,6 +791,77 @@ pub fn read_item(session: &Session, item: Item, limit: u64) -> Result<Option<Vec
         }
     }
     Ok(Some(out))
+}
+
+/// An item's content read in place, without copying it first (repairing a
+/// video of several GB). Small compressed or resident files are read into
+/// memory.
+pub fn item_source(session: &Session, item: Item) -> Result<Source> {
+    match item {
+        Item::Carved(c) => Ok(Arc::new(crate::source::SubSource::new(session.disk.clone(), c.offset, c.len))),
+        Item::Fs(f) => {
+            let p = session.partition(f.partition).context("unknown partition")?;
+            let vol = p.source(&session.disk);
+            if let fs::FileData::Extents(extents) = &f.file.data {
+                return Ok(Arc::new(ExtentSource { vol, extents: extents.clone(), size: f.file.size }));
+            }
+            let data = read_item(session, item, 256 << 20)?.context("the file is too large")?;
+            Ok(Arc::new(crate::source::MemSource(data)))
+        }
+    }
+}
+
+/// Counts the reads of a source that fail.
+struct CountErrors {
+    inner: Source,
+    errors: Arc<std::sync::atomic::AtomicU64>,
+}
+
+impl ReadAt for CountErrors {
+    fn read_at(&self, offset: u64, buf: &mut [u8]) -> std::io::Result<usize> {
+        let r = self.inner.read_at(offset, buf);
+        if r.as_ref().is_err_and(|e| e.kind() != std::io::ErrorKind::UnexpectedEof) {
+            self.errors.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        r
+    }
+
+    fn size(&self) -> u64 {
+        self.inner.size()
+    }
+}
+
+/// A file's extents, one after another; sparse ones read as zeros.
+struct ExtentSource {
+    vol: Source,
+    extents: Vec<fs::Extent>,
+    size: u64,
+}
+
+impl ReadAt for ExtentSource {
+    fn read_at(&self, offset: u64, buf: &mut [u8]) -> std::io::Result<usize> {
+        if offset >= self.size || buf.is_empty() {
+            return Ok(0);
+        }
+        let mut at = 0u64;
+        for e in &self.extents {
+            if offset < at + e.len {
+                let within = offset - at;
+                let n = (buf.len() as u64).min(e.len - within).min(self.size - offset) as usize;
+                match e.offset {
+                    Some(o) => self.vol.read_exact_at(o + within, &mut buf[..n])?,
+                    None => buf[..n].fill(0),
+                }
+                return Ok(n);
+            }
+            at += e.len;
+        }
+        Ok(0)
+    }
+
+    fn size(&self) -> u64 {
+        self.size
+    }
 }
 
 fn category_dir(c: Option<Category>) -> &'static str {

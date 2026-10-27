@@ -47,8 +47,8 @@ The app tells you when a new version is out and installs it in one click.
 
 ### 📁 Original names & folders
 On **NTFS**, **FAT32** and **exFAT** (Windows, cards, sticks), **APFS** and
-**Mac OS Extended** (Mac) and **ext2/3/4** (Linux), deleted files come back with
-their real names, folders and dates.
+**Mac OS Extended** (Mac), and **ext2/3/4**, **btrfs** and **XFS** (Linux, NAS),
+deleted files come back with their real names, folders and dates.
 
 </td>
 </tr>
@@ -155,10 +155,28 @@ or Keka.
 </td>
 <td valign="top">
 
-### 🩹 Photo repair & folder scans
-**Repair** a damaged JPEG: close a cut-off photo, or give it the header of a good
-photo from the same camera. Look **only in one folder** (e.g.
-`Users/Ann/Pictures`) for a short list.
+### 🩹 Photo & video repair, folder scans
+**Repair** a damaged JPEG, or a **video whose recording was cut off** (its index
+is rebuilt with a good video from the same camera). Look **only in one folder**
+(e.g. `Users/Ann/Pictures`) for a short list.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🗄️ NAS drives & RAID
+Drives from a **Synology** or **QNAP** NAS: Linux software RAID (0, 1, 5, 6, 10)
+and LVM are put back together — with a drive missing too — and **btrfs** and
+**XFS** volumes read. Hardware RAID can be described by hand.
+
+</td>
+<td valign="top">
+
+### 💽 Virtual & forensic images
+Disks of virtual machines — **VHD, VHDX, VMDK, VDI, QCOW2**, snapshots included —
+and **E01** forensic images open like any disk image. The app also warns when a
+drive **reports that it is failing**.
 
 </td>
 </tr>
@@ -449,6 +467,20 @@ wdfr recover E: -o D:\Recovered --password "correct horse battery staple"
 # Repair a damaged photo (with a good one from the same camera if its start is gone)
 wdfr repair f00001a2b3000.jpg --reference good.jpg -o repaired.jpg
 
+# A video whose recording was cut off: rebuild its index with a good video
+# recorded with the same camera
+wdfr repair GX010042.MP4 --reference GX010041.MP4 -o GX010042-repaired.MP4
+
+# Virtual machine disks and forensic images are opened like any image
+wdfr info disk.vhdx
+wdfr recover evidence.E01 -o D:\Recovered
+
+# The drives of a NAS or RAID, read as one (found automatically), or a
+# hardware RAID described by hand: level, stripe size in KiB, parity layout,
+# then the drives in order ("missing" for a drive that is gone)
+wdfr info "raid:auto|/dev/sdb|/dev/sdc|/dev/sdd"
+wdfr recover "raid:5,64,left-symmetric|d0.img|missing|d2.img" -o Recovered
+
 # Machine-readable listing
 wdfr scan E: --json > deleted.json
 
@@ -522,6 +554,8 @@ are also decoded. Complete files are marked **Verified**, broken or cut-short on
 | **APFS** | Nothing is changed in place: older checkpoints and snapshots still describe the file tree as it was | Reads every checkpoint in the container's ring and every snapshot; files in an earlier tree but not the newest one are the deleted files, with names, folders and extents. When the container's own structures are damaged, the file tree is rebuilt from every checksummed leaf node left on the disk (encrypted volumes cannot be read) |
 | **Mac OS Extended (HFS+)** | Old copies of catalog records, in freed catalog nodes and in the journal | Parses every catalog leaf node (live, freed and journaled); file records the live tree no longer has are the deleted files; follows the extents overflow file |
 | **ext2/3/4** | The name in its directory (until the kernel wipes it) and older inode copies in the journal | Walks directories, reads deleted names from the gaps between entries, and takes a deleted file's block list from the newest journal copy of its inode (as extundelete does) |
+| **btrfs** | Nothing is changed in place: older copies of the metadata nodes, and the data extents themselves | Reads every checksummed node of the metadata areas; files that older nodes describe but the current trees do not are the deleted ones, with names, subvolumes and extents (zlib, LZO and zstd compressed or inline). An extent still recorded unchanged is intact |
+| **XFS** | Copies of each changed inode (with its extent list) and of small directories in the journal | Parses the log records and their transactions; free inodes are matched with their last logged copy, and their names with logged directory contents or freed directory entries |
 
 **BitLocker** volumes are read through a decrypting layer: the volume master key is unwrapped (AES-CCM) with the
 recovery key or password (BitLocker's SHA-256 key stretching), or directly when BitLocker is suspended; then each
@@ -567,6 +601,10 @@ the public [Digital Forensics Tool Testing](https://dftt.sourceforge.net/) image
 | cryptsetup's BitLocker test volumes (XTS, CBC, Elephant, To Go, 4K sectors, suspended) | Decrypted **byte-identical** to cryptsetup |
 | An APFS drive with its first blocks wiped | All files back with names and folders |
 | A JPEG whose header was overwritten, given another photo from the same camera | Repaired **byte-identical** |
+| H.264 and H.265 videos cut off before their index was written (with B-frames, PCM or AAC sound) | **Every frame** picture-identical, PCM sound byte-identical |
+| VHD, VHDX, VMDK (sparse, split, flat, stream-optimized, snapshot), VDI, QCOW2 (zlib, zstd, backing file), E01 (compressed, split) made by qemu-img and ewfacquire | Read **byte-identical** to the disk they hold |
+| Linux software RAID 0, 1, 5, 6, 10 (metadata 0.90 and 1.2) and LVM made by mdadm and lvm | **Byte-identical**, with each drive of a RAID 1/5/6/10 missing in turn |
+| btrfs (subvolume; zstd, LZO, zlib) and XFS made by Linux | **All** files byte-identical, deleted ones included |
 
 ## ❓ FAQ
 
@@ -626,10 +664,13 @@ the report.
 </details>
 
 <details>
-<summary><b>What about Mac and Linux drives (APFS, HFS+, ext4) or other file systems?</b></summary>
+<summary><b>What about Mac, Linux and NAS drives (APFS, HFS+, ext4, btrfs, XFS) or other file systems?</b></summary>
 
-APFS, Mac OS Extended (HFS+) and ext2/3/4 are read with names and folders, including deleted files where their
-records survive (see *How it works*). Other file systems are supported by the deep search, without original names.
+APFS, Mac OS Extended (HFS+), ext2/3/4, btrfs and XFS are read with names and folders, including deleted files
+where their records survive (see *How it works*). NAS drives (Synology, QNAP) are read through their software RAID
+and LVM; for a NAS with several drives, connect them all and use **Combine drives (RAID)…**. ReFS (Windows Server)
+is not supported: Microsoft does not document it. Other file systems are supported by the deep search, without
+original names.
 
 </details>
 

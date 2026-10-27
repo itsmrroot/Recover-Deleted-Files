@@ -70,6 +70,9 @@ fn guides() -> Vec<Guide> {
                 trl(
                     "If the drive is very slow or makes noises, select it and click \"Copy to an image…\" first: the drive is read only once, damaged areas last. Then scan the copy.",
                 ),
+                trl(
+                    "The app warns when a drive reports that it is failing, or when parts of it cannot be read during a scan: then copy it to an image before anything else.",
+                ),
             ],
         },
         Guide {
@@ -77,7 +80,7 @@ fn guides() -> Vec<Guide> {
             title: tr("Mac and Linux drives"),
             steps: vec![
                 trl(
-                    "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4) are read with their names and folders, like Windows drives.",
+                    "Drives from a Mac (APFS, Mac OS Extended) and from Linux (ext2, ext3, ext4, btrfs, XFS) are read with their names and folders, like Windows drives.",
                 ),
                 trl(
                     "Deleted files are found in the older copies these file systems keep: earlier checkpoints of APFS, old catalog entries of Mac OS Extended, and the journal of ext3 and ext4.",
@@ -86,6 +89,31 @@ fn guides() -> Vec<Guide> {
                     "A damaged APFS drive that the Mac no longer opens is rebuilt from what is left of its file tables.",
                 ),
                 trl("Drives encrypted with FileVault cannot be read; the deep search finds nothing on them either."),
+            ],
+        },
+        Guide {
+            icon: icon::HARD_DRIVES,
+            title: tr("NAS drives and RAID"),
+            steps: vec![
+                trl(
+                    "Drives from a Synology or QNAP NAS, or from Linux, are read with their RAID and volumes: on a single drive or a mirrored pair, each volume shows as a partition of its own.",
+                ),
+                trl(
+                    "A NAS with several drives (RAID 5, RAID 6, SHR): connect all of them, click \"Combine drives (RAID)…\" and tick them all. One may be missing: it is rebuilt from the others.",
+                ),
+                trl(
+                    "A hardware RAID: choose \"Describe it\" and give its level, stripe size and the order of the drives.",
+                ),
+            ],
+        },
+        Guide {
+            icon: icon::FILE_DASHED,
+            title: tr("Virtual machine and forensic images"),
+            steps: vec![
+                trl(
+                    "Disks of virtual machines (VHD, VHDX, VMDK, VDI, QCOW2) and forensic images (E01) open like any disk image: click \"Open disk image…\".",
+                ),
+                trl("Snapshots and split images are read with their other parts, which must be in the same folder."),
             ],
         },
         Guide {
@@ -133,6 +161,12 @@ fn guides() -> Vec<Guide> {
                 ),
                 trl(
                     "A damaged JPEG photo can often be repaired: select it and click \"Repair this photo…\". If its beginning is gone, a good photo from the same camera is needed.",
+                ),
+                trl(
+                    "A video that will not play because its recording was cut off (battery, full card) can often be repaired: select it, click \"Repair this video…\" and choose a good video recorded with the same camera.",
+                ),
+                trl(
+                    "Photos and videos that are already on a drive are repaired with File → \"Repair a photo or video file…\".",
                 ),
             ],
         },

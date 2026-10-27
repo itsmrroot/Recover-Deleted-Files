@@ -59,7 +59,7 @@ pub fn check_file(vol: &dyn ReadAt, file: &DeletedFile, ext: &str) -> Verdict {
             check_data(ext, &Bytes(&bytes[..n]))
         }
         FileData::Extents(extents) => check_data(ext, &FileView::new(vol, extents, file.size)),
-        FileData::Compressed { .. } => {
+        FileData::Compressed { .. } | FileData::Packed(_) => {
             if file.size > MAX_UNPACK {
                 return Verdict::Unchecked;
             }

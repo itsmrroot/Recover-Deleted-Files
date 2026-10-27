@@ -53,6 +53,10 @@ pub struct App {
     previewer: Previewer,
     logo: egui::TextureHandle,
     error: Option<String>,
+    /// A message that is not an error (the outcome of a repair).
+    info: Option<String>,
+    /// A photo or video file being repaired: the job and where it goes.
+    file_repair: Option<(Job<String>, PathBuf)>,
     restart: Option<elevate::Restart>,
     /// Whether the window has been checked against the screen size.
     fitted: bool,
@@ -128,6 +132,8 @@ impl App {
             previewer: Previewer::default(),
             logo,
             error: None,
+            info: None,
+            file_repair: None,
             restart: None,
             fitted: false,
             live_refreshed: None,
@@ -305,7 +311,7 @@ impl App {
             }
             Command::OpenImage => {
                 if let Some(f) = rfd::FileDialog::new()
-                    .add_filter(trl("Disk images"), &["img", "dd", "raw", "bin", "iso", "dmg", "vhd", "001"])
+                    .add_filter(trl("Disk images"), home::IMAGE_EXTENSIONS)
                     .add_filter(trl("All files"), &["*"])
                     .pick_file()
                 {
@@ -321,6 +327,7 @@ impl App {
                 }
             }
             Command::SaveScan => self.save_scan(),
+            Command::RepairFile => self.start_file_repair(ctx),
             Command::ShowResults => self.page = Page::Results,
             Command::ToggleSidebar => self.settings.sidebar_hidden = !self.settings.sidebar_hidden,
             Command::Theme(t) => self.settings.theme = t,
@@ -825,6 +832,135 @@ impl App {
         }
     }
 
+    /// "Repair a photo or video file…" (File menu): a damaged file that is
+    /// already on a drive, repaired with the help of a good one from the
+    /// same camera.
+    fn start_file_repair(&mut self, ctx: &egui::Context) {
+        const VIDEO: [&str; 5] = ["mp4", "mov", "m4v", "3gp", "lrv"];
+        let Some(damaged) = rfd::FileDialog::new()
+            .set_title(tr("Choose the damaged photo or video"))
+            .add_filter(trl("Photos and videos"), &["jpg", "jpeg", "mp4", "mov", "m4v", "3gp", "lrv"])
+            .pick_file()
+        else {
+            return;
+        };
+        let ext = damaged.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
+        let stem = damaged.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        if !VIDEO.contains(&ext.as_str()) {
+            self.repair_photo_file(&damaged, &stem);
+            return;
+        }
+        let Some(reference) = rfd::FileDialog::new()
+            .set_title(tr("Choose a good video recorded with the same camera"))
+            .add_filter(trl("Videos"), &VIDEO)
+            .pick_file()
+        else {
+            return;
+        };
+        let Some(out) = rfd::FileDialog::new()
+            .set_title(tr("Save the repaired video"))
+            .set_file_name(format!("{stem} (repaired).{ext}"))
+            .save_file()
+        else {
+            return;
+        };
+        let target = out.clone();
+        let job = Job::spawn(ctx, move |_, cancel| {
+            let open = |p: &Path| wdfr::source::DiskSource::open(&p.to_string_lossy());
+            let (d, r) = (open(&damaged)?, open(&reference)?);
+            let mut w = std::io::BufWriter::new(std::fs::File::create(&target)?);
+            let done = wdfr::video_repair::repair_video(&d, &r, &mut w, &|| {
+                cancel.load(std::sync::atomic::Ordering::Relaxed)
+            })?;
+            std::io::Write::flush(&mut w)?;
+            let mut msg = trf(
+                "The repaired video was saved: {frames} frames, {seconds} seconds.",
+                &[("frames", &done.frames), ("seconds", &format!("{:.1}", done.seconds))],
+            );
+            if let wdfr::video_repair::Sound::Dropped(_) = done.sound {
+                msg.push(' ');
+                msg.push_str(tr("Its sound could not be restored."));
+            }
+            Ok(msg)
+        });
+        self.file_repair = Some((job, out));
+    }
+
+    fn repair_photo_file(&mut self, damaged: &Path, stem: &str) {
+        let Ok(data) = std::fs::read(damaged) else {
+            self.error = Some(trl("The photo could not be read.").into());
+            return;
+        };
+        let mut fixed = wdfr::repair::repair_jpeg(&data, None);
+        if fixed.is_none() && !data.starts_with(&[0xFF, 0xD8]) {
+            let Some(path) = rfd::FileDialog::new()
+                .set_title(tr("Choose a good photo taken with the same camera"))
+                .add_filter("JPEG", &["jpg", "jpeg", "JPG", "JPEG"])
+                .pick_file()
+            else {
+                return;
+            };
+            let Ok(reference) = std::fs::read(&path) else {
+                self.error = Some(trl("The photo could not be read.").into());
+                return;
+            };
+            fixed = wdfr::repair::repair_jpeg(&data, Some(&reference));
+        }
+        let Some(fixed) = fixed.filter(|f| image::load_from_memory(&f.bytes).is_ok()) else {
+            self.error = Some(trl("This photo could not be repaired.").into());
+            return;
+        };
+        let Some(out) = rfd::FileDialog::new()
+            .set_title(tr("Save the repaired photo"))
+            .set_file_name(format!("{stem} (repaired).jpg"))
+            .save_file()
+        else {
+            return;
+        };
+        match std::fs::write(&out, &fixed.bytes) {
+            Ok(()) => self.info = Some(tr("The repaired photo was saved.").into()),
+            Err(e) => self.error = Some(format!("{}: {e}", trl("The repaired photo could not be saved."))),
+        }
+    }
+
+    fn info_modal(&mut self, ctx: &egui::Context, p: &Palette) {
+        let busy = self.file_repair.is_some();
+        if !busy && self.info.is_none() {
+            return;
+        }
+        let modal = egui::Modal::new(egui::Id::new("info")).show(ctx, |ui| {
+            ui.set_width(460.0);
+            ui.horizontal(|ui| {
+                let glyph = if busy { icon::BANDAIDS } else { icon::CHECK_CIRCLE };
+                ui.label(RichText::new(glyph).size(26.0).color(if busy { p.accent } else { p.success }));
+                ui.label(theme::semibold(tr("Repair a photo or video file…"), 18.0).color(p.text));
+            });
+            ui.add_space(8.0);
+            if busy {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(RichText::new(tr("Repairing the video…")).color(p.weak));
+                });
+                ui.add_space(8.0);
+                if theme::secondary_button(ui, tr("Stop")).clicked()
+                    && let Some((job, _)) = &self.file_repair
+                {
+                    job.stop();
+                }
+                return false;
+            }
+            theme::paragraph(ui, self.info.as_deref().unwrap_or_default(), 14.5, p.text);
+            ui.add_space(12.0);
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                theme::primary_button(ui, p, &format!("  {}  ", tr("OK")), true).clicked()
+            })
+            .inner
+        });
+        if !busy && (modal.inner || modal.should_close()) {
+            self.info = None;
+        }
+    }
+
     fn error_modal(&mut self, ctx: &egui::Context, p: &Palette) {
         let Some(msg) = self.error.clone() else { return };
         let modal = egui::Modal::new(egui::Id::new("error")).show(ctx, |ui| {
@@ -958,6 +1094,19 @@ impl eframe::App for App {
             .frame(Frame::new().fill(p.bg).inner_margin(Margin { left: 30, right: 30, top: 26, bottom: 22 }))
             .show(ui, |ui| self.content(ui, &p));
         self.error_modal(&ctx, &p);
+        if let Some((job, out)) = &self.file_repair
+            && let Some(result) = job.poll()
+        {
+            match result {
+                Ok(msg) => self.info = Some(msg),
+                Err(e) => {
+                    let _ = std::fs::remove_file(out);
+                    self.error = Some(format!("{}: {e:#}", tr("This video could not be repaired")));
+                }
+            }
+            self.file_repair = None;
+        }
+        self.info_modal(&ctx, &p);
         let busy = self.busy();
         self.updater.dialog(&ctx, &p, busy);
 
@@ -1308,6 +1457,20 @@ impl App {
                 2 if frames == 1 => self.home.try_unlock(ctx, "anaconda".into()),
                 2 if frames > 150 => shoot("bitlocker-open", ctx, self.tour.as_mut().unwrap()),
                 3 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                _ => {}
+            }
+            return;
+        }
+        // WDFR_TOUR_RAID: "Combine drives (RAID)…" with the images in
+        // WDFR_TOUR_IMAGE (separated by |), automatic then described.
+        if std::env::var_os("WDFR_TOUR_RAID").is_some() {
+            let images: Vec<String> = image.split('|').map(str::to_string).collect();
+            match step {
+                0 if frames == 1 => self.home.tour_raid(&images, false),
+                0 if frames > 20 => shoot("raid-auto", ctx, self.tour.as_mut().unwrap()),
+                1 if frames == 1 => self.home.tour_raid(&images, true),
+                1 if frames > 20 => shoot("raid-manual", ctx, self.tour.as_mut().unwrap()),
+                2 => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
                 _ => {}
             }
             return;

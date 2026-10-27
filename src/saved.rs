@@ -77,7 +77,12 @@ enum SavedCondition {
 enum SavedData {
     Resident(Vec<u8>),
     Extents(Vec<(Option<u64>, u64)>),
-    Compressed { extents: Vec<(Option<u64>, u64)>, unit: u64 },
+    Compressed {
+        extents: Vec<(Option<u64>, u64)>,
+        unit: u64,
+    },
+    /// (offset, stored, method, skip, len)
+    Packed(Vec<(Option<u64>, u64, crate::fs::compress::Compression, u64, u64)>),
     Lost,
 }
 
@@ -133,6 +138,9 @@ pub fn save(path: &Path, session: &Session, found: &Found) -> Result<()> {
                     FileData::Extents(e) => SavedData::Extents(extents_out(e)),
                     FileData::Compressed { extents, unit } => {
                         SavedData::Compressed { extents: extents_out(extents), unit: *unit }
+                    }
+                    FileData::Packed(p) => {
+                        SavedData::Packed(p.iter().map(|p| (p.offset, p.stored, p.method, p.skip, p.len)).collect())
                     }
                     FileData::Lost => SavedData::Lost,
                 },
@@ -258,6 +266,17 @@ impl SavedScan {
                         SavedData::Compressed { extents, unit } => {
                             FileData::Compressed { extents: extents_in(extents), unit }
                         }
+                        SavedData::Packed(p) => FileData::Packed(
+                            p.into_iter()
+                                .map(|(offset, stored, method, skip, len)| crate::fs::Packed {
+                                    offset,
+                                    stored,
+                                    method,
+                                    skip,
+                                    len,
+                                })
+                                .collect(),
+                        ),
                         SavedData::Lost => FileData::Lost,
                     },
                 },

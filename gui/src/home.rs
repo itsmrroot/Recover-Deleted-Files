@@ -7,7 +7,7 @@ use egui_phosphor::regular as icon;
 use wdfr::carve::Category;
 use wdfr::devices::{self, Device, DeviceKind};
 use wdfr::recover::Method;
-use wdfr::source::{DiskSource, Source, SubSource};
+use wdfr::source::{Source, SubSource};
 use wdfr::units::format_size;
 
 use crate::elevate;
@@ -21,13 +21,14 @@ pub struct DriveInfo {
     pub device: Device,
     /// "NTFS", "exFAT", "2 partitions: NTFS, FAT32", ...
     pub fs: String,
+    /// What the drive reports about its own health.
+    pub health: wdfr::health::Health,
 }
 
 /// `os_fs` is the file system the OS reports, used when ours cannot read it
 /// (e.g. APFS on a Mac, which only the deep search can scan).
 fn describe(path: &str, os_fs: Option<&str>) -> String {
-    let Ok(d) = DiskSource::open(path) else { return String::new() };
-    let disk: Source = Arc::new(d);
+    let Ok((disk, _)) = wdfr::container::open(path) else { return String::new() };
     let parts = wdfr::partition::discover(&disk);
     let unknown = || match os_fs {
         Some(fs) => trf("{fs} · deep search only", &[("fs", &fs)]),
@@ -50,8 +51,7 @@ fn describe(path: &str, os_fs: Option<&str>) -> String {
 
 /// Where the partitions of `path` that BitLocker keeps locked are.
 fn locked_partitions(path: &str) -> Vec<(u64, u64)> {
-    let Ok(d) = DiskSource::open(path) else { return Vec::new() };
-    let disk: Source = Arc::new(d);
+    let Ok((disk, _)) = wdfr::container::open(path) else { return Vec::new() };
     let parts = wdfr::partition::discover(&disk);
     parts.iter().filter(|p| p.locked(&disk)).map(|p| (p.start, p.len)).collect()
 }
@@ -59,7 +59,7 @@ fn locked_partitions(path: &str) -> Vec<(u64, u64)> {
 /// Tries a recovery key or password on the locked partitions of `path`.
 /// True if it opened one (it is then used whenever the drive is read).
 fn unlock(path: &str, key: &str) -> anyhow::Result<bool> {
-    let disk: Source = Arc::new(DiskSource::open(path)?);
+    let (disk, _) = wdfr::container::open(path)?;
     let mut opened = false;
     for (start, len) in locked_partitions(path) {
         let raw: Source = Arc::new(SubSource::new(disk.clone(), start, len));
@@ -71,12 +71,20 @@ fn unlock(path: &str, key: &str) -> anyhow::Result<bool> {
     Ok(opened)
 }
 
+/// Files offered by "Open disk image…": plain copies of a disk, virtual
+/// machine disks and forensic images (see `wdfr::container`).
+pub const IMAGE_EXTENSIONS: &[&str] =
+    &["img", "dd", "raw", "bin", "iso", "dmg", "001", "vhd", "vhdx", "vmdk", "vdi", "qcow2", "qcow", "e01"];
+
 pub fn discover() -> Vec<DriveInfo> {
     devices::list()
         .into_iter()
         .map(|device| {
-            let fs = if device.size.is_some() { describe(&device.path, device.fs.as_deref()) } else { String::new() };
-            DriveInfo { device, fs }
+            let readable = device.size.is_some();
+            let fs = if readable { describe(&device.path, device.fs.as_deref()) } else { String::new() };
+            // Asking for the health needs no right to read the drive.
+            let health = wdfr::health::check(&device.path);
+            DriveInfo { device, fs, health }
         })
         .collect()
 }
@@ -113,6 +121,8 @@ pub struct Home {
     unlock_failed: bool,
     /// The source a key has just opened.
     unlocked: Option<String>,
+    /// "Combine drives (RAID)…" is open.
+    raid: Option<crate::raid_dialog::RaidDialog>,
 }
 
 impl Home {
@@ -133,6 +143,7 @@ impl Home {
             unlock_job: None,
             unlock_failed: false,
             unlocked: None,
+            raid: None,
         };
         h.refresh(ctx);
         h
@@ -246,9 +257,16 @@ impl Home {
                     {
                         self.open_scan = Some(f);
                     }
+                    if ui
+                        .button(icon_label(icon::HARD_DRIVES, "Combine drives (RAID)…"))
+                        .on_hover_text(tr("The drives of a NAS (Synology, QNAP) or of a RAID, read as one."))
+                        .clicked()
+                    {
+                        self.raid = Some(Default::default());
+                    }
                     if ui.button(icon_label(icon::FILE_PLUS, "Open disk image…")).clicked()
                         && let Some(f) = rfd::FileDialog::new()
-                            .add_filter(trl("Disk images"), &["img", "dd", "raw", "bin", "iso", "dmg", "vhd", "001"])
+                            .add_filter(trl("Disk images"), IMAGE_EXTENSIONS)
                             .add_filter(trl("All files"), &["*"])
                             .pick_file()
                     {
@@ -325,6 +343,10 @@ impl Home {
             // (path, icon, title, detail, readable): opened images first, then drives.
             let mut cards: Vec<(String, &str, String, String, bool)> = Vec::new();
             for img in &self.images {
+                if img.starts_with("raid:") {
+                    cards.push((img.clone(), icon::HARD_DRIVES, file_name(img), tr("Combined drives").into(), true));
+                    continue;
+                }
                 let size = std::fs::metadata(img).map(|m| format_size(m.len())).unwrap_or_default();
                 cards.push((
                     img.clone(),
@@ -342,11 +364,14 @@ impl Home {
                     DeviceKind::Disk => icon::HARD_DRIVES,
                     DeviceKind::Volume => icon::HARD_DRIVE,
                 };
-                let detail = match dev.size {
+                let mut detail = match dev.size {
                     Some(sz) if d.fs.is_empty() => format_size(sz),
                     Some(sz) => format!("{} · {}", format_size(sz), d.fs),
                     None => tr("Needs administrator rights").into(),
                 };
+                if d.health.is_bad() {
+                    detail = format!("{} · {}", tr("Failing drive"), detail);
+                }
                 cards.push((dev.path.clone(), glyph, dev.display_name(), detail, ok));
             }
             const CARD_W: f32 = 236.0;
@@ -370,6 +395,28 @@ impl Home {
                 self.selected = Some(c);
             }
             self.bitlocker_box(ui, p);
+            self.health_box(ui, p);
+            if let Some(dialog) = &mut self.raid {
+                // Every drive that can be read (whole disks too: RAID
+                // members are), and the images opened.
+                let mut sources: Vec<(String, String)> =
+                    self.images.iter().filter(|i| !i.starts_with("raid:")).map(|i| (i.clone(), file_name(i))).collect();
+                sources.extend(
+                    self.drives
+                        .iter()
+                        .flatten()
+                        .filter(|d| d.device.size.is_some())
+                        .map(|d| (d.device.path.clone(), d.device.display_name())),
+                );
+                match dialog.show(ui.ctx(), p, &sources) {
+                    crate::raid_dialog::Outcome::Combined(path) => {
+                        self.raid = None;
+                        self.add_image(path);
+                    }
+                    crate::raid_dialog::Outcome::Cancelled => self.raid = None,
+                    crate::raid_dialog::Outcome::Open => {}
+                }
+            }
             ui.add_space(6.0);
             ui.label(
                 RichText::new(icon_label(icon::INFO, "Tip: you can also drag a disk image file onto this window."))
@@ -377,6 +424,41 @@ impl Home {
                     .size(12.5),
             );
         });
+    }
+
+    /// Warns when the selected drive reports that it is failing.
+    fn health_box(&mut self, ui: &mut Ui, p: &Palette) {
+        let Some(sel) = &self.selected else { return };
+        let Some(d) = self.drives.iter().flatten().find(|d| &d.device.path == sel) else { return };
+        let (color, text) = match &d.health {
+            wdfr::health::Health::Failing(_) => (
+                p.danger,
+                trl(
+                    "This drive reports that it is failing. Read it as little as possible: copy it to an image first (\"Copy to an image…\"), then scan the copy.",
+                ),
+            ),
+            wdfr::health::Health::Warning(_) => (
+                p.warning,
+                trl(
+                    "This drive reports problems, such as read errors or wear. To be safe, copy it to an image first (\"Copy to an image…\"), then scan the copy.",
+                ),
+            ),
+            _ => return,
+        };
+        ui.add_space(4.0);
+        theme::notice(ui, p, color, icon::HEARTBEAT, text);
+        ui.add_space(4.0);
+    }
+
+    /// Development aid: the RAID dialog, with `images` opened and chosen.
+    #[cfg(debug_assertions)]
+    pub fn tour_raid(&mut self, images: &[String], manual: bool) {
+        for i in images {
+            self.add_image(i.clone());
+        }
+        let mut d = crate::raid_dialog::RaidDialog::default();
+        d.tour(images, manual);
+        self.raid = Some(d);
     }
 
     /// Tries `key` on the selected drive, in the background.
@@ -557,6 +639,9 @@ impl Home {
 }
 
 fn file_name(path: &str) -> String {
+    if let Some(name) = crate::raid_dialog::name(path) {
+        return name;
+    }
     std::path::Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned())
 }
 

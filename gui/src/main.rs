@@ -12,6 +12,7 @@ mod jobs;
 mod logfile;
 mod menu;
 mod preview;
+mod raid_dialog;
 mod results;
 mod settings;
 mod theme;

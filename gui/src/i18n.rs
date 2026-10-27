@@ -391,6 +391,7 @@ mod tests {
         include_str!("jobs.rs"),
         include_str!("menu.rs"),
         include_str!("preview.rs"),
+        include_str!("raid_dialog.rs"),
         include_str!("results.rs"),
         include_str!("settings.rs"),
         include_str!("theme.rs"),

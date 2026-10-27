@@ -143,15 +143,18 @@ enum Command {
         #[arg(short, long)]
         quiet: bool,
     },
-    /// Repair a damaged JPEG photo: close a missing end, or give it the
-    /// header of a good photo from the same camera (--reference).
+    /// Repair a damaged JPEG photo (close a missing end, or give it the
+    /// header of a good photo from the same camera), or an MP4/MOV video
+    /// whose index is missing (rebuilt with the help of a good video from
+    /// the same camera).
     Repair {
-        /// The damaged photo.
+        /// The damaged photo or video.
         photo: PathBuf,
-        /// A good photo taken with the same camera and settings.
+        /// A good photo or video taken with the same camera and settings
+        /// (always needed for a video).
         #[arg(long)]
         reference: Option<PathBuf>,
-        /// Where to write the repaired photo.
+        /// Where to write the repaired file.
         #[arg(short, long)]
         output: PathBuf,
     },
@@ -296,7 +299,12 @@ fn cmd_devices() -> Result<ExitCode> {
     println!("{:<24} {:>12}  {:<28} DESCRIPTION", "PATH", "SIZE", "NAME");
     for d in &list {
         let size = d.size.map_or_else(|| "no access".to_string(), format_size);
-        println!("{:<24} {:>12}  {:<28} {}", d.path, size, d.display_name(), d.description);
+        let health = match wdfr::health::check(&d.path) {
+            wdfr::health::Health::Failing(why) => format!("  [FAILING: {why}]"),
+            wdfr::health::Health::Warning(why) => format!("  [problems: {why}]"),
+            _ => String::new(),
+        };
+        println!("{:<24} {:>12}  {:<28} {}{health}", d.path, size, d.display_name(), d.description);
     }
     if list.iter().any(|d| d.size.is_none()) {
         println!("\nSome devices could not be opened: run as Administrator (Windows) or with sudo.");
@@ -332,6 +340,17 @@ fn warn_locked(s: &Session) {
 fn cmd_info(source: &str) -> Result<ExitCode> {
     let s = Session::open(source)?;
     println!("Source: {} ({})", s.path, format_size(s.disk.size()));
+    if let Some(kind) = wdfr::container::kind(source) {
+        println!("Format: {kind} image");
+    }
+    match wdfr::health::check(source) {
+        wdfr::health::Health::Failing(why) => {
+            println!("Health: FAILING ({why}) - copy it with `wdfr image` before reading it again")
+        }
+        wdfr::health::Health::Warning(why) => println!("Health: problems ({why}) - copy it with `wdfr image` first"),
+        wdfr::health::Health::Good => println!("Health: good"),
+        wdfr::health::Health::Unknown => {}
+    }
     println!("{:>3}  {:>14}  {:>12}  {:<7} {:<24} DETAILS", "#", "OFFSET", "SIZE", "FS", "TYPE");
     for p in &s.partitions {
         let details = match p.fs {
@@ -449,6 +468,10 @@ fn cmd_image(source: &str, output: &std::path::Path, allow_same_volume: bool, qu
 
 fn cmd_repair(photo: &std::path::Path, reference: Option<&std::path::Path>, out: &std::path::Path) -> Result<ExitCode> {
     use anyhow::Context;
+    let ext = photo.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
+    if matches!(ext.as_str(), "mp4" | "mov" | "m4v" | "3gp" | "lrv" | "insv") {
+        return cmd_repair_video(photo, reference, out);
+    }
     let damaged = std::fs::read(photo).with_context(|| format!("reading {}", photo.display()))?;
     let reference =
         reference.map(|r| std::fs::read(r).with_context(|| format!("reading {}", r.display()))).transpose()?;
@@ -473,6 +496,44 @@ fn cmd_repair(photo: &std::path::Path, reference: Option<&std::path::Path>, out:
     Ok(ExitCode::SUCCESS)
 }
 
+fn cmd_repair_video(
+    damaged: &std::path::Path,
+    reference: Option<&std::path::Path>,
+    out: &std::path::Path,
+) -> Result<ExitCode> {
+    use anyhow::Context;
+    let Some(reference) = reference else {
+        anyhow::bail!(
+            "a video is repaired with the help of a good video from the same camera: give it with --reference"
+        )
+    };
+    let open = |p: &std::path::Path| wdfr::source::DiskSource::open(&p.to_string_lossy());
+    let (d, r) = (open(damaged)?, open(reference)?);
+    let file = std::fs::File::create(out).with_context(|| format!("writing {}", out.display()))?;
+    let mut w = std::io::BufWriter::new(file);
+    let result = wdfr::video_repair::repair_video(&d, &r, &mut w, &|| CANCEL.load(Ordering::Relaxed));
+    let result = result.and_then(|r| {
+        std::io::Write::flush(&mut w)?;
+        Ok(r)
+    });
+    let r = match result {
+        Ok(r) => r,
+        Err(e) => {
+            drop(w);
+            let _ = std::fs::remove_file(out);
+            return Err(e);
+        }
+    };
+    println!("{} frames ({} keyframes), {:.1} seconds.", r.frames, r.keyframes, r.seconds);
+    match r.sound {
+        wdfr::video_repair::Sound::Restored => println!("Sound restored."),
+        wdfr::video_repair::Sound::Dropped(why) => println!("Without sound: {why}."),
+        wdfr::video_repair::Sound::None => {}
+    }
+    println!("Written to {}", out.display());
+    Ok(ExitCode::SUCCESS)
+}
+
 fn cmd_recover(source: &str, opts: &Options, quiet: bool) -> Result<ExitCode> {
     let s = Session::open(source)?;
     warn_locked(&s);
@@ -488,6 +549,13 @@ fn cmd_recover(source: &str, opts: &Options, quiet: bool) -> Result<ExitCode> {
     let sum = recover::run(&s, opts, &CliProgress::new(quiet), &CANCEL);
     BUSY.store(false, Ordering::SeqCst);
     let sum = sum?;
+    if s.read_errors() > 0 {
+        eprintln!(
+            "Warning: parts of the source could not be read ({} failed reads): it may be failing. \
+             Copy it once with `wdfr image` and work on the copy.",
+            s.read_errors()
+        );
+    }
     println!();
     println!("Recovered from file system: {} files ({})", sum.fs_files, format_size(sum.fs_bytes));
     println!("Recovered by carving:       {} files ({})", sum.carved_files, format_size(sum.carved_bytes));

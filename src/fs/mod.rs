@@ -5,12 +5,15 @@
 //! shared and lives here.
 
 pub mod apfs;
+pub mod btrfs;
+pub mod compress;
 pub mod exfat;
 pub mod ext;
 pub mod fat;
 pub mod hfsplus;
 pub mod ntfs;
 pub mod recycle;
+pub mod xfs;
 
 use std::fmt;
 use std::io::{self, Write};
@@ -35,6 +38,10 @@ pub enum FsKind {
     HfsPlus,
     /// APFS container (Apple File System).
     Apfs,
+    /// btrfs (Linux, Synology).
+    Btrfs,
+    /// XFS (Linux).
+    Xfs,
 }
 
 impl fmt::Display for FsKind {
@@ -48,6 +55,8 @@ impl fmt::Display for FsKind {
             FsKind::Ext => "ext",
             FsKind::HfsPlus => "HFS+",
             FsKind::Apfs => "APFS",
+            FsKind::Btrfs => "btrfs",
+            FsKind::Xfs => "XFS",
         })
     }
 }
@@ -71,8 +80,22 @@ pub enum FileData {
         extents: Vec<Extent>,
         unit: u64,
     },
+    /// Pieces stored compressed, each decompressed on its own (btrfs).
+    Packed(Vec<Packed>),
     /// Metadata survived but the location of the data did not.
     Lost,
+}
+
+/// A piece of a file kept compressed: `stored` bytes at `offset` (volume
+/// relative; `None` is a hole of zeros) decompress to data of which `len`
+/// bytes from `skip` on belong to the file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Packed {
+    pub offset: Option<u64>,
+    pub stored: u64,
+    pub method: compress::Compression,
+    pub skip: u64,
+    pub len: u64,
 }
 
 /// How likely the data is to still be intact, judged from the volume's
@@ -148,6 +171,7 @@ impl DeletedFile {
     pub fn data_ranges(&self) -> Vec<ByteRange> {
         let ex = match &self.data {
             FileData::Extents(e) | FileData::Compressed { extents: e, .. } => e,
+            FileData::Packed(p) => return p.iter().filter_map(|p| p.offset.map(|o| o..o + p.stored)).collect(),
             _ => return Vec::new(),
         };
         ex.iter().filter_map(|e| e.offset.map(|o| o..o + e.len)).collect()
@@ -185,6 +209,9 @@ pub fn detect(src: &dyn ReadAt) -> Option<FsKind> {
     if &bs[3..11] == b"EXFAT   " {
         return Some(FsKind::ExFat);
     }
+    if xfs::detect(&bs) {
+        return Some(FsKind::Xfs);
+    }
     if let Some(k) = fat::detect_boot_sector(&bs) {
         return Some(k);
     }
@@ -197,7 +224,10 @@ pub fn detect(src: &dyn ReadAt) -> Option<FsKind> {
     if ext::detect(&sb) {
         return Some(FsKind::Ext);
     }
-    hfsplus::detect(&sb).then_some(FsKind::HfsPlus)
+    if hfsplus::detect(&sb) {
+        return Some(FsKind::HfsPlus);
+    }
+    btrfs::detect(src).then_some(FsKind::Btrfs)
 }
 
 pub fn open(src: Source) -> Result<Box<dyn Volume>> {
@@ -207,6 +237,8 @@ pub fn open(src: Source) -> Result<Box<dyn Volume>> {
         Some(FsKind::Ext) => Ok(Box::new(ext::Ext::open(src)?)),
         Some(FsKind::HfsPlus) => Ok(Box::new(hfsplus::HfsPlus::open(src)?)),
         Some(FsKind::Apfs) => Ok(Box::new(apfs::Apfs::open(src)?)),
+        Some(FsKind::Btrfs) => Ok(Box::new(btrfs::Btrfs::open(src)?)),
+        Some(FsKind::Xfs) => Ok(Box::new(xfs::Xfs::open(src)?)),
         Some(_) => Ok(Box::new(fat::Fat::open(src)?)),
         None => anyhow::bail!("no supported file system found"),
     }
@@ -280,6 +312,31 @@ pub fn extract(vol: &dyn ReadAt, file: &DeletedFile, out: &mut dyn Write) -> io:
         }
         FileData::Compressed { extents, unit } => {
             st = extract_compressed(vol, extents, *unit, file.size, out)?;
+        }
+        FileData::Packed(pieces) => {
+            let mut remaining = file.size;
+            for p in pieces {
+                if remaining == 0 {
+                    break;
+                }
+                let n = p.len.min(remaining) as usize;
+                let mut plain = match p.offset {
+                    None => vec![0u8; n],
+                    Some(o) => {
+                        let mut raw = vec![0u8; p.stored as usize];
+                        st.unreadable += read_tolerant(vol, o, &mut raw);
+                        let want = (p.skip + p.len) as usize;
+                        let mut d = compress::decompress(p.method, &raw, want).unwrap_or_default();
+                        d.resize(want, 0);
+                        d.drain(..p.skip as usize);
+                        d
+                    }
+                };
+                plain.truncate(n);
+                out.write_all(&plain)?;
+                st.written += n as u64;
+                remaining -= n as u64;
+            }
         }
     }
     Ok(st)

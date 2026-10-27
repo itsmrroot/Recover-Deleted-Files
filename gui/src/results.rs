@@ -160,6 +160,8 @@ pub struct Results {
     password_again: String,
     /// The outcome of the last photo repair: (photo, message, success).
     repaired: Option<(RowRef, String, bool)>,
+    /// A video being repaired in the background, and where it goes.
+    video_job: Option<(RowRef, crate::jobs::Job<wdfr::video_repair::Repaired>, std::path::PathBuf)>,
 }
 
 /// The name of a category slot, in logical order (compose, then `visual`).
@@ -322,6 +324,7 @@ impl Results {
             password: String::new(),
             password_again: String::new(),
             repaired: None,
+            video_job: None,
         };
         res.index = res.rows.iter().enumerate().map(|(i, r)| (r.r, i)).collect();
         let mut years: Vec<i32> = res.rows.iter().filter_map(|r| r.modified.map(|m| m.year())).collect();
@@ -614,6 +617,18 @@ impl Results {
             ui.add_space(8.0);
         }
 
+        if self.session.read_errors() > 0 {
+            theme::notice(
+                ui,
+                p,
+                p.warning,
+                icon::HEARTBEAT,
+                trl(
+                    "Parts of this drive could not be read: it may be failing. Before reading it again, copy it to an image (\"Copy to an image…\" on the start screen) and scan the copy.",
+                ),
+            );
+            ui.add_space(8.0);
+        }
         if self.rows.is_empty() {
             self.empty_state(ui, p, &mut action);
             return action;
@@ -993,7 +1008,13 @@ impl Results {
             // Damaged photos can often be repaired.
             let row = &self.rows[i];
             let damaged = row.verdict == Some(Verdict::Damaged) || matches!(row.status, Status::Partial(_));
-            if matches!(row.ext.as_str(), "jpg" | "jpeg") && damaged {
+            let video = matches!(row.ext.as_str(), "mp4" | "mov" | "m4v" | "3gp" | "lrv");
+            let photo = matches!(row.ext.as_str(), "jpg" | "jpeg");
+            if video && damaged {
+                ui.add_space(8.0);
+                self.video_repair_ui(ui, p, r);
+            }
+            if photo && damaged {
                 ui.add_space(8.0);
                 if ui
                     .button(icon_label(icon::BANDAIDS, "Repair this photo…"))
@@ -1086,6 +1107,84 @@ impl Results {
             });
         });
         go
+    }
+
+    /// "Repair this video…": asks for a video from the same camera and where
+    /// to save, then rebuilds the index in the background.
+    fn video_repair_ui(&mut self, ui: &mut Ui, p: &Palette, r: RowRef) {
+        if let Some((at, job, out)) = &self.video_job
+            && let Some(result) = job.poll()
+        {
+            let at = *at;
+            self.repaired = Some(match result {
+                Ok(done) => {
+                    let mut msg = trf(
+                        "The repaired video was saved: {frames} frames, {seconds} seconds.",
+                        &[("frames", &done.frames), ("seconds", &format!("{:.1}", done.seconds))],
+                    );
+                    if let wdfr::video_repair::Sound::Dropped(_) = done.sound {
+                        msg.push(' ');
+                        msg.push_str(tr("Its sound could not be restored."));
+                    }
+                    (at, msg, true)
+                }
+                Err(e) => {
+                    let _ = std::fs::remove_file(out);
+                    (at, format!("{}: {e:#}", tr("This video could not be repaired")), false)
+                }
+            });
+            self.video_job = None;
+        }
+        let busy = self.video_job.is_some();
+        let clicked = ui
+            .add_enabled(!busy, egui::Button::new(icon_label(icon::BANDAIDS, "Repair this video…")))
+            .on_hover_text(tr(
+                "Rebuilds the index of a video whose recording was cut off, with the help of a good video recorded with the same camera and settings.",
+            ))
+            .clicked();
+        if busy && self.video_job.as_ref().is_some_and(|j| j.0 == r) {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(RichText::new(tr("Repairing the video…")).color(p.weak));
+            });
+        } else if let Some((at, msg, ok)) = &self.repaired
+            && *at == r
+        {
+            ui.label(RichText::new(msg.as_str()).color(if *ok { p.success } else { p.danger }).size(12.5));
+        }
+        if !clicked {
+            return;
+        }
+        let Some(reference) = rfd::FileDialog::new()
+            .set_title(tr("Choose a good video recorded with the same camera"))
+            .add_filter(trl("Videos"), &["mp4", "mov", "m4v", "3gp", "MP4", "MOV"])
+            .pick_file()
+        else {
+            return;
+        };
+        let item = r.item(&self.found);
+        let name = item.name();
+        let (stem, ext) = name.rsplit_once('.').unwrap_or((name.as_str(), "mp4"));
+        let Some(out) = rfd::FileDialog::new()
+            .set_title(tr("Save the repaired video"))
+            .set_file_name(format!("{stem} (repaired).{ext}"))
+            .save_file()
+        else {
+            return;
+        };
+        let (session, found) = (self.session.clone(), self.found.clone());
+        let target = out.clone();
+        let job = crate::jobs::Job::spawn(ui.ctx(), move |_, cancel| {
+            let damaged = recover::item_source(&session, r.item(&found))?;
+            let reference = wdfr::source::DiskSource::open(&reference.to_string_lossy())?;
+            let mut w = std::io::BufWriter::new(std::fs::File::create(&target)?);
+            let done = wdfr::video_repair::repair_video(damaged.as_ref(), &reference, &mut w, &|| {
+                cancel.load(std::sync::atomic::Ordering::Relaxed)
+            })?;
+            std::io::Write::flush(&mut w)?;
+            Ok(done)
+        });
+        self.video_job = Some((r, job, out));
     }
 
     /// Repairs the photo `r` and saves the result where the user chooses.

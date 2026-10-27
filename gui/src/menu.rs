@@ -17,6 +17,7 @@ pub enum Command {
     OpenImage,
     OpenSavedScan,
     SaveScan,
+    RepairFile,
     ShowResults,
     ToggleSidebar,
     Theme(ThemeChoice),
@@ -106,6 +107,8 @@ pub fn bar(ui: &mut Ui, p: &Palette, s: &State) -> Option<Command> {
             item(ui, Command::OpenImage, tr("Open disk image…"));
             item(ui, Command::OpenSavedScan, tr("Open saved scan…"));
             item(ui, Command::SaveScan, tr("Save scan…"));
+            ui.separator();
+            item(ui, Command::RepairFile, tr("Repair a photo or video file…"));
             ui.separator();
             item(ui, Command::Quit, tr("Exit"));
         });
@@ -238,6 +241,8 @@ mod mac {
                         Some((Modifiers::META.union(Modifiers::SHIFT), "o")),
                     ),
                     &item(Command::SaveScan, tr("Save scan…"), Some((Modifiers::META, "s"))),
+                    &PredefinedMenuItem::separator(),
+                    &item(Command::RepairFile, tr("Repair a photo or video file…"), None),
                 ],
             )
             .ok()?;

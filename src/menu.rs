@@ -13,7 +13,7 @@ use dialoguer::{Confirm, Input, MultiSelect, Select};
 use wdfr::carve::Category;
 use wdfr::filter::Filter;
 use wdfr::recover::{Method, Options, Session};
-use wdfr::source::{DiskSource, Source};
+use wdfr::source::Source;
 use wdfr::units::format_size;
 use wdfr::{devices, partition};
 
@@ -138,8 +138,7 @@ fn pick_source(theme: &ColorfulTheme) -> Result<Option<String>> {
 
 /// "NTFS", "exFAT", "2 partitions: NTFS, FAT32", ... (best effort, fast).
 fn describe(path: &str) -> String {
-    let Ok(d) = DiskSource::open(path) else { return String::new() };
-    let disk: Source = std::sync::Arc::new(d);
+    let Ok((disk, _)) = wdfr::container::open(path) else { return String::new() };
     let parts = partition::discover(&disk);
     let fs: Vec<String> = parts
         .iter()
