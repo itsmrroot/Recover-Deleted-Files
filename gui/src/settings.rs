@@ -58,6 +58,8 @@ pub struct Settings {
     pub allow_same_volume: bool,
     // Updates
     pub check_updates: bool,
+    /// The navigation on the left is hidden.
+    pub sidebar_hidden: bool,
 }
 
 impl Default for Settings {
@@ -82,6 +84,7 @@ impl Default for Settings {
             open_folder_when_done: true,
             allow_same_volume: false,
             check_updates: true,
+            sidebar_hidden: false,
         }
     }
 }

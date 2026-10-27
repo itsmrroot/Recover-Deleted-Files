@@ -18,6 +18,7 @@ pub enum Command {
     OpenSavedScan,
     SaveScan,
     ShowResults,
+    ToggleSidebar,
     Theme(ThemeChoice),
     Bigger,
     Smaller,
@@ -60,7 +61,9 @@ const THEMES: [(ThemeChoice, &str); 4] = [
 
 /// Keyboard shortcuts of the window's menu bar (on macOS the menu bar
 /// handles them).
-const SHORTCUTS: [(Command, KeyboardShortcut); 8] = [
+pub const SIDEBAR_SHORTCUT: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Backslash);
+
+const SHORTCUTS: [(Command, KeyboardShortcut); 9] = [
     (Command::NewScan, KeyboardShortcut::new(Modifiers::COMMAND, Key::N)),
     (Command::OpenImage, KeyboardShortcut::new(Modifiers::COMMAND, Key::O)),
     (Command::OpenSavedScan, KeyboardShortcut::new(Modifiers::COMMAND.plus(Modifiers::SHIFT), Key::O)),
@@ -69,6 +72,7 @@ const SHORTCUTS: [(Command, KeyboardShortcut); 8] = [
     (Command::FullScreen, KeyboardShortcut::new(Modifiers::NONE, Key::F11)),
     (Command::Help, KeyboardShortcut::new(Modifiers::NONE, Key::F1)),
     (Command::Quit, KeyboardShortcut::new(Modifiers::COMMAND, Key::Q)),
+    (Command::ToggleSidebar, SIDEBAR_SHORTCUT),
 ];
 
 fn shortcut_text(ctx: &egui::Context, c: Command) -> String {
@@ -107,6 +111,7 @@ pub fn bar(ui: &mut Ui, p: &Palette, s: &State) -> Option<Command> {
         });
         ui.menu_button(tr("View"), |ui| {
             item(ui, Command::ShowResults, tr("Results"));
+            item(ui, Command::ToggleSidebar, tr("Hide or show sidebar"));
             ui.separator();
             ui.menu_button(tr("Theme"), |ui| {
                 for (t, label) in THEMES {
@@ -250,6 +255,7 @@ mod mac {
                 true,
                 &[
                     &item(Command::ShowResults, tr("Results"), Some((Modifiers::META, "r"))),
+                    &item(Command::ToggleSidebar, tr("Hide or show sidebar"), Some((Modifiers::META, "\\"))),
                     &PredefinedMenuItem::separator(),
                     &theme,
                     &item(Command::Bigger, tr("Bigger"), Some((Modifiers::META, "+"))),

@@ -322,6 +322,7 @@ impl App {
             }
             Command::SaveScan => self.save_scan(),
             Command::ShowResults => self.page = Page::Results,
+            Command::ToggleSidebar => self.settings.sidebar_hidden = !self.settings.sidebar_hidden,
             Command::Theme(t) => self.settings.theme = t,
             Command::Bigger => *scale = ((*scale * 10.0).round() / 10.0 + 0.1).min(1.5),
             Command::Smaller => *scale = ((*scale * 10.0).round() / 10.0 - 0.1).max(0.8),
@@ -577,6 +578,8 @@ impl App {
     fn header(&mut self, ui: &mut Ui, p: &Palette) {
         let white = Color32::from_rgb(245, 247, 252);
         ui.horizontal_centered(|ui| {
+            self.sidebar_toggle(ui, white);
+            ui.add_space(6.0);
             ui.add(egui::Image::new(&self.logo).fit_to_exact_size(Vec2::splat(30.0)));
             ui.add_space(4.0);
             ui.label(theme::semibold(tr("Deleted Files"), 17.0).color(white));
@@ -587,19 +590,24 @@ impl App {
                 } else {
                     ui.label(RichText::new(format!("v{}", env!("CARGO_PKG_VERSION"))).color(white.gamma_multiply(0.7)));
                 }
-                ui.add_space(14.0);
-                let active = self.page == Page::Settings;
-                let text = RichText::new(format!("{}  {}", icon::GEAR_SIX, tr("Settings"))).size(15.0).color(white);
-                let button = egui::Button::new(text)
-                    .fill(if active { Color32::from_white_alpha(38) } else { Color32::TRANSPARENT })
-                    .stroke(Stroke::new(1.0, Color32::from_white_alpha(if active { 90 } else { 50 })))
-                    .corner_radius(CornerRadius::same(8))
-                    .min_size(Vec2::new(0.0, 32.0));
-                if ui.add(button).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                    self.page = Page::Settings;
-                }
             });
         });
+    }
+
+    /// The button that hides or shows the sidebar.
+    fn sidebar_toggle(&mut self, ui: &mut Ui, color: Color32) {
+        let keys = ui.ctx().format_shortcut(&menu::SIDEBAR_SHORTCUT);
+        let button = egui::Button::new(RichText::new(icon::SIDEBAR_SIMPLE).size(20.0).color(color))
+            .frame(false)
+            .min_size(Vec2::splat(30.0));
+        if ui
+            .add(button)
+            .on_hover_text(format!("{} ({keys})", tr("Hide or show sidebar")))
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .clicked()
+        {
+            self.settings.sidebar_hidden = !self.settings.sidebar_hidden;
+        }
     }
 
     fn sidebar(&mut self, ui: &mut Ui, p: &Palette) {
@@ -613,6 +621,7 @@ impl App {
                     ui.label(theme::semibold(tr("Deleted Files"), 16.0).color(p.text));
                     ui.label(RichText::new(tr("Recovery")).color(p.weak).size(13.0));
                 });
+                ui.with_layout(Layout::right_to_left(Align::Min), |ui| self.sidebar_toggle(ui, p.weak));
             });
         }
         ui.add_space(22.0);
@@ -923,13 +932,28 @@ impl eframe::App for App {
                 .frame(Frame::new().fill(fill).inner_margin(Margin::symmetric(18, 0)))
                 .show(ui, |ui| self.header(ui, &p));
         }
+        let mut expanded = !self.settings.sidebar_hidden;
         egui::Panel::left("sidebar")
             .exact_size(236.0)
             .resizable(false)
             .frame(
                 Frame::new().fill(p.sidebar).stroke(Stroke::new(1.0, p.border)).inner_margin(Margin::symmetric(12, 0)),
             )
-            .show(ui, |ui| self.sidebar(ui, &p));
+            .show_collapsible(ui, &mut expanded, |ui| self.sidebar(ui, &p));
+        // Without the top bar, the button to bring the sidebar back stays on
+        // a thin strip.
+        if p.header.is_none() && self.settings.sidebar_hidden {
+            egui::Panel::left("sidebar-rail")
+                .exact_size(46.0)
+                .resizable(false)
+                .frame(
+                    Frame::new()
+                        .fill(p.sidebar)
+                        .stroke(Stroke::new(1.0, p.border))
+                        .inner_margin(Margin::symmetric(8, 18)),
+                )
+                .show(ui, |ui| self.sidebar_toggle(ui, p.weak));
+        }
         egui::CentralPanel::default()
             .frame(Frame::new().fill(p.bg).inner_margin(Margin { left: 30, right: 30, top: 26, bottom: 22 }))
             .show(ui, |ui| self.content(ui, &p));
@@ -1294,6 +1318,15 @@ impl App {
                 0 if frames == 1 => {
                     if let Some(l) = self.tour.as_ref().and_then(|t| t.language) {
                         self.settings.language = l;
+                    }
+                    // WDFR_TOUR_NO_SIDEBAR: with the sidebar hidden.
+                    self.settings.sidebar_hidden = std::env::var_os("WDFR_TOUR_NO_SIDEBAR").is_some();
+                    if let Ok(t) = std::env::var("WDFR_TOUR_THEME") {
+                        self.settings.theme = match t.as_str() {
+                            "light" => settings::ThemeChoice::Light,
+                            "dark" => settings::ThemeChoice::Dark,
+                            _ => settings::ThemeChoice::Midnight,
+                        };
                     }
                     self.page = Page::Help;
                 }
