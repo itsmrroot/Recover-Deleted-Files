@@ -1,11 +1,11 @@
 [package]
 name = "wdfr-gui"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2024"
 rust-version = "1.88"
 description = "Desktop app for Deleted Files Recovery"
 authors = ["Bashar Salmo"]
-license = "MIT"
+license = "PolyForm-Noncommercial-1.0.0"
 build = "build.rs"
 
 [dependencies]
@@ -24,7 +24,7 @@ skrifa = { version = "0.44", default-features = false, features = ["std"] }
 sys-locale = "0.3.2"
 unicode-bidi = "0.3.18"
 ureq = "3.4.2"
-wdfr = { version = "0.6.2", path = ".." }
+wdfr = { version = "0.6.3", path = ".." }
 
 [build-dependencies]
 winresource = "0.1.31"
@@ -55,7 +55,10 @@ license-file = "../LICENSE"
 icons = ["assets/wdfr.icns", "assets/wdfr.ico", "assets/icon.png"]
 # The command line comes along for scripting and keyboard use.
 binaries = [{ path = "wdfr-gui", main = true }, { path = "wdfr", main = false }]
+# Licences that travel with the app.
 resources = [
+    { src = "../LICENSE", target = "LICENSE" },
+    { src = "../THIRD-PARTY-NOTICES.txt", target = "THIRD-PARTY-NOTICES.txt" },
     { src = "assets/fonts/OFL.txt", target = "OFL-NotoSansArabic.txt" },
     { src = "assets/fonts/OFL-NotoSansSC.txt", target = "OFL-NotoSansSC.txt" },
 ]
@@ -83,13 +86,14 @@ depends = ["libc6", "libgl1 | libvulkan1", "libxkbcommon0", "pkexec | policykit-
 [package.metadata.generate-rpm]
 name = "wdfr"
 summary = "Recover deleted files from drives, USB sticks, memory cards and disk images"
-license = "MIT"
+license = "PolyForm-Noncommercial-1.0.0"
 assets = [
     { source = "target/release/wdfr-gui", dest = "/usr/bin/wdfr-gui", mode = "755" },
     { source = "target/release/wdfr", dest = "/usr/bin/wdfr", mode = "755" },
     { source = "gui/assets/linux/wdfr.desktop", dest = "/usr/share/applications/wdfr.desktop", mode = "644" },
     { source = "gui/assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/wdfr.png", mode = "644" },
     { source = "LICENSE", dest = "/usr/share/licenses/wdfr/LICENSE", mode = "644", doc = true },
+    { source = "THIRD-PARTY-NOTICES.txt", dest = "/usr/share/licenses/wdfr/THIRD-PARTY-NOTICES.txt", mode = "644", doc = true },
     { source = "gui/assets/fonts/OFL.txt", dest = "/usr/share/licenses/wdfr/OFL-NotoSansArabic.txt", mode = "644", doc = true },
     { source = "gui/assets/fonts/OFL-NotoSansSC.txt", dest = "/usr/share/licenses/wdfr/OFL-NotoSansSC.txt", mode = "644", doc = true },
 ]

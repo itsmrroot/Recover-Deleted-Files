@@ -8,7 +8,7 @@
 [![Downloads](https://img.shields.io/github/downloads/itsmrroot/Recover-Deleted-Files--Release/total?color=16a34a)](https://github.com/itsmrroot/Recover-Deleted-Files--Release/releases)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-6b7280)](#-install)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org)
-[![License: MIT](https://img.shields.io/github/license/itsmrroot/Recover-Deleted-Files--Release?color=a78bfa)](LICENSE)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-a78bfa)](LICENSE)
 
 **Bring back deleted photos, videos, music and documents —<br>from hard drives, USB sticks, SD cards and disk images.**
 
@@ -633,6 +633,16 @@ records survive (see *How it works*). Other file systems are supported by the de
 
 </details>
 
+<details>
+<summary><b>Can I use it commercially or sell it?</b></summary>
+
+Using, sharing and changing it for any non-commercial purpose is free: personal use, and use by charities,
+schools, public bodies and the like. Selling it, or using it in a commercial product or service, needs written
+permission from [Bashar Salmo](https://github.com/itsmrroot) — see the [license](LICENSE). Versions up to and
+including v0.6.2 were released under the MIT License, which still applies to those copies.
+
+</details>
+
 <!-- private:start -->
 ## 🛠️ Build from source
 
@@ -672,7 +682,13 @@ links the C runtime statically, so it runs on a bare Windows install.
 
 **Powered by Bashar Salmo**
 
-Released under the [MIT License](LICENSE). The desktop app bundles
+Copyright © 2026 Bashar Salmo. Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE):
+free for any non-commercial use; selling it or using it in a commercial product needs written permission
+from [Bashar Salmo](https://github.com/itsmrroot). Versions up to and including **v0.6.2** were released under
+the MIT License, and stay under it.
+
+The libraries and fonts built into the app keep their own licenses, listed in
+[THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt). The desktop app bundles
 [Noto Sans Arabic](https://github.com/notofonts/arabic) and [Noto Sans SC](https://github.com/notofonts/noto-cjk)
 under the SIL Open Font License ([Arabic](gui/assets/fonts/OFL.txt), [SC](gui/assets/fonts/OFL-NotoSansSC.txt)).
 

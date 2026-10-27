@@ -568,7 +568,7 @@ pub const GERMAN: &[(&str, &str)] = &[
     ),
     ("Project page", "Projektseite"),
     ("Latest version", "Neueste Version"),
-    ("MIT License", "MIT-Lizenz"),
+    ("License: free for non-commercial use", "Lizenz: frei für nicht-kommerzielle Nutzung"),
     ("Tips for a successful recovery", "Tipps für eine erfolgreiche Wiederherstellung"),
     (
         "Stop using the drive right away. Every new file can overwrite deleted ones.",
@@ -1243,7 +1243,7 @@ pub const ARABIC: &[(&str, &str)] = &[
     ),
     ("Project page", "صفحة المشروع"),
     ("Latest version", "أحدث إصدار"),
-    ("MIT License", "رخصة MIT"),
+    ("License: free for non-commercial use", "الترخيص: مجاني للاستخدام غير التجاري"),
     ("Tips for a successful recovery", "نصائح لاستعادة ناجحة"),
     (
         "Stop using the drive right away. Every new file can overwrite deleted ones.",
@@ -1927,7 +1927,7 @@ pub const SPANISH: &[(&str, &str)] = &[
     ),
     ("Project page", "Página del proyecto"),
     ("Latest version", "Última versión"),
-    ("MIT License", "Licencia MIT"),
+    ("License: free for non-commercial use", "Licencia: gratis para uso no comercial"),
     ("Tips for a successful recovery", "Consejos para una recuperación exitosa"),
     (
         "Stop using the drive right away. Every new file can overwrite deleted ones.",
@@ -2641,7 +2641,7 @@ pub const FRENCH: &[(&str, &str)] = &[
     ),
     ("Project page", "Page du projet"),
     ("Latest version", "Dernière version"),
-    ("MIT License", "Licence MIT"),
+    ("License: free for non-commercial use", "Licence : gratuite pour un usage non commercial"),
     ("Tips for a successful recovery", "Conseils pour une récupération réussie"),
     (
         "Stop using the drive right away. Every new file can overwrite deleted ones.",
@@ -3346,7 +3346,7 @@ pub const RUSSIAN: &[(&str, &str)] = &[
     ),
     ("Project page", "Страница проекта"),
     ("Latest version", "Последняя версия"),
-    ("MIT License", "Лицензия MIT"),
+    ("License: free for non-commercial use", "Лицензия: бесплатно для некоммерческого использования"),
     ("Tips for a successful recovery", "Советы для успешного восстановления"),
     (
         "Stop using the drive right away. Every new file can overwrite deleted ones.",
@@ -3997,7 +3997,7 @@ pub const CHINESE: &[(&str, &str)] = &[
     ),
     ("Project page", "项目主页"),
     ("Latest version", "最新版本"),
-    ("MIT License", "MIT 许可证"),
+    ("License: free for non-commercial use", "许可证：非商业用途免费"),
     ("Tips for a successful recovery", "成功恢复的提示"),
     (
         "Stop using the drive right away. Every new file can overwrite deleted ones.",
@@ -4663,7 +4663,7 @@ pub const TURKISH: &[(&str, &str)] = &[
     ),
     ("Project page", "Proje sayfası"),
     ("Latest version", "En son sürüm"),
-    ("MIT License", "MIT Lisansı"),
+    ("License: free for non-commercial use", "Lisans: ticari olmayan kullanım için ücretsiz"),
     ("Tips for a successful recovery", "Başarılı bir kurtarma için ipuçları"),
     (
         "Stop using the drive right away. Every new file can overwrite deleted ones.",

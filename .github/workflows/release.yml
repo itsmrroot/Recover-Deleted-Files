@@ -27,7 +27,7 @@ jobs:
           git clone "https://x-access-token:${TOKEN}@github.com/${PUBLIC_REPO}.git" public
           rm -rf public/assets public/gui
           mkdir -p public/assets public/gui/assets/fonts
-          cp LICENSE public/
+          cp LICENSE THIRD-PARTY-NOTICES.txt public/
           cp assets/banner.svg assets/how-it-works.svg assets/app-*.png public/assets/
           cp gui/assets/fonts/OFL.txt gui/assets/fonts/OFL-NotoSansSC.txt public/gui/assets/fonts/
           # Without the parts about the (private) source code.
@@ -89,7 +89,7 @@ jobs:
           name=wdfr-${GITHUB_REF_NAME}-${{ matrix.target }}${{ matrix.suffix }}
           mkdir "$name"
           for b in ${{ matrix.bins }}; do cp "target/${{ matrix.target }}/release/$b" "$name/"; done
-          cp README.md LICENSE "$name/"
+          cp README.md LICENSE THIRD-PARTY-NOTICES.txt "$name/"
           # The desktop app embeds Noto Sans Arabic and SC, whose licences must travel with it.
           if [[ "${{ matrix.bins }}" == *wdfr-gui* ]]; then
             cp gui/assets/fonts/OFL.txt "$name/OFL-NotoSansArabic.txt"

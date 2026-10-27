@@ -18,6 +18,8 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all --check
+      # The licences of the libraries ship with every download.
+      - run: cargo fetch --locked && python3 scripts/third-party-notices.py --check
 
   test:
     name: test (${{ matrix.os }})
