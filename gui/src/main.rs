@@ -32,6 +32,19 @@ fn icon() -> egui::IconData {
         .unwrap_or_default()
 }
 
+/// On Windows wgpu draws with DirectX 12, never Vulkan: Intel's Vulkan driver
+/// crashes the whole process (an access violation no fallback can catch) on
+/// some computers. Other systems keep wgpu's own choice.
+fn wgpu_options() -> eframe::egui_wgpu::WgpuConfiguration {
+    #[allow(unused_mut)]
+    let mut options = eframe::egui_wgpu::WgpuConfiguration::default();
+    #[cfg(windows)]
+    if let eframe::egui_wgpu::WgpuSetup::CreateNew(create_new) = &mut options.wgpu_setup {
+        create_new.instance_descriptor.backends = eframe::egui_wgpu::wgpu::Backends::DX12;
+    }
+    options
+}
+
 fn main() -> eframe::Result {
     // Started as the macOS drive helper: no window at all.
     if let Some(code) = elevate::run_drive_helper() {
@@ -67,6 +80,7 @@ fn main() -> eframe::Result {
         viewport: viewport.clone(),
         persist_window,
         renderer,
+        wgpu_options: wgpu_options(),
         // Opens in the middle of the screen; see `App::fit_to_screen` for small screens.
         centered: true,
         ..Default::default()
