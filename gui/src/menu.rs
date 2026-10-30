@@ -2,7 +2,7 @@
 //! and Linux a menu bar at the top of the window. Both give the same
 //! commands, which `App::run_command` carries out.
 
-use eframe::egui::{self, Key, KeyboardShortcut, Modifiers, RichText, Ui};
+use eframe::egui::{self, Color32, Key, KeyboardShortcut, Modifiers, RichText, Ui};
 
 use crate::i18n::tr;
 use crate::settings::ThemeChoice;
@@ -92,7 +92,7 @@ pub fn shortcut(ctx: &egui::Context, s: &State) -> Option<Command> {
 }
 
 /// The menu bar at the top of the window. Returns the command chosen.
-pub fn bar(ui: &mut Ui, p: &Palette, s: &State) -> Option<Command> {
+pub fn bar(ui: &mut Ui, p: &Palette, s: &State, text: Color32) -> Option<Command> {
     let chosen = std::cell::Cell::new(None);
     let ctx = ui.ctx().clone();
     egui::MenuBar::new().ui(ui, |ui| {
@@ -102,7 +102,7 @@ pub fn bar(ui: &mut Ui, p: &Palette, s: &State) -> Option<Command> {
                 chosen.set(Some(c));
             }
         };
-        ui.menu_button(tr("File"), |ui| {
+        ui.menu_button(RichText::new(tr("File")).color(text), |ui| {
             item(ui, Command::NewScan, tr("New scan"));
             item(ui, Command::OpenImage, tr("Open disk image…"));
             item(ui, Command::OpenSavedScan, tr("Open saved scan…"));
@@ -112,7 +112,7 @@ pub fn bar(ui: &mut Ui, p: &Palette, s: &State) -> Option<Command> {
             ui.separator();
             item(ui, Command::Quit, tr("Exit"));
         });
-        ui.menu_button(tr("View"), |ui| {
+        ui.menu_button(RichText::new(tr("View")).color(text), |ui| {
             item(ui, Command::ShowResults, tr("Results"));
             item(ui, Command::ToggleSidebar, tr("Hide or show sidebar"));
             ui.separator();
@@ -130,10 +130,10 @@ pub fn bar(ui: &mut Ui, p: &Palette, s: &State) -> Option<Command> {
             item(ui, Command::FullScreen, tr("Full screen"));
         });
         // Settings is one click away, not inside a menu.
-        if ui.button(tr("Settings")).clicked() {
+        if ui.button(RichText::new(tr("Settings")).color(text)).clicked() {
             chosen.set(Some(Command::Settings));
         }
-        ui.menu_button(tr("Help"), |ui| {
+        ui.menu_button(RichText::new(tr("Help")).color(text), |ui| {
             item(ui, Command::Help, tr("Help"));
             item(ui, Command::CheckUpdates, tr("Check for updates…"));
             item(ui, Command::ProjectPage, tr("Project page"));

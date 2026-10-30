@@ -582,15 +582,22 @@ impl App {
     // Layout
 
     /// The top bar of the Midnight theme: name on the left, updates on the right.
-    fn header(&mut self, ui: &mut Ui, p: &Palette) {
+    /// The top bar of the Midnight theme. With `menus`, the menus (File, View, …)
+    /// stand in place of the name, as in VS Code; what is chosen is returned.
+    fn header(&mut self, ui: &mut Ui, p: &Palette, menus: Option<&menu::State>) -> Option<menu::Command> {
         let white = Color32::from_rgb(245, 247, 252);
+        let mut chosen = None;
         ui.horizontal_centered(|ui| {
             self.sidebar_toggle(ui, white);
             ui.add_space(6.0);
             ui.add(egui::Image::new(&self.logo).fit_to_exact_size(Vec2::splat(30.0)));
             ui.add_space(4.0);
-            ui.label(theme::semibold(tr("Deleted Files"), 17.0).color(white));
-            ui.label(RichText::new(tr("Recovery")).color(white.gamma_multiply(0.75)).size(17.0));
+            if let Some(state) = menus {
+                chosen = menu::bar(ui, p, state, white);
+            } else {
+                ui.label(theme::semibold(tr("Deleted Files"), 17.0).color(white));
+                ui.label(RichText::new(tr("Recovery")).color(white.gamma_multiply(0.75)).size(17.0));
+            }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if self.updater.available().is_some() {
                     self.updater.button(ui, p);
@@ -599,6 +606,7 @@ impl App {
                 }
             });
         });
+        chosen
     }
 
     /// The button that hides or shows the sidebar.
@@ -1041,6 +1049,10 @@ impl eframe::App for App {
             !cfg!(target_os = "macos") || (cfg!(debug_assertions) && std::env::var_os("WDFR_MENUBAR").is_some());
         if window_bar {
             commands.extend(menu::shortcut(&ctx, &state));
+        }
+        // The Midnight theme has the menus in its top bar; the other themes get
+        // a slim bar of their own.
+        if window_bar && p.header.is_none() {
             egui::Panel::top("menubar")
                 .resizable(false)
                 .show_separator_line(false)
@@ -1051,22 +1063,23 @@ impl eframe::App for App {
                         .inner_margin(Margin::symmetric(8, 3)),
                 )
                 .show(ui, |ui| {
-                    if let Some(c) = menu::bar(ui, &p, &state) {
+                    if let Some(c) = menu::bar(ui, &p, &state, p.text) {
                         commands.push(c);
                     }
                 });
         }
-        for c in commands {
-            self.run_command(&ctx, c);
-        }
-
         if let Some(fill) = p.header {
-            egui::Panel::top("header")
+            let menus = window_bar.then_some(&state);
+            let inner = egui::Panel::top("header")
                 .exact_size(56.0)
                 .resizable(false)
                 .show_separator_line(false)
                 .frame(Frame::new().fill(fill).inner_margin(Margin::symmetric(18, 0)))
-                .show(ui, |ui| self.header(ui, &p));
+                .show(ui, |ui| self.header(ui, &p, menus));
+            commands.extend(inner.inner);
+        }
+        for c in commands {
+            self.run_command(&ctx, c);
         }
         let mut expanded = !self.settings.sidebar_hidden;
         egui::Panel::left("sidebar")

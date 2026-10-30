@@ -50,6 +50,8 @@ struct GhRelease {
     draft: bool,
     #[serde(default)]
     prerelease: bool,
+    /// The release notes (Markdown).
+    body: Option<String>,
     #[serde(default)]
     assets: Vec<GhAsset>,
 }
@@ -69,6 +71,8 @@ pub struct Release {
     /// Without the leading `v`.
     pub version: String,
     pub page: String,
+    /// What is new, as GitHub shows it (Markdown).
+    notes: String,
     /// The installer for this system, if it can be installed from the app
     /// (and has already been published).
     asset: Option<Asset>,
@@ -178,15 +182,86 @@ fn agent() -> ureq::Agent {
         .into()
 }
 
+/// GitHub refused because this network asked too often (without signing in, it
+/// answers 60 requests an hour per address). `until` is when it answers again, as a Unix time.
+#[derive(Debug)]
+struct RateLimited {
+    until: Option<i64>,
+}
+
+impl std::fmt::Display for RateLimited {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("GitHub allows only a limited number of requests per hour from one network")
+    }
+}
+
+impl std::error::Error for RateLimited {}
+
+/// Is an answer "too many requests", and until when? `Some(None)`: yes, but GitHub did not say
+/// until when. The header values are as GitHub sends them.
+fn rate_limited(
+    status: u16,
+    remaining: Option<&str>,
+    retry_after: Option<&str>,
+    reset: Option<&str>,
+    now: i64,
+) -> Option<Option<i64>> {
+    if !matches!(status, 403 | 429) || (remaining != Some("0") && retry_after.is_none() && status != 429) {
+        return None;
+    }
+    let seconds = retry_after.and_then(|s| s.trim().parse::<i64>().ok());
+    Some(reset.and_then(|s| s.trim().parse::<i64>().ok()).or(seconds.map(|s| now + s)))
+}
+
+/// The sentence for a refused check, with the time of day (local) when GitHub answers again.
+fn rate_limit_text(until: Option<i64>) -> String {
+    let at = until
+        .and_then(|t| chrono::DateTime::from_timestamp(t, 0))
+        .map(|t| t.with_timezone(&chrono::Local).format("%H:%M").to_string());
+    match at {
+        Some(time) => trf(
+            "GitHub allows only a limited number of update checks per hour from one network. Try again after {time}.",
+            &[("time", &time)],
+        ),
+        None => {
+            tr("GitHub allows only a limited number of update checks per hour from one network. Try again in a while.")
+                .to_string()
+        }
+    }
+}
+
 /// Asks GitHub for the latest release. `None` means this is the newest.
 pub fn check() -> Result<Option<Release>> {
-    let text = agent()
-        .get(LATEST)
+    // Development aid: WDFR_UPDATE_URL asks another address (a stand-in for GitHub's answers).
+    #[cfg(debug_assertions)]
+    let url = std::env::var("WDFR_UPDATE_URL").unwrap_or_else(|_| LATEST.to_string());
+    #[cfg(not(debug_assertions))]
+    let url = LATEST;
+    // The status is read here, not turned into an error, to tell "too many requests" from the rest.
+    let mut response = agent()
+        .get(url)
         .header("Accept", "application/vnd.github+json")
+        .config()
+        .http_status_as_error(false)
+        .build()
         .call()
-        .context("could not reach GitHub")?
-        .body_mut()
-        .read_to_string()?;
+        .context("could not reach GitHub")?;
+    let status = response.status().as_u16();
+    if !(200..300).contains(&status) {
+        let header = |name: &str| response.headers().get(name).and_then(|v| v.to_str().ok()).map(str::to_string);
+        let now = chrono::Utc::now().timestamp();
+        if let Some(until) = rate_limited(
+            status,
+            header("x-ratelimit-remaining").as_deref(),
+            header("retry-after").as_deref(),
+            header("x-ratelimit-reset").as_deref(),
+            now,
+        ) {
+            return Err(RateLimited { until }.into());
+        }
+        bail!("GitHub answered with status {status}");
+    }
+    let text = response.body_mut().read_to_string()?;
     let gh: GhRelease = serde_json::from_str(&text).context("unexpected answer from GitHub")?;
     let version = gh.tag_name.trim_start_matches('v').to_string();
     if gh.draft || gh.prerelease || !is_newer(&version, current()) {
@@ -201,13 +276,18 @@ pub fn check() -> Result<Option<Release>> {
             sha256: a.digest.and_then(|d| d.strip_prefix("sha256:").map(str::to_ascii_lowercase)),
         })
     });
-    Ok(Some(Release { version, page: gh.html_url, asset }))
+    let notes = gh.body.unwrap_or_default().chars().take(4000).collect();
+    Ok(Some(Release { version, page: gh.html_url, notes, asset }))
 }
 
 /// Downloads the installer of `release` into a new temporary folder and
-/// checks it.
-pub fn download(release: &Release, progress: &dyn Progress, cancel: &AtomicBool) -> Result<PathBuf> {
+/// checks it. Returns the file and its SHA-256, which [`install`] checks
+/// again right before running it.
+pub fn download(release: &Release, progress: &dyn Progress, cancel: &AtomicBool) -> Result<(PathBuf, String)> {
     let Some(asset) = &release.asset else { bail!("no installer for this system") };
+    // GitHub publishes a checksum for every file; without one there is
+    // nothing to check the download against.
+    ensure!(asset.sha256.is_some(), "the update has no checksum");
     let dir = std::env::temp_dir().join(format!("wdfr-update-{}", release.version));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir)?;
@@ -236,12 +316,26 @@ pub fn download(release: &Release, progress: &dyn Progress, cancel: &AtomicBool)
     file.sync_all()?;
     drop(file);
     ensure!(total == asset.size, "the download is incomplete");
-    if let Some(want) = &asset.sha256 {
-        let got: String = hash.finalize().iter().map(|b| format!("{b:02x}")).collect();
-        ensure!(&got == want, "the download is damaged (checksum mismatch)");
-    }
+    let want = asset.sha256.clone().unwrap_or_default();
+    let got: String = hash.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    ensure!(got == want, "the download is damaged (checksum mismatch)");
     progress.end();
-    Ok(path)
+    Ok((path, want))
+}
+
+/// The SHA-256 of what `file` reads, in hex.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn sha256_hex(file: &mut impl Read) -> Result<String> {
+    let mut hash = Sha256::new();
+    let mut buf = vec![0; 256 * 1024];
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hash.update(&buf[..n]);
+    }
+    Ok(hash.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
 
 /// Shell-quotes `s` for `sh`.
@@ -270,18 +364,32 @@ fn after_exit(script: &str) -> Result<()> {
 /// Starts installing the downloaded `file`. On success the app must close
 /// right away: the installation continues without it and starts the new
 /// version.
-pub fn install(file: &Path) -> Result<()> {
+pub fn install(file: &Path, sha256: &str) -> Result<()> {
+    let _ = sha256;
     match kind() {
         #[cfg(windows)]
         Kind::Setup => {
+            use std::os::windows::fs::OpenOptionsExt;
             use std::os::windows::process::CommandExt;
             // DETACHED_PROCESS: the setup outlives the app it replaces.
             const DETACHED_PROCESS: u32 = 0x0000_0008;
+            const FILE_SHARE_READ: u32 = 1;
+            // The setup runs from the user's temporary folder, perhaps long
+            // after the download ("Update later"): held open so that nothing
+            // can change it (others may only read), and checked again, until
+            // it has started.
+            let mut held = std::fs::OpenOptions::new()
+                .read(true)
+                .share_mode(FILE_SHARE_READ)
+                .open(file)
+                .context("could not open the downloaded setup")?;
+            ensure!(sha256_hex(&mut held)? == sha256, "the setup changed after it was downloaded");
             std::process::Command::new(file)
                 .args(["/S", "/R"])
                 .creation_flags(DETACHED_PROCESS)
                 .spawn()
                 .context("could not start the setup")?;
+            drop(held);
             Ok(())
         }
         #[cfg(target_os = "macos")]
@@ -368,7 +476,12 @@ pub struct Updater {
     release: Option<Release>,
     /// Checked: this is the newest version.
     latest: bool,
-    download: Option<Job<PathBuf>>,
+    download: Option<Job<(PathBuf, String)>>,
+    /// The update is downloaded and checked: the file and its SHA-256. It is
+    /// installed when the user chooses to restart; until then it just waits.
+    ready: Option<(PathBuf, String)>,
+    /// The installation has started: the app must close now.
+    restart: bool,
     error: Option<String>,
     dialog: bool,
 }
@@ -377,7 +490,8 @@ impl Updater {
     /// Asks GitHub in the background. A `manual` check shows its result; a
     /// check at start only shows the update button if there is one.
     pub fn check(&mut self, ctx: &egui::Context, manual: bool) {
-        if self.checking.is_some() || self.download.is_some() {
+        // Not while an update is downloaded and waiting: it is for this release.
+        if self.checking.is_some() || self.download.is_some() || self.ready.is_some() {
             return;
         }
         self.error = None;
@@ -399,6 +513,11 @@ impl Updater {
                     self.dialog |= manual;
                 }
                 Ok(None) => self.latest = true,
+                // Too many checks from this network: said as it is, not as "could not reach".
+                Err(e) if manual && e.downcast_ref::<RateLimited>().is_some() => {
+                    let until = e.downcast_ref::<RateLimited>().and_then(|r| r.until);
+                    self.error = Some(rate_limit_text(until))
+                }
                 Err(e) if manual => {
                     self.error = Some(trf("Could not check for updates: {error}", &[("error", &format!("{e:#}"))]))
                 }
@@ -411,8 +530,13 @@ impl Updater {
                 Some(result) => {
                     let cancelled = job.stopping();
                     self.download = None;
-                    match result.and_then(|file| install(&file)) {
-                        Ok(()) => return true,
+                    match result {
+                        // Downloaded: nothing is installed yet. The user is asked first, since
+                        // installing closes the app (and a running scan with it).
+                        Ok(file) => {
+                            self.ready = Some(file);
+                            self.dialog = true;
+                        }
                         Err(_) if cancelled => {}
                         Err(e) => {
                             self.error =
@@ -422,7 +546,7 @@ impl Updater {
                 }
             }
         }
-        false
+        std::mem::take(&mut self.restart)
     }
 
     /// Development aid: "Update now" for the update tour.
@@ -449,7 +573,12 @@ impl Updater {
     /// The button that announces an update, for the top bar or the sidebar.
     pub fn button(&mut self, ui: &mut Ui, p: &Palette) {
         let Some(version) = self.available() else { return };
-        let label = format!("{}  {}", icon::ARROW_CIRCLE_UP, trf("Update to {version}", &[("version", &version)]));
+        // Downloaded and waiting for the restart ("Update later" was chosen).
+        let label = if self.ready.is_some() {
+            format!("{}  {}", icon::ARROW_CIRCLE_UP, tr("Restart to update"))
+        } else {
+            format!("{}  {}", icon::ARROW_CIRCLE_UP, trf("Update to {version}", &[("version", &version)]))
+        };
         if theme::primary_button(ui, p, &label, true).clicked() {
             self.dialog = true;
         }
@@ -499,7 +628,8 @@ impl Updater {
             ui.set_width(460.0);
             ui.horizontal(|ui| {
                 ui.label(RichText::new(icon::ARROW_CIRCLE_UP).size(26.0).color(p.accent));
-                ui.label(theme::semibold(tr("Update available"), 18.0).color(p.text));
+                let title = if self.ready.is_some() { tr("Update ready") } else { tr("Update available") };
+                ui.label(theme::semibold(title, 18.0).color(p.text));
             });
             ui.add_space(8.0);
             theme::paragraph(
@@ -511,8 +641,54 @@ impl Updater {
                 14.5,
                 p.text,
             );
-            ui.hyperlink_to(icon_label(icon::LIST_BULLETS, "What's new"), &release.page);
+            ui.add_space(4.0);
+            if !release.notes.trim().is_empty() {
+                ui.label(theme::semibold(tr("What's new"), 15.0).color(p.accent));
+                egui::ScrollArea::vertical().id_salt("update-notes").max_height(230.0).auto_shrink([false, true]).show(
+                    ui,
+                    |ui| notes_ui(ui, p, &release.notes),
+                );
+            }
+            ui.hyperlink_to(icon_label(icon::LIST_BULLETS, "Open the release page"), &release.page);
             ui.add_space(8.0);
+
+            // Downloaded and checked: nothing happens until the user says so. Installing
+            // closes the app, which ends a scan that is running.
+            if let Some((file, sha256)) = self.ready.clone() {
+                theme::paragraph(
+                    ui,
+                    trl("The update is downloaded. Restart now to install it, or choose Update later and restart when it suits you."),
+                    14.5,
+                    p.text,
+                );
+                if busy {
+                    ui.add_space(4.0);
+                    theme::paragraph(ui, trl("Finish or stop the current scan or save first."), 14.5, p.warning);
+                }
+                if let Some(e) = &self.error {
+                    ui.add_space(4.0);
+                    theme::paragraph(ui, e, 14.5, p.danger);
+                }
+                ui.add_space(12.0);
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if theme::primary_button(ui, p, &format!("  {}  ", tr("Restart now")), !busy).clicked() {
+                        self.error = None;
+                        match install(&file, &sha256) {
+                            Ok(()) => self.restart = true,
+                            Err(e) => {
+                                self.error = Some(trf(
+                                    "The update could not be installed: {error}",
+                                    &[("error", &format!("{e:#}"))],
+                                ))
+                            }
+                        }
+                    }
+                    if theme::secondary_button(ui, tr("Update later")).clicked() {
+                        self.dialog = false;
+                    }
+                });
+                return;
+            }
 
             if let Some(job) = &self.download {
                 let state = job.progress.snapshot();
@@ -582,6 +758,79 @@ impl Updater {
     }
 }
 
+/// A line of release notes.
+#[derive(Debug, PartialEq)]
+enum Note {
+    Heading(String),
+    Bullet(String),
+    Text(String),
+    Gap,
+}
+
+/// Release notes (Markdown as GitHub shows it) as lines to draw: headings,
+/// bullets and text, without the marks (`**`, backticks, links).
+fn parse_notes(text: &str) -> Vec<Note> {
+    let clean = |s: &str| {
+        let mut out = s.replace("**", "").replace('`', "");
+        // [text](address) → text
+        while let (Some(a), Some(b)) = (out.find("]("), out.find('[')) {
+            let Some(end) = out[a..].find(')') else { break };
+            if b >= a {
+                break;
+            }
+            let label = out[b + 1..a].to_string();
+            out.replace_range(b..a + end + 1, &label);
+        }
+        out.trim().to_string()
+    };
+    let mut notes = Vec::new();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() {
+            if !matches!(notes.last(), Some(Note::Gap) | None) {
+                notes.push(Note::Gap);
+            }
+        } else if let Some(h) = line.trim_start_matches('#').strip_prefix(' ').filter(|_| line.starts_with('#')) {
+            // The version heading repeats what the dialog says.
+            let h = clean(h);
+            if !h.chars().next().is_some_and(|c| c.is_ascii_digit() || c == 'v') {
+                notes.push(Note::Heading(h));
+            }
+        } else if let Some(b) = line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) {
+            notes.push(Note::Bullet(clean(b)));
+        } else if let Some(Note::Bullet(last)) = notes.last_mut() {
+            // A bullet written over several lines is one bullet.
+            last.push(' ');
+            last.push_str(&clean(line));
+        } else {
+            notes.push(Note::Text(clean(line)));
+        }
+    }
+    notes
+}
+
+fn notes_ui(ui: &mut Ui, p: &Palette, text: &str) {
+    for note in parse_notes(text) {
+        match note {
+            Note::Gap => ui.add_space(4.0),
+            Note::Heading(h) => {
+                ui.add_space(2.0);
+                ui.label(theme::semibold(h, 14.5).color(p.text));
+            }
+            Note::Bullet(b) => {
+                ui.horizontal_top(|ui| {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new("•").color(p.accent));
+                    ui.add(egui::Label::new(RichText::new(b).color(p.text).size(13.5)).wrap());
+                });
+            }
+            Note::Text(t) => {
+                ui.add(egui::Label::new(RichText::new(t).color(p.weak).size(13.5)).wrap());
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -594,6 +843,22 @@ mod tests {
         assert!(!is_newer("0.3.0", "0.3.1"));
         assert!(!is_newer("garbage", "0.3.1"));
         assert_eq!(parse_version("v1.2.3-beta.1"), Some([1, 2, 3]));
+    }
+
+    #[test]
+    fn too_many_requests_are_told_from_other_refusals() {
+        // GitHub's answer with no requests left: 403 and the time the count starts again.
+        assert_eq!(rate_limited(403, Some("0"), None, Some("1793360218"), 1000), Some(Some(1793360218)));
+        // 429, or a Retry-After: wait that many seconds from now.
+        assert_eq!(rate_limited(429, None, Some("90"), None, 1000), Some(Some(1090)));
+        assert_eq!(rate_limited(403, Some("12"), Some("60"), None, 1000), Some(Some(1060)));
+        // Too many, but no time said.
+        assert_eq!(rate_limited(429, None, None, None, 1000), Some(None));
+        // Another 403 (blocked, no right to it) or other errors are not about the count.
+        assert_eq!(rate_limited(403, Some("12"), None, Some("1793360218"), 1000), None);
+        assert_eq!(rate_limited(403, None, None, None, 1000), None);
+        assert_eq!(rate_limited(404, Some("0"), None, None, 1000), None);
+        assert_eq!(rate_limited(500, None, Some("5"), None, 1000), None);
     }
 
     #[test]

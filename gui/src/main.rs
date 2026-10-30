@@ -32,17 +32,36 @@ fn icon() -> egui::IconData {
         .unwrap_or_default()
 }
 
-/// On Windows wgpu draws with DirectX 12, never Vulkan: Intel's Vulkan driver
-/// crashes the whole process (an access violation no fallback can catch) on
-/// some computers. Other systems keep wgpu's own choice.
+/// The built-in graphics chip rather than waking a separate one (laptops with
+/// two often fail or start slowly), and on Windows DirectX 12 rather than
+/// Vulkan, whose Intel and AMD drivers are the least reliable (Intel's crashed
+/// the whole app at start, which no fallback can catch).
 fn wgpu_options() -> eframe::egui_wgpu::WgpuConfiguration {
-    #[allow(unused_mut)]
-    let mut options = eframe::egui_wgpu::WgpuConfiguration::default();
-    #[cfg(windows)]
-    if let eframe::egui_wgpu::WgpuSetup::CreateNew(create_new) = &mut options.wgpu_setup {
-        create_new.instance_descriptor.backends = eframe::egui_wgpu::wgpu::Backends::DX12;
+    use eframe::egui_wgpu::{WgpuConfiguration, WgpuSetup};
+    use eframe::wgpu;
+    let mut config = WgpuConfiguration::default();
+    if let WgpuSetup::CreateNew(setup) = &mut config.wgpu_setup {
+        setup.power_preference = wgpu::PowerPreference::from_env().unwrap_or(wgpu::PowerPreference::LowPower);
+        if cfg!(windows) && wgpu::Backends::from_env().is_none() {
+            setup.instance_descriptor.backends = wgpu::Backends::DX12;
+        }
     }
-    options
+    config
+}
+
+/// Where the app notes that this computer needs OpenGL.
+fn glow_marker() -> Option<std::path::PathBuf> {
+    Some(logfile::path()?.with_file_name("use-opengl"))
+}
+
+/// OpenGL instead of wgpu: after wgpu failed here, or when asked
+/// (WDFR_RENDERER=glow or wgpu).
+fn use_glow() -> bool {
+    match std::env::var("WDFR_RENDERER").as_deref() {
+        Ok("glow") => true,
+        Ok("wgpu") => false,
+        _ => glow_marker().is_some_and(|m| m.exists()),
+    }
 }
 
 fn main() -> eframe::Result {
@@ -94,19 +113,24 @@ fn main() -> eframe::Result {
             Box::new(|cc| Ok(Box::new(app::App::new(cc)))),
         )
     };
-    // Some graphics drivers (older Intel ones on Windows in particular)
-    // refuse the modern renderer now and then: OpenGL then still works.
-    #[allow(unused_mut)]
-    let mut first = eframe::Renderer::Wgpu;
-    // Development aid: try the fallback renderer.
-    #[cfg(debug_assertions)]
-    if std::env::var_os("WDFR_GLOW").is_some() {
-        first = eframe::Renderer::Glow;
+    let glow = use_glow();
+    let result = run(if glow { eframe::Renderer::Glow } else { eframe::Renderer::Wgpu });
+    if let Err(e) = &result {
+        log::error!("starting with {} failed: {e}", if glow { "OpenGL" } else { "wgpu" });
     }
-    let result = run(first).or_else(|e| {
-        log::error!("starting with wgpu failed: {e}; trying OpenGL");
-        run(eframe::Renderer::Glow)
-    });
+    if result.is_err()
+        && !glow
+        && let Some(marker) = glow_marker()
+    {
+        // The graphics driver refused wgpu: start again with OpenGL, and keep
+        // using it (a second window loop is not allowed in one process).
+        let _ = std::fs::write(marker, "wgpu could not start\n");
+        if let Ok(exe) = std::env::current_exe()
+            && std::process::Command::new(exe).args(std::env::args_os().skip(1)).spawn().is_ok()
+        {
+            return Ok(());
+        }
+    }
     if let Err(e) = &result {
         log::error!("the window could not be opened: {e}");
         log::logger().flush();

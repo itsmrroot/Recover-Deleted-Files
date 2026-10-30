@@ -5,6 +5,23 @@
 //! both tables, with the same `{placeholders}`.
 
 pub const GERMAN: &[(&str, &str)] = &[
+    ("Update ready", "Update bereit"),
+    ("Restart now", "Jetzt neu starten"),
+    ("Update later", "Später aktualisieren"),
+    ("Restart to update", "Zum Aktualisieren neu starten"),
+    (
+        "The update is downloaded. Restart now to install it, or choose Update later and restart when it suits you.",
+        "Das Update ist heruntergeladen. Jetzt neu starten und installieren, oder „Später aktualisieren“ wählen und neu starten, wenn es passt.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again after {time}.",
+        "GitHub erlaubt nur eine begrenzte Zahl von Update-Prüfungen pro Stunde aus einem Netzwerk. Bitte nach {time} erneut versuchen.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again in a while.",
+        "GitHub erlaubt nur eine begrenzte Zahl von Update-Prüfungen pro Stunde aus einem Netzwerk. Bitte später erneut versuchen.",
+    ),
+    ("Open the release page", "Seite dieser Version öffnen"),
     // Navigation and titles
     ("Deleted Files", "Gelöschte Dateien"),
     ("Recovery", "Wiederherstellung"),
@@ -818,6 +835,23 @@ pub const GERMAN: &[(&str, &str)] = &[
 ];
 
 pub const ARABIC: &[(&str, &str)] = &[
+    ("Update ready", "التحديث جاهز"),
+    ("Restart now", "إعادة التشغيل الآن"),
+    ("Update later", "التحديث لاحقا"),
+    ("Restart to update", "إعادة التشغيل للتحديث"),
+    (
+        "The update is downloaded. Restart now to install it, or choose Update later and restart when it suits you.",
+        "تم تنزيل التحديث. أعد التشغيل الآن لتثبيته، أو اختر «التحديث لاحقا» وأعد التشغيل عندما يناسبك.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again after {time}.",
+        "يسمح GitHub بعدد محدود فقط من عمليات التحقق من التحديثات في الساعة من شبكة واحدة. حاول مرة أخرى بعد {time}.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again in a while.",
+        "يسمح GitHub بعدد محدود فقط من عمليات التحقق من التحديثات في الساعة من شبكة واحدة. حاول مرة أخرى بعد قليل.",
+    ),
+    ("Open the release page", "فتح صفحة الإصدار"),
     // Navigation and titles
     ("Deleted Files", "الملفات المحذوفة"),
     ("Recovery", "استعادة"),
@@ -1574,6 +1608,23 @@ pub const ARABIC: &[(&str, &str)] = &[
 ];
 
 pub const SPANISH: &[(&str, &str)] = &[
+    ("Update ready", "Actualización lista"),
+    ("Restart now", "Reiniciar ahora"),
+    ("Update later", "Actualizar más tarde"),
+    ("Restart to update", "Reiniciar para actualizar"),
+    (
+        "The update is downloaded. Restart now to install it, or choose Update later and restart when it suits you.",
+        "La actualización está descargada. Reinicia ahora para instalarla, o elige «Actualizar más tarde» y reinicia cuando te venga bien.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again after {time}.",
+        "GitHub permite solo un número limitado de comprobaciones de actualizaciones por hora desde una misma red. Inténtalo de nuevo después de las {time}.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again in a while.",
+        "GitHub permite solo un número limitado de comprobaciones de actualizaciones por hora desde una misma red. Inténtalo de nuevo en un rato.",
+    ),
+    ("Open the release page", "Abrir la página de la versión"),
     // Navigation and titles
     ("Deleted Files", "Archivos borrados"),
     ("Recovery", "Recuperación"),
@@ -2375,6 +2426,23 @@ pub const SPANISH: &[(&str, &str)] = &[
 ];
 
 pub const FRENCH: &[(&str, &str)] = &[
+    ("Update ready", "Mise à jour prête"),
+    ("Restart now", "Redémarrer maintenant"),
+    ("Update later", "Mettre à jour plus tard"),
+    ("Restart to update", "Redémarrer pour mettre à jour"),
+    (
+        "The update is downloaded. Restart now to install it, or choose Update later and restart when it suits you.",
+        "La mise à jour est téléchargée. Redémarrer maintenant pour l’installer, ou choisir « Mettre à jour plus tard » et redémarrer quand cela convient.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again after {time}.",
+        "GitHub n’autorise qu’un nombre limité de recherches de mises à jour par heure depuis un même réseau. Réessayez après {time}.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again in a while.",
+        "GitHub n’autorise qu’un nombre limité de recherches de mises à jour par heure depuis un même réseau. Réessayez dans un moment.",
+    ),
+    ("Open the release page", "Ouvrir la page de la version"),
     // Navigation and titles
     ("Deleted Files", "Fichiers supprimés"),
     ("Recovery", "Récupération"),
@@ -3185,6 +3253,23 @@ pub const FRENCH: &[(&str, &str)] = &[
 ];
 
 pub const RUSSIAN: &[(&str, &str)] = &[
+    ("Update ready", "Обновление готово"),
+    ("Restart now", "Перезапустить сейчас"),
+    ("Update later", "Обновить позже"),
+    ("Restart to update", "Перезапустить для обновления"),
+    (
+        "The update is downloaded. Restart now to install it, or choose Update later and restart when it suits you.",
+        "Обновление загружено. Перезапустите приложение сейчас, чтобы установить его, или выберите «Обновить позже» и перезапустите, когда будет удобно.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again after {time}.",
+        "GitHub разрешает лишь ограниченное число проверок обновлений в час с одной сети. Повторите попытку после {time}.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again in a while.",
+        "GitHub разрешает лишь ограниченное число проверок обновлений в час с одной сети. Повторите попытку чуть позже.",
+    ),
+    ("Open the release page", "Открыть страницу версии"),
     // Navigation and titles
     ("Deleted Files", "Удалённые файлы"),
     ("Recovery", "Восстановление"),
@@ -3980,6 +4065,23 @@ pub const RUSSIAN: &[(&str, &str)] = &[
 ];
 
 pub const CHINESE: &[(&str, &str)] = &[
+    ("Update ready", "更新已准备好"),
+    ("Restart now", "立即重启"),
+    ("Update later", "稍后更新"),
+    ("Restart to update", "重启以更新"),
+    (
+        "The update is downloaded. Restart now to install it, or choose Update later and restart when it suits you.",
+        "更新已下载。立即重启以安装，或选择“稍后更新”，在方便时再重启。",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again after {time}.",
+        "GitHub 限制同一网络每小时的更新检查次数。请在 {time} 之后重试。",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again in a while.",
+        "GitHub 限制同一网络每小时的更新检查次数。请稍后重试。",
+    ),
+    ("Open the release page", "打开版本页面"),
     // Navigation and titles
     ("Deleted Files", "已删除文件"),
     ("Recovery", "恢复"),
@@ -4709,6 +4811,23 @@ pub const CHINESE: &[(&str, &str)] = &[
 ];
 
 pub const TURKISH: &[(&str, &str)] = &[
+    ("Update ready", "Güncelleme hazır"),
+    ("Restart now", "Şimdi yeniden başlat"),
+    ("Update later", "Sonra güncelle"),
+    ("Restart to update", "Güncellemek için yeniden başlat"),
+    (
+        "The update is downloaded. Restart now to install it, or choose Update later and restart when it suits you.",
+        "Güncelleme indirildi. Yüklemek için şimdi yeniden başlatın veya “Sonra güncelle” seçeneğini seçip size uygun olduğunda yeniden başlatın.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again after {time}.",
+        "GitHub, aynı ağdan saatte yalnızca sınırlı sayıda güncelleme denetimine izin verir. {time} sonrasında yeniden deneyin.",
+    ),
+    (
+        "GitHub allows only a limited number of update checks per hour from one network. Try again in a while.",
+        "GitHub, aynı ağdan saatte yalnızca sınırlı sayıda güncelleme denetimine izin verir. Biraz sonra yeniden deneyin.",
+    ),
+    ("Open the release page", "Sürüm sayfasını aç"),
     // Navigation and titles
     ("Deleted Files", "Silinen Dosyalar"),
     ("Recovery", "Kurtarma"),
