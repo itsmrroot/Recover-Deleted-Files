@@ -42,7 +42,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          git log -1 --format=%B "$GITHUB_SHA" > notes.md
+          # This version's section of CHANGES.md; the commit message if it has none.
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '/^## /{p = ($2 == v); next} p' CHANGES.md > notes.md
+          [ -s notes.md ] || git log -1 --format=%B "$GITHUB_SHA" > notes.md
           gh release view "$GITHUB_REF_NAME" -R "$PUBLIC_REPO" >/dev/null 2>&1 ||
             gh release create "$GITHUB_REF_NAME" -R "$PUBLIC_REPO" --target main --title "$GITHUB_REF_NAME" --notes-file notes.md
       - name: Create the release here too
